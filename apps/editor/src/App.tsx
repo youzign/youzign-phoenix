@@ -3,10 +3,12 @@ import { parse } from "@youzign/designstring";
 import { DesignCanvas } from "@youzign/renderer";
 import inputXml from "./fixtures/mountains-input.xml?raw";
 import outputXml from "./fixtures/mountains-output.xml?raw";
+import clipartLocalXml from "./fixtures/clipart-local.xml?raw";
 
 const FIXTURES: Record<string, string> = {
   "mountains-input.xml": inputXml,
   "mountains-output.xml": outputXml,
+  "clipart-local.xml": clipartLocalXml,
 };
 
 export function App() {

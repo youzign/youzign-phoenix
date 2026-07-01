@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Two Layer-tagged groups: proves the legacy per-layer @@@ recolor mapping. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <g id="shape_Layer1_">
+    <path d="M8 8 H92 V50 H8 Z" fill="#aaaaaa"/>
+  </g>
+  <g id="shape_Layer2_">
+    <path d="M8 50 H92 V92 H8 Z" fill="#cccccc"/>
+  </g>
+</svg>

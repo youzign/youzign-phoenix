@@ -41,7 +41,8 @@ Both legacy sample designstrings are committed verbatim as fixtures at
 | --- | --- |
 | Canvas solid background (`bg_type="color"`) | Patterns (`bg_type="pattern"`) |
 | Gradient background (linear + radial, legacy angle mapping) — unit-tested | Background image (`bg_type="image"`) |
-| Images with graceful 404 → bounded placeholder showing the URL | SWF/SVG clipart **shape** rendering (currently a colored bounded box) |
+| Images with graceful 404 → bounded placeholder showing the URL | SWF (Flash) clipart source (`.swf` legacy URLs; the `source_svg` equivalent renders) |
+| SVG clipart: fetched, sanitized, inlined, and recolored (legacy per-`Layer` `@@@` color bands → path `fill`); non-SVG source falls back to the image path; 404 → colored bounded placeholder | |
 | Per-glyph text color (runs merged into `<span>`s) | `text-curved` layout (parsed & round-tripped, not yet laid out on an arc) |
 | Text positioning via the Flash text matrix (`mcWidth/textAreaWidth` scale) | Shadows (`shadow_*`) |
 | Groups / one-level nesting, group scale/rotation/opacity | Blur (`is_blur`, `blur_size`) |
@@ -70,3 +71,11 @@ Tests assert the algorithm-faithful values.
 `mountains-input.xml` design rendered at zoom 0.6. The S3 hero photo 404s (expected;
 the bounded placeholder is the deliverable), so the dark-gray Arvo text sits over a
 placeholder rather than the photo.
+
+`docs/shots/clipart.png` — the offline `clipart-local.xml` fixture (local SVGs in
+`apps/editor/public/clipart/`) proving clipart rendering fully without network:
+recolored triangle/circle/star, a two-`Layer` "duo" SVG showing per-band `@@@`
+recoloring (blue top / pink bottom), and a rotated star. The real triangle-cluster
+clipart in `mountains-input.xml` points at live S3/youzign.com URLs that 404 in this
+environment and falls back to the bounded placeholder. Regenerate with
+`node scripts/shot-clipart.mjs` (dev server running on :5191).

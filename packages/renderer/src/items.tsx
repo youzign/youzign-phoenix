@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import {
   signedIntToHex,
@@ -9,6 +9,7 @@ import {
   type TextItem,
 } from "@youzign/designstring";
 import { boxTopLeft, flipTransform, matrixToCss, textPlacement } from "./geometry.js";
+import { inlineClipartSvg, isSvgSource } from "./clipart.js";
 
 /** Render an item by type. */
 export function ItemView({ item }: { item: Item }) {
@@ -140,24 +141,82 @@ function TextItemView({ item }: { item: TextItem }) {
 
 function ClipartItemView({ item }: { item: ClipartItem }) {
   const { left, top } = boxTopLeft(item);
-  const fill = item.colors.length ? signedIntToHex(item.colors[0]) : "#888888";
-  // SWF/SVG shape rendering is pending: draw a bounded placeholder box.
-  return (
-    <div
-      title={`clipart (pending shape) · ${item.source || item.sourceSvg}`}
-      style={{
-        position: "absolute",
-        left,
-        top,
-        width: item.width,
-        height: item.height,
-        background: fill,
-        opacity: item.opacity,
-        transformOrigin: "center center",
-        transform: `rotate(${item.rotation}deg) ${flipTransform(item.hFlip, item.vFlip)}`.trim(),
-      }}
-    />
-  );
+  const url = item.sourceSvg || item.source;
+  const svgIsSource = isSvgSource(url);
+
+  const [markup, setMarkup] = useState<string | null>(null);
+  const [errored, setErrored] = useState(false);
+
+  useEffect(() => {
+    if (!svgIsSource || !url) return;
+    let cancelled = false;
+    setMarkup(null);
+    setErrored(false);
+    fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.text();
+      })
+      .then((text) => {
+        if (cancelled) return;
+        const inlined = inlineClipartSvg(text, item.colors, item.width, item.height);
+        if (inlined) setMarkup(inlined.markup);
+        else setErrored(true);
+      })
+      .catch(() => {
+        if (!cancelled) setErrored(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, svgIsSource, item.width, item.height, item.colors.join(",")]);
+
+  const boxStyle: CSSProperties = {
+    position: "absolute",
+    left,
+    top,
+    width: item.width,
+    height: item.height,
+    opacity: item.opacity,
+    transformOrigin: "center center",
+    transform: `rotate(${item.rotation}deg) ${flipTransform(item.hFlip, item.vFlip)}`.trim(),
+  };
+
+  // Non-SVG clipart (PNG source) reuses the standard image render path.
+  if (!svgIsSource) {
+    return (
+      <ImageItemView
+        item={{ ...(item as unknown as ImageItem), type: "image", source: url }}
+      />
+    );
+  }
+
+  // SVG fetched + recolored + inlined.
+  if (markup) {
+    return (
+      <div style={boxStyle} dangerouslySetInnerHTML={{ __html: markup }} />
+    );
+  }
+
+  // 404 / parse failure: graceful bounded placeholder (colored by first fill).
+  if (errored) {
+    const fill = item.colors.length ? signedIntToHex(item.colors[0]) : "#888888";
+    return (
+      <div
+        title={`clipart 404 · ${url}`}
+        style={{
+          ...boxStyle,
+          background: fill,
+          border: "2px dashed rgba(255,255,255,0.35)",
+          boxSizing: "border-box",
+        }}
+      />
+    );
+  }
+
+  // Loading.
+  return <div style={boxStyle} />;
 }
 
 function GroupItemView({ item }: { item: GroupItem }) {
