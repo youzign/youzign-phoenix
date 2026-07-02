@@ -20,6 +20,7 @@ export type IconName =
   | "check"
   | "chevron-down"
   | "image-off"
+  | "image"
   | "type"
   | "bring-front"
   | "send-back"
@@ -61,6 +62,13 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M21 15V5a2 2 0 0 0-2-2H9M3 3l18 18" />
       <path d="M3 7v12a2 2 0 0 0 2 2h12M8.5 10.5 3 17" />
+    </>
+  ),
+  image: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <path d="m21 15-4.5-4.5L4 21" />
     </>
   ),
   type: <path d="M4 7V5h16v2M9 19h6M12 5v14" />,

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   textColorHex,
   shapeFillHex,
-  isShape,
   curveAmount,
   GOOGLE_FONTS,
   fontPatch,
@@ -316,10 +315,11 @@ export function PropertiesPanel() {
 
   const any = item as any;
   const isTextItem = item.type === "text" || item.type === "text-curved";
-  const showFill = isTextItem || isShape(item);
+  const isClipart = item.type === "clipart";
+  const showFill = isTextItem || isClipart;
   const fillHex = isTextItem
     ? textColorHex(item as any)
-    : isShape(item)
+    : isClipart
     ? shapeFillHex(item as any)
     : "#000000";
 

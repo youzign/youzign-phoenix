@@ -63,6 +63,9 @@ importers:
       vite:
         specifier: ^5.4.11
         version: 5.4.21(@types/node@26.0.1)
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@26.0.1)
 
   packages/designstring:
     dependencies:

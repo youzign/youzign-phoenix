@@ -165,14 +165,25 @@ export function textColorHex(item: TextItem): string {
   return signedIntToHex(item.colors.length ? item.colors[0] : 0);
 }
 
-/** Recolor a shape clipart by regenerating its inline SVG data-URI. */
+/**
+ * Recolor a clipart. Two kinds of clipart are recolorable:
+ *   1. parametric shapes (shape_kind) — regenerate the inline SVG data-URI.
+ *   2. generic SVG clipart (Iconify, legacy library) — set the `colors` array
+ *      + `color` attribute; the renderer repaints every fillable path from
+ *      colors[0] (legacy Layer-band fallback), so recoloring "just works".
+ */
 export function setShapeFill(item: ClipartItem, hex: string): void {
   const kind = item.rawAttrs["shape_kind"] as ShapeKind | undefined;
-  if (!kind) return;
-  const uri = shapeDataUri(kind, hex);
-  item.source = uri;
-  setRaw(item, "source", uri);
-  setRaw(item, "shape_fill", hex);
+  if (kind) {
+    const uri = shapeDataUri(kind, hex);
+    item.source = uri;
+    setRaw(item, "source", uri);
+    setRaw(item, "shape_fill", hex);
+    return;
+  }
+  const int = hexToSignedInt(hex);
+  item.colors = [int];
+  setRaw(item, "color", serializeGlyphColors(item.colors));
 }
 
 export function isShape(item: Item): boolean {
@@ -180,7 +191,9 @@ export function isShape(item: Item): boolean {
 }
 
 export function shapeFillHex(item: ClipartItem): string {
-  return item.rawAttrs["shape_fill"] || "#3b82f6";
+  if (item.rawAttrs["shape_fill"]) return item.rawAttrs["shape_fill"];
+  if (item.colors && item.colors.length) return signedIntToHex(item.colors[0]);
+  return "#3b82f6";
 }
 
 // ---- curved text ------------------------------------------------------------
@@ -483,6 +496,158 @@ export function createShapeItem(
     colors: [],
     swfId: "",
     svgId: "",
+  };
+}
+
+/**
+ * Insert a recolorable SVG clipart from an external `.svg` URL (Iconify, legacy
+ * library). Serializes as a legacy `clipart` item — identical shape to the
+ * parametric shapes, minus `shape_kind`/`shape_fill` — so round-trip stays
+ * valid. The `colors` array seeds the renderer's recolor (default dark grey).
+ */
+export function createClipartItem(
+  design: Design,
+  source: string,
+  x: number,
+  y: number,
+  opts: { width?: number; height?: number; color?: string } = {}
+): ClipartItem {
+  const index = nextIndex(design);
+  const width = opts.width ?? 200;
+  const height = opts.height ?? 200;
+  const colorInt = hexToSignedInt(opts.color ?? "#333333");
+  const colorStr = serializeGlyphColors([colorInt]);
+  const pairs: [string, string][] = [
+    ["type", "clipart"],
+    ...COMMON_DEFAULTS(index, x, y, width, height),
+    ["source", source],
+    ["source_svg", ""],
+    ["color", colorStr],
+    ["swf_id", ""],
+    ["svg_id", ""],
+  ];
+  const known = new Set([
+    "type", "index", "xpos", "ypos", "width", "height", "rotation", "opacity",
+    "hFlip", "vFlip", "shadow_distance", "shadow_angle", "shadow_color",
+    "shadow_opacity", "is_shadow", "is_border", "border_size", "border_color",
+    "is_blur", "blur_size", "source", "source_svg", "color", "swf_id", "svg_id",
+  ]);
+  const carrier = carrierFrom(pairs, known);
+  return {
+    type: "clipart",
+    ...carrier,
+    index,
+    xpos: x,
+    ypos: y,
+    width,
+    height,
+    rotation: 0,
+    opacity: 1,
+    hFlip: false,
+    vFlip: false,
+    shadowDistance: 6,
+    shadowAngle: 45,
+    shadowColor: 0,
+    shadowOpacity: 0.26,
+    isShadow: false,
+    isBorder: false,
+    borderSize: 0,
+    borderColor: 0,
+    isBlur: false,
+    blurSize: 0,
+    source,
+    sourceSvg: "",
+    colors: [colorInt],
+    swfId: "",
+    svgId: "",
+  };
+}
+
+/**
+ * Insert a raster image (stock photo). Serializes as a legacy `image` item so
+ * round-trip stays valid. `pixabay` mirrors the legacy provider flag.
+ */
+export function createImageItem(
+  design: Design,
+  source: string,
+  x: number,
+  y: number,
+  size: { width: number; height: number },
+  opts: { pixabay?: boolean } = {}
+): ImageItem {
+  const index = nextIndex(design);
+  const { width, height } = size;
+  const pixabay = opts.pixabay ?? false;
+  const pairs: [string, string][] = [
+    ["type", "image"],
+    ...COMMON_DEFAULTS(index, x, y, width, height),
+    ["source", source],
+    ["color", ""],
+    ["canBeCropped", "true"],
+    ["cropped", "false"],
+    ["pixabay", String(pixabay)],
+  ];
+  const known = new Set([
+    "type", "index", "xpos", "ypos", "width", "height", "rotation", "opacity",
+    "hFlip", "vFlip", "shadow_distance", "shadow_angle", "shadow_color",
+    "shadow_opacity", "is_shadow", "is_border", "border_size", "border_color",
+    "is_blur", "blur_size", "source", "color", "canBeCropped", "cropped", "pixabay",
+  ]);
+  const carrier = carrierFrom(pairs, known);
+  return {
+    type: "image",
+    ...carrier,
+    index,
+    xpos: x,
+    ypos: y,
+    width,
+    height,
+    rotation: 0,
+    opacity: 1,
+    hFlip: false,
+    vFlip: false,
+    shadowDistance: 6,
+    shadowAngle: 45,
+    shadowColor: 0,
+    shadowOpacity: 0.26,
+    isShadow: false,
+    isBorder: false,
+    borderSize: 0,
+    borderColor: 0,
+    isBlur: false,
+    blurSize: 0,
+    source,
+    color: "",
+    canBeCropped: true,
+    cropped: false,
+    pixabay,
+  };
+}
+
+/**
+ * Fit a natural (imgW × imgH) asset into the canvas at ~60% coverage, centred,
+ * returning the insert box. Pure geometry — used by both photo & clipart insert.
+ */
+export function fitToCanvas(
+  design: Design,
+  imgW: number,
+  imgH: number,
+  coverage = 0.6
+): { x: number; y: number; width: number; height: number } {
+  const maxW = design.canvasWidth * coverage;
+  const maxH = design.canvasHeight * coverage;
+  const ratio = imgW > 0 && imgH > 0 ? imgW / imgH : 1;
+  let width = maxW;
+  let height = width / ratio;
+  if (height > maxH) {
+    height = maxH;
+    width = height * ratio;
+  }
+  return {
+    x: design.canvasWidth / 2,
+    y: design.canvasHeight / 2,
+    width: Math.round(width),
+    height: Math.round(height),
   };
 }
 
