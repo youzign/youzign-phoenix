@@ -74,7 +74,42 @@ export function effectFilter(
     parts.push(`drop-shadow(${px(dx)} ${px(dy)} 10px ${color})`);
   }
 
+  // Invert (legacy Main.ts: `invert(<invertIntensity>%)`).
+  if (item.isInvert) {
+    parts.push(`invert(${item.invertIntensity ?? 100}%)`);
+  }
+
   return parts.length ? parts.join(" ") : undefined;
+}
+
+/**
+ * The CSS `mix-blend-mode` for an item, or undefined when normal.
+ * Legacy: `item.style.mixBlendMode = item.data.blendMode` (Main.ts).
+ */
+export function blendModeCss(
+  item: Partial<CommonItemFields>
+): string | undefined {
+  const m = item.blendMode;
+  return m && m !== "normal" ? m : undefined;
+}
+
+/**
+ * The CSS `borderRadius` for an image, or undefined when all corners are 0.
+ * Legacy (Main.ts) sets each corner from inputCorner{TopLeft,…} * scale.
+ * Order: top-left top-right bottom-right bottom-left.
+ */
+export function cornerRadiusCss(item: {
+  inputCornerTopLeft?: number;
+  inputCornerTopRight?: number;
+  inputCornerBottomLeft?: number;
+  inputCornerBottomRight?: number;
+}): string | undefined {
+  const tl = Math.max(0, item.inputCornerTopLeft ?? 0);
+  const tr = Math.max(0, item.inputCornerTopRight ?? 0);
+  const bl = Math.max(0, item.inputCornerBottomLeft ?? 0);
+  const br = Math.max(0, item.inputCornerBottomRight ?? 0);
+  if (!tl && !tr && !bl && !br) return undefined;
+  return `${px(tl)} ${px(tr)} ${px(br)} ${px(bl)}`;
 }
 
 /**

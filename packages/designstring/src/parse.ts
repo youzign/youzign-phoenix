@@ -34,11 +34,17 @@ const COMMON_KNOWN = [
   "type", "index", "xpos", "ypos", "width", "height", "rotation", "opacity",
   "hFlip", "vFlip", "shadow_distance", "shadow_angle", "shadow_color",
   "shadow_opacity", "is_shadow", "is_border", "border_size", "border_color",
-  "is_blur", "blur_size",
+  "is_blur", "blur_size", "blendMode", "isInvert", "invertIntensity",
+];
+
+const IMAGE_CORNER_KNOWN = [
+  "isCornerRadiusIndividual", "inputCornerTopLeft", "inputCornerTopRight",
+  "inputCornerBottomLeft", "inputCornerBottomRight",
 ];
 
 const KNOWN_BY_TYPE: Record<string, Set<string>> = {
-  image: new Set([...COMMON_KNOWN, "source", "color", "canBeCropped", "cropped", "pixabay"]),
+  image: new Set([...COMMON_KNOWN, "source", "color", "canBeCropped", "cropped", "pixabay",
+    ...IMAGE_CORNER_KNOWN]),
   text: new Set([...COMMON_KNOWN, "font", "fontType", "strikethrough", "size", "color",
     "alignment", "scalex", "scaley", "wrapping", "scaleUsed", "textAreaWidth",
     "textAreaHeight", "mcWidth", "mcHeight", "textAreaxpos", "textAreaypos",
@@ -119,6 +125,9 @@ function parseCommon(attrs: Record<string, string>) {
     borderColor: num(attrs, "border_color"),
     isBlur: bool(attrs, "is_blur"),
     blurSize: num(attrs, "blur_size"),
+    blendMode: str(attrs, "blendMode", "normal"),
+    isInvert: bool(attrs, "isInvert"),
+    invertIntensity: num(attrs, "invertIntensity", 100),
   };
 }
 
@@ -163,6 +172,11 @@ function parseItem(node: any): Item {
         canBeCropped: bool(attrs, "canBeCropped"),
         cropped: bool(attrs, "cropped"),
         pixabay: bool(attrs, "pixabay"),
+        isCornerRadiusIndividual: bool(attrs, "isCornerRadiusIndividual"),
+        inputCornerTopLeft: num(attrs, "inputCornerTopLeft"),
+        inputCornerTopRight: num(attrs, "inputCornerTopRight"),
+        inputCornerBottomLeft: num(attrs, "inputCornerBottomLeft"),
+        inputCornerBottomRight: num(attrs, "inputCornerBottomRight"),
       };
     case "text":
       return {

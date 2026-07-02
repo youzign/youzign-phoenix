@@ -60,6 +60,12 @@ const NUM_FIELDS: Record<string, string> = {
   startAngle: "start_angle",
   endAngle: "end_angle",
   radius: "radius",
+  // invert + image corner radius (legacy camelCase attribute names)
+  invertIntensity: "invertIntensity",
+  inputCornerTopLeft: "inputCornerTopLeft",
+  inputCornerTopRight: "inputCornerTopRight",
+  inputCornerBottomLeft: "inputCornerBottomLeft",
+  inputCornerBottomRight: "inputCornerBottomRight",
 };
 const BOOL_FIELDS: Record<string, string> = {
   hFlip: "hFlip",
@@ -74,12 +80,15 @@ const BOOL_FIELDS: Record<string, string> = {
   topDirection: "top_direction",
   useLetterAngle: "use_letter_angle",
   cropped: "cropped",
+  isInvert: "isInvert",
+  isCornerRadiusIndividual: "isCornerRadiusIndividual",
 };
 const STR_FIELDS: Record<string, string> = {
   alignment: "alignment",
   font: "font",
   fontType: "fontType",
   source: "source",
+  blendMode: "blendMode",
 };
 
 export interface ItemPatch {
@@ -114,6 +123,16 @@ export interface ItemPatch {
   borderColor?: number;
   isBlur?: boolean;
   blurSize?: number;
+  // blend mode + invert (legacy per-item attributes)
+  blendMode?: string;
+  isInvert?: boolean;
+  invertIntensity?: number;
+  // image corner radius (legacy uniform + per-corner)
+  isCornerRadiusIndividual?: boolean;
+  inputCornerTopLeft?: number;
+  inputCornerTopRight?: number;
+  inputCornerBottomLeft?: number;
+  inputCornerBottomRight?: number;
   // curved text
   startAngle?: number;
   endAngle?: number;
@@ -449,6 +468,9 @@ export function createTextItem(
     borderColor: 0,
     isBlur: false,
     blurSize: 0,
+    blendMode: "normal",
+    isInvert: false,
+    invertIntensity: 100,
     content,
     font,
     fontType: "External Font",
@@ -540,6 +562,9 @@ export function createShapeItem(
     borderColor: 0,
     isBlur: false,
     blurSize: 0,
+    blendMode: "normal",
+    isInvert: false,
+    invertIntensity: 100,
     source: uri,
     sourceSvg: "",
     colors: [],
@@ -625,6 +650,9 @@ export function createClipartItem(
     borderColor: 0,
     isBlur: false,
     blurSize: 0,
+    blendMode: "normal",
+    isInvert: false,
+    invertIntensity: 100,
     source,
     sourceSvg: "",
     colors,
@@ -686,11 +714,19 @@ export function createImageItem(
     borderColor: 0,
     isBlur: false,
     blurSize: 0,
+    blendMode: "normal",
+    isInvert: false,
+    invertIntensity: 100,
     source,
     color: "",
     canBeCropped: true,
     cropped: false,
     pixabay,
+    isCornerRadiusIndividual: false,
+    inputCornerTopLeft: 0,
+    inputCornerTopRight: 0,
+    inputCornerBottomLeft: 0,
+    inputCornerBottomRight: 0,
   };
 }
 

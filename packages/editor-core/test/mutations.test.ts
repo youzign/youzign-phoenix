@@ -140,6 +140,30 @@ describe("effects: shadow / border / blur attribute mapping", () => {
   });
 });
 
+describe("blend / invert / corner-radius patch → exact legacy attribute names", () => {
+  it("writes blendMode, isInvert, invertIntensity and corner attrs verbatim", () => {
+    const d = parse(XML);
+    const img = d.items.find((i) => i.type === "image") as any;
+    patchItem(img, {
+      blendMode: "screen",
+      isInvert: true,
+      invertIntensity: 60,
+      inputCornerTopLeft: 12,
+      isCornerRadiusIndividual: true,
+    });
+    expect(img.rawAttrs.blendMode).toBe("screen");
+    expect(img.rawAttrs.isInvert).toBe("true");
+    expect(img.rawAttrs.invertIntensity).toBe("60");
+    expect(img.rawAttrs.inputCornerTopLeft).toBe("12");
+    expect(img.rawAttrs.isCornerRadiusIndividual).toBe("true");
+    // survives a serialize→parse round-trip
+    const round = parse(serialize(d)).items.find((i) => i.type === "image") as any;
+    expect(round.blendMode).toBe("screen");
+    expect(round.invertIntensity).toBe(60);
+    expect(round.inputCornerTopLeft).toBe(12);
+  });
+});
+
 describe("itemBox", () => {
   it("returns a center-based box for an image item", () => {
     const d = parse(XML);
