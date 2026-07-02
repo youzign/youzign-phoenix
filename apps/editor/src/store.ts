@@ -28,6 +28,7 @@ import {
   createClipartItem,
   createImageItem,
   insertCombo,
+  insertFontCombo,
   type ComboId,
   type TextPreset,
   type ShapePreset,
@@ -182,6 +183,7 @@ interface EditorState {
   addShape: (kind: ShapeKind, preset?: ShapePreset) => void;
   addClipart: (source: string, opts?: { recolorable?: boolean }) => void;
   addCombo: (combo: ComboId) => void;
+  addFontCombo: (id: string) => void;
   addPhoto: (photo: {
     source: string;
     width: number;
@@ -544,6 +546,17 @@ export const useEditor = create<EditorState>((set, get) => {
     addCombo: (combo) => {
       const d0 = get().design;
       const items = insertCombo(d0, combo) as IdItem[];
+      for (const it of items) ensureUid(it);
+      commit((d) => {
+        for (const it of items) d.items.push(it);
+      });
+      set({ selectedUids: items.map((it) => it._uid!), drillGroupUid: null });
+    },
+
+    addFontCombo: (id) => {
+      const d0 = get().design;
+      const items = insertFontCombo(d0, id) as IdItem[];
+      if (items.length === 0) return;
       for (const it of items) ensureUid(it);
       commit((d) => {
         for (const it of items) d.items.push(it);

@@ -12,6 +12,9 @@ import {
   backgroundColorHex,
   gradientStopHex,
   borderColorHex,
+  TEXT_EFFECTS,
+  textEffectPatch,
+  detectTextEffect,
   type ItemPatch,
 } from "@youzign/editor-core";
 import { signedIntToHex, hexToSignedInt } from "@youzign/designstring";
@@ -372,6 +375,37 @@ function CornerRadiusBlock({ any, patch }: { any: any; patch: (p: ItemPatch) => 
           unit="px"
         />
       )}
+    </div>
+  );
+}
+
+/** Preset text effects — each maps to a legacy border/shadow/fill attr combo
+ * (text-effects.ts). Selecting a chip overwrites those attrs; the Border/Shadow
+ * sections below still expose the raw controls for custom tuning. */
+function TextEffectsRow({ any, patch }: { any: any; patch: (p: ItemPatch) => void }) {
+  const active = detectTextEffect(any);
+  const hex = textColorHex(any);
+  return (
+    <div>
+      <SectionLabel>Effects</SectionLabel>
+      <div className="flex flex-wrap gap-1.5">
+        {TEXT_EFFECTS.map((e) => {
+          const on = active === e.id;
+          return (
+            <button
+              key={e.id}
+              onClick={() => patch(textEffectPatch(e.id, hex))}
+              className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors duration-150 ${
+                on
+                  ? "bg-[var(--accent)] text-white shadow-sm"
+                  : "bg-white/[0.06] text-neutral-300 hover:bg-white/[0.12] hover:text-white"
+              }`}
+            >
+              {e.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -942,6 +976,7 @@ export function PropertiesPanel() {
             value={any.alignment ?? "left"}
             onSelect={(a) => patch({ alignment: a })}
           />
+          <TextEffectsRow any={any} patch={patch} />
         </section>
       )}
 

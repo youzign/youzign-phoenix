@@ -3,12 +3,18 @@ import {
   SHAPE_KINDS,
   shapeSvg,
   COMBOS,
+  FONT_COMBOS,
+  fontComboFamilies,
+  GOOGLE_FONTS,
   type ShapeKind,
   type ComboId,
   type TextPreset,
   type ShapePreset,
+  type FontComboLayer,
+  type TextEffectId,
 } from "@youzign/editor-core";
 import { useEditor } from "../store.js";
+import { ensureGoogleFonts } from "../fonts.js";
 import { Icon, type IconName } from "./ui.js";
 import {
   searchIcons,
@@ -44,11 +50,12 @@ import {
   type GenResult,
 } from "../library/generate.js";
 
-type Tab = "photos" | "icons" | "elements" | "generate";
+type Tab = "photos" | "icons" | "text" | "elements" | "generate";
 
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: "photos", label: "Photos", icon: "image" },
   { id: "icons", label: "Icons", icon: "star" },
+  { id: "text", label: "Text", icon: "type" },
   { id: "elements", label: "Elements", icon: "shapes" },
   { id: "generate", label: "Create", icon: "sparkles" },
 ];
@@ -95,6 +102,7 @@ export function LeftSidebar() {
 
       {/* panel */}
       <div className="flex w-64 flex-col overflow-hidden border-r border-white/[0.06] bg-[#202024]">
+        {tab === "text" && <TextPanel />}
         {tab === "elements" && <ElementsPanel />}
         {tab === "icons" && <IconsPanel />}
         {tab === "photos" && <PhotosPanel />}
@@ -584,6 +592,150 @@ function UploadsSection({
   );
 }
 
+/* --------------------------------- Text ---------------------------------- */
+
+/** Approximate a font-combination layer's on-canvas look inside a preview card
+ * (CSS analogues of the legacy border/shadow effects — see text-effects.ts). */
+function applyEffectPreview(
+  s: React.CSSProperties,
+  effect: TextEffectId | undefined,
+  color: string
+) {
+  switch (effect) {
+    case "outline":
+      s.color = "transparent";
+      (s as any).WebkitTextStroke = `1.5px ${color}`;
+      break;
+    case "neon":
+      s.textShadow = `0 0 5px ${color}, 0 0 11px ${color}`;
+      break;
+    case "sticker":
+      s.textShadow =
+        "-1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff, 0 3px 5px rgba(0,0,0,0.35)";
+      break;
+    case "hard-shadow":
+      s.textShadow = "3px 3px 0 rgba(0,0,0,1)";
+      break;
+    case "echo":
+      s.textShadow = `3px 3px 0 ${color}66`;
+      break;
+    default:
+      break;
+  }
+}
+
+function comboLayerPreviewStyle(layer: FontComboLayer): React.CSSProperties {
+  const color = layer.color ?? "#1c1c1e";
+  const size = Math.round(Math.max(11, Math.min(26, (layer.size ?? 32) * 0.2)));
+  const s: React.CSSProperties = {
+    fontFamily: `"${layer.font}", sans-serif`,
+    fontWeight: layer.bold ? 700 : 400,
+    fontStyle: layer.italic ? "italic" : "normal",
+    fontSize: size,
+    lineHeight: 1.12,
+    color,
+    whiteSpace: "nowrap",
+    maxWidth: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  };
+  applyEffectPreview(s, layer.effect, color);
+  return s;
+}
+
+function TextPanel() {
+  const addText = useEditor((s) => s.addText);
+  const addFontCombo = useEditor((s) => s.addFontCombo);
+  const [query, setQuery] = useState("");
+
+  // Preload every combo family so preview cards render in their real typefaces.
+  useEffect(() => {
+    ensureGoogleFonts(fontComboFamilies());
+  }, []);
+
+  const q = query.trim().toLowerCase();
+  const fontMatches = q
+    ? GOOGLE_FONTS.filter((f) => f.toLowerCase().includes(q)).slice(0, 8)
+    : [];
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <PanelHeader>Text</PanelHeader>
+
+      {/* Primary action */}
+      <button
+        onClick={() => addText()}
+        className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-3 py-3 text-[13.5px] font-semibold text-white shadow-lg shadow-[var(--accent)]/20 transition-all duration-150 hover:brightness-110"
+      >
+        <Icon name="plus" size={16} /> Add a text box
+      </button>
+
+      {/* Font search → inserts a text box in the chosen family */}
+      <SearchField value={query} onChange={setQuery} placeholder="Search fonts" />
+      {fontMatches.length > 0 && (
+        <div className="-mt-1 mb-4 flex flex-col gap-0.5 rounded-lg border border-white/[0.06] bg-black/20 p-1">
+          {fontMatches.map((f) => (
+            <button
+              key={f}
+              onMouseEnter={() => ensureGoogleFonts([f])}
+              onClick={() => {
+                ensureGoogleFonts([f]);
+                addText({ font: f, content: f });
+                setQuery("");
+              }}
+              className="truncate rounded px-2 py-1.5 text-left text-[14px] text-neutral-200 transition-colors hover:bg-white/10"
+              style={{ fontFamily: `"${f}", sans-serif` }}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Default text styles */}
+      <SectionLabel>Default text styles</SectionLabel>
+      <div className="mb-5 flex flex-col gap-1.5">
+        {TEXT_PRESETS.map((t) => (
+          <button
+            key={t.label}
+            onClick={() => addText(t.preset)}
+            className="group flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 text-left transition-all duration-150 hover:border-[var(--accent)]/50 hover:bg-white/[0.07]"
+          >
+            <span
+              className="truncate text-neutral-100"
+              style={{ ...t.preview, fontFamily: "Inter, sans-serif" }}
+            >
+              {t.sample}
+            </span>
+            <span className="shrink-0 text-[10px] font-medium text-neutral-500 group-hover:text-neutral-300">
+              {t.label}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Font combinations — one click inserts pre-styled text layers */}
+      <SectionLabel>Font combinations</SectionLabel>
+      <div className="grid grid-cols-2 gap-2.5">
+        {FONT_COMBOS.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => addFontCombo(c.id)}
+            title={c.label}
+            className="group relative flex aspect-[4/3] flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-black/5 bg-gradient-to-br from-white to-neutral-100 p-2.5 text-center shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:ring-2 hover:ring-[var(--accent)]/50"
+          >
+            {c.layers.map((l, i) => (
+              <span key={i} style={comboLayerPreviewStyle(l)}>
+                {l.content}
+              </span>
+            ))}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------- Elements -------------------------------- */
 
 interface TextPresetDef {
@@ -644,35 +796,12 @@ const STYLED_SHAPES: StyledShapeDef[] = [
 ];
 
 function ElementsPanel() {
-  const addText = useEditor((s) => s.addText);
   const addShape = useEditor((s) => s.addShape);
   const addCombo = useEditor((s) => s.addCombo);
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-4">
       <PanelHeader>Elements</PanelHeader>
-
-      {/* Text presets */}
-      <SectionLabel>Text</SectionLabel>
-      <div className="mb-4 flex flex-col gap-1.5">
-        {TEXT_PRESETS.map((t) => (
-          <button
-            key={t.label}
-            onClick={() => addText(t.preset)}
-            className="group flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 text-left transition-all duration-150 hover:border-[var(--accent)]/50 hover:bg-white/[0.07]"
-          >
-            <span
-              className="truncate text-neutral-100"
-              style={{ ...t.preview, fontFamily: "Inter, sans-serif" }}
-            >
-              {t.sample}
-            </span>
-            <span className="shrink-0 text-[10px] font-medium text-neutral-500 group-hover:text-neutral-300">
-              {t.label}
-            </span>
-          </button>
-        ))}
-      </div>
 
       {/* Shape primitives */}
       <SectionLabel>Shapes</SectionLabel>
