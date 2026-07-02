@@ -45,9 +45,11 @@ export type IconName =
   | "layer-forward"
   | "layer-backward"
   | "grip"
-  | "layers";
+  | "layers"
+  | "droplet";
 
 const PATHS: Record<IconName, ReactNode> = {
+  droplet: <path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3Z" />,
   undo: <path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-1" />,
   redo: <path d="m15 14 5-5-5-5M20 9H9a5 5 0 0 0 0 10h1" />,
   minus: <path d="M5 12h14" />,

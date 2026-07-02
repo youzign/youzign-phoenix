@@ -1,5 +1,13 @@
 import { create } from "zustand";
 import { removeBackground, BgRemovalError } from "./bg/removeBackground.js";
+import { getKey } from "./library/settings.js";
+import { eraseRegion, segmentAtPoint, MagicError } from "./magic/endpoints.js";
+import {
+  extractSubject,
+  blurBackgroundComposite,
+  toDataUri,
+  RasterError,
+} from "./magic/raster.js";
 import { parse, serialize, type Design, type Item } from "@youzign/designstring";
 import {
   patchItem,
@@ -46,6 +54,13 @@ import {
 } from "@youzign/editor-core";
 
 const LS_PREFIX = "youzign-next:design:";
+
+/** Map a magic-suite error to a user-facing message. */
+function magicMessage(err: unknown): string {
+  if (err instanceof MagicError || err instanceof RasterError || err instanceof BgRemovalError)
+    return err.message;
+  return "Magic tool failed. Try again.";
+}
 
 /** Photo provenance kept in memory only — never written to the designstring. */
 export interface PhotoAttribution {
@@ -111,6 +126,12 @@ interface EditorState {
   bgProcessingUids: number[]; // image items whose background is being removed
   bgStage: string | null; // coarse progress stage of the active removal
   bgError: { uid: number; message: string } | null; // last removal failure
+  // magic suite (fal-powered eraser/grab + local blur)
+  magicMode: "erase" | "grab" | null; // active canvas interaction mode
+  magicUid: number | null; // image item the active magic tool targets
+  magicBusy: boolean; // an async magic op is running
+  magicStage: string | null; // coarse progress label
+  magicError: { uid: number; message: string } | null;
   zoom: number;
   showGrid: boolean;
   past: Design[];
@@ -147,6 +168,15 @@ interface EditorState {
   // background removal (local, in-worker)
   removeBg: (uid: number) => Promise<void>;
   clearBgError: () => void;
+
+  // magic suite
+  beginMagicErase: (uid: number) => void;
+  beginMagicGrab: (uid: number) => void;
+  cancelMagic: () => void;
+  clearMagicError: () => void;
+  applyMagicErase: (uid: number, maskDataUri: string) => Promise<void>;
+  applyMagicGrab: (uid: number, imgX: number, imgY: number) => Promise<void>;
+  applyMagicBlur: (uid: number, amount: number) => Promise<void>;
 
   addText: (preset?: TextPreset) => void;
   addShape: (kind: ShapeKind, preset?: ShapePreset) => void;
@@ -228,6 +258,11 @@ export const useEditor = create<EditorState>((set, get) => {
     bgProcessingUids: [],
     bgStage: null,
     bgError: null,
+    magicMode: null,
+    magicUid: null,
+    magicBusy: false,
+    magicStage: null,
+    magicError: null,
     zoom: 0.6,
     showGrid: false,
     past: [],
@@ -236,7 +271,7 @@ export const useEditor = create<EditorState>((set, get) => {
 
     load: (xml, name) => {
       const design = tagUids(parse(xml));
-      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, past: [], future: [], lockedUids: [] });
+      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, past: [], future: [], lockedUids: [] });
     },
 
     setName: (name) => set({ designName: name }),
@@ -368,6 +403,114 @@ export const useEditor = create<EditorState>((set, get) => {
       }
     },
     clearBgError: () => set({ bgError: null }),
+
+    // ---- magic suite -----------------------------------------------------
+    beginMagicErase: (uid) => {
+      const it = findByUid(get().design, uid);
+      if (!it || it.type !== "image") return;
+      set({ magicMode: "erase", magicUid: uid, selectedUids: [uid], drillGroupUid: null, editingUid: null, croppingUid: null, magicError: null });
+    },
+    beginMagicGrab: (uid) => {
+      const it = findByUid(get().design, uid);
+      if (!it || it.type !== "image") return;
+      set({ magicMode: "grab", magicUid: uid, selectedUids: [uid], drillGroupUid: null, editingUid: null, croppingUid: null, magicError: null });
+    },
+    cancelMagic: () => set({ magicMode: null, magicUid: null }),
+    clearMagicError: () => set({ magicError: null }),
+
+    applyMagicErase: async (uid, maskDataUri) => {
+      const item = findByUid(get().design, uid);
+      if (!item || item.type !== "image" || get().magicBusy) return;
+      const key = getKey("fal");
+      if (!key) { set({ magicError: { uid, message: "Connect fal.ai to use magic tools." } }); return; }
+      const source = (item as any).source as string;
+      set({ magicBusy: true, magicStage: "erasing", magicError: null });
+      try {
+        const url = await eraseRegion(source, maskDataUri, key);
+        const png = await toDataUri(url);
+        commit((d) => {
+          const it = findByUid(d, uid);
+          if (it && it.type === "image") applySource(it as any, png);
+        });
+        set({ magicMode: null, magicUid: null });
+      } catch (err) {
+        set({ magicError: { uid, message: magicMessage(err) } });
+      } finally {
+        set({ magicBusy: false, magicStage: null });
+      }
+    },
+
+    applyMagicGrab: async (uid, imgX, imgY) => {
+      const item = findByUid(get().design, uid) as IdItem | undefined;
+      if (!item || item.type !== "image" || get().magicBusy) return;
+      const key = getKey("fal");
+      if (!key) { set({ magicError: { uid, message: "Connect fal.ai to use magic tools." } }); return; }
+      const source = (item as any).source as string;
+      set({ magicBusy: true, magicStage: "segment", magicError: null });
+      try {
+        const maskUrl = await segmentAtPoint(source, imgX, imgY, key);
+        set({ magicStage: "extract" });
+        const extract = await extractSubject(source, maskUrl);
+
+        // Map subject bounds (source-image px) into the item's canvas space.
+        const anyItem = item as any;
+        const itemLeft = anyItem.xpos - anyItem.width / 2;
+        const itemTop = anyItem.ypos - anyItem.height / 2;
+        const sx = anyItem.width / extract.sourceWidth;
+        const sy = anyItem.height / extract.sourceHeight;
+        const newW = Math.max(1, extract.bounds.width * sx);
+        const newH = Math.max(1, extract.bounds.height * sy);
+        const cx = itemLeft + (extract.bounds.x + extract.bounds.width / 2) * sx;
+        const cy = itemTop + (extract.bounds.y + extract.bounds.height / 2) * sy;
+
+        // Best-effort hole-fill of the original (full Canva Magic Grab). If it
+        // fails, we still keep the lifted subject (extract-only fallback).
+        set({ magicStage: "erasing" });
+        let erasedPng: string | null = null;
+        try {
+          const erasedUrl = await eraseRegion(source, maskUrl, key);
+          erasedPng = await toDataUri(erasedUrl);
+        } catch {
+          erasedPng = null;
+        }
+
+        const d0 = get().design;
+        const subject = createImageItem(d0, extract.dataUri, cx, cy, { width: newW, height: newH }) as IdItem;
+        ensureUid(subject);
+        commit((d) => {
+          if (erasedPng) {
+            const orig = findByUid(d, uid);
+            if (orig && orig.type === "image") applySource(orig as any, erasedPng);
+          }
+          d.items.push(subject);
+        });
+        set({ magicMode: null, magicUid: null, selectedUids: [subject._uid!], drillGroupUid: null });
+      } catch (err) {
+        set({ magicError: { uid, message: magicMessage(err) } });
+      } finally {
+        set({ magicBusy: false, magicStage: null });
+      }
+    },
+
+    applyMagicBlur: async (uid, amount) => {
+      const item = findByUid(get().design, uid);
+      if (!item || item.type !== "image" || get().magicBusy) return;
+      const source = (item as any).source as string;
+      set({ magicBusy: true, magicStage: "cutout", magicError: null });
+      try {
+        const cutout = await removeBackground(source, { onStage: (st) => set({ magicStage: st }) });
+        set({ magicStage: "blur" });
+        const png = await blurBackgroundComposite(source, cutout, amount);
+        commit((d) => {
+          const it = findByUid(d, uid);
+          if (it && it.type === "image") applySource(it as any, png);
+        });
+      } catch (err) {
+        set({ magicError: { uid, message: magicMessage(err) } });
+      } finally {
+        set({ magicBusy: false, magicStage: null });
+      }
+    },
 
     addText: (preset) => {
       const d0 = get().design;
