@@ -49,22 +49,6 @@ export function PropertiesPanel() {
       {"xpos" in any && (
         <section className="flex flex-col gap-2">
           <div className="grid grid-cols-2 gap-2">
-            <Row label="X">
-              <input
-                type="number"
-                className={numInput}
-                value={Math.round(any.xpos)}
-                onChange={(e) => patch({ xpos: Number(e.target.value) })}
-              />
-            </Row>
-            <Row label="Y">
-              <input
-                type="number"
-                className={numInput}
-                value={Math.round(any.ypos)}
-                onChange={(e) => patch({ ypos: Number(e.target.value) })}
-              />
-            </Row>
             {!isTextItem && (
               <>
                 <Row label="W">
