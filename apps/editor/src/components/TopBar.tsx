@@ -3,6 +3,7 @@ import { serialize } from "@youzign/designstring";
 import { useEditor } from "../store.js";
 import { Icon, IconButton, ghostBtn } from "./ui.js";
 import { ExportMenu } from "./ExportMenu.js";
+import { ResizeMenu } from "./ResizeMenu.js";
 
 const FIXTURE_LABELS: Record<string, string> = {
   "mountains-input.xml": "Mountains (input)",
@@ -62,6 +63,11 @@ export function TopBar({
           className="w-48 rounded-md bg-transparent px-2 py-1 text-[13px] font-medium text-neutral-100 outline-none transition-colors hover:bg-white/[0.06] focus:bg-white/[0.08] focus:ring-1 focus:ring-[var(--accent)]/60"
         />
       </div>
+
+      <div className="mx-1 h-5 w-px bg-white/10" />
+
+      {/* resize canvas */}
+      <ResizeMenu />
 
       <div className="mx-1 h-5 w-px bg-white/10" />
 
