@@ -119,6 +119,20 @@ function Divider() {
   return <div className="h-px w-full bg-white/[0.06]" />;
 }
 
+function Spinner() {
+  return (
+    <svg
+      className="h-3.5 w-3.5 animate-spin text-neutral-300"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex items-center justify-between gap-2 text-[12px]">
@@ -288,6 +302,10 @@ export function PropertiesPanel() {
   const recolor = useEditor((s) => s.recolorSelected);
   const setCurveByUid = useEditor((s) => s.setCurveByUid);
   const beginCrop = useEditor((s) => s.beginCrop);
+  const removeBg = useEditor((s) => s.removeBg);
+  const bgProcessingUids = useEditor((s) => s.bgProcessingUids);
+  const bgStage = useEditor((s) => s.bgStage);
+  const bgError = useEditor((s) => s.bgError);
 
   if (selectedCount === 0) {
     return (
@@ -314,6 +332,7 @@ export function PropertiesPanel() {
   }
 
   const any = item as any;
+  const bgBusy = bgProcessingUids.includes(any._uid);
   const isTextItem = item.type === "text" || item.type === "text-curved";
   const isClipart = item.type === "clipart";
   const showFill = isTextItem || isClipart;
@@ -440,16 +459,41 @@ export function PropertiesPanel() {
         </section>
       )}
 
-      {/* image crop */}
+      {/* image crop + background removal */}
       {item.type === "image" && (
         <section className="flex flex-col gap-1.5">
           <Divider />
-          <button
-            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-2 text-[12.5px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.1] hover:text-white"
-            onClick={() => beginCrop(any._uid)}
-          >
-            <Icon name="crop" size={15} /> Crop image
-          </button>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-2 text-[12.5px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.1] hover:text-white disabled:opacity-50"
+              onClick={() => beginCrop(any._uid)}
+              disabled={bgBusy}
+            >
+              <Icon name="crop" size={15} /> Crop image
+            </button>
+            <button
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-2 text-[12.5px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.1] hover:text-white disabled:cursor-progress disabled:opacity-70"
+              onClick={() => removeBg(any._uid)}
+              disabled={bgBusy}
+            >
+              {bgBusy ? (
+                <>
+                  <Spinner /> {bgStage === "model" ? "Loading model…" : "Removing…"}
+                </>
+              ) : (
+                <>
+                  <Icon name="scissors" size={15} /> Remove bg
+                </>
+              )}
+            </button>
+          </div>
+          {bgError && bgError.uid === any._uid ? (
+            <p className="text-[10px] leading-relaxed text-rose-400">{bgError.message}</p>
+          ) : (
+            <p className="text-[10px] leading-relaxed text-neutral-500">
+              Removes the background on your device. Downloads a ~4.5MB model once, then runs offline.
+            </p>
+          )}
           {any.cropped && (
             <p className="text-[10px] text-neutral-500">Cropped · double-click to re-crop</p>
           )}

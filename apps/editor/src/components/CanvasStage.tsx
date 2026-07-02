@@ -94,6 +94,7 @@ export function CanvasStage() {
   const endGesture = useEditor((s) => s.endGesture);
   const setContentByUid = useEditor((s) => s.setContentByUid);
   const croppingUid = useEditor((s) => s.croppingUid);
+  const bgProcessingUids = useEditor((s) => s.bgProcessingUids);
   const beginCrop = useEditor((s) => s.beginCrop);
   const cancelCrop = useEditor((s) => s.cancelCrop);
   const commitCrop = useEditor((s) => s.commitCrop);
@@ -436,6 +437,21 @@ export function CanvasStage() {
                 </div>
               );
             })()}
+
+          {/* background-removal in-progress shimmer */}
+          {bgProcessingUids.map((uid) => {
+            const box = canvasBoxOf(design, uid);
+            if (!box) return null;
+            return (
+              <div
+                key={`bg-${uid}`}
+                style={{ ...boxToStyle(box), pointerEvents: "none" }}
+                className="yz-bg-shimmer"
+              >
+                <div className="absolute inset-0 rounded-[2px] ring-1 ring-[var(--accent)]/70" />
+              </div>
+            );
+          })}
 
           {/* marquee rectangle */}
           {marquee &&
