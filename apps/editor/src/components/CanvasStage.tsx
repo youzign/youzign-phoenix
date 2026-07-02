@@ -6,9 +6,11 @@ import {
   childBoxInCanvas,
   combinedBox,
   boxIntersectsRect,
+  computeCrop,
   type SelBox,
+  type CropRect,
 } from "@youzign/editor-core";
-import type { Design, Item } from "@youzign/designstring";
+import type { Design, ImageItem, Item } from "@youzign/designstring";
 import { useEditor } from "../store.js";
 
 type IdItem = Item & { _uid?: number };
@@ -91,6 +93,10 @@ export function CanvasStage() {
   const livePatchMany = useEditor((s) => s.livePatchMany);
   const endGesture = useEditor((s) => s.endGesture);
   const setContentByUid = useEditor((s) => s.setContentByUid);
+  const croppingUid = useEditor((s) => s.croppingUid);
+  const beginCrop = useEditor((s) => s.beginCrop);
+  const cancelCrop = useEditor((s) => s.cancelCrop);
+  const commitCrop = useEditor((s) => s.commitCrop);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
@@ -260,6 +266,10 @@ export function CanvasStage() {
       setEditing(uid);
       return;
     }
+    if (item.type === "image") {
+      beginCrop(uid);
+      return;
+    }
     if (item.type === "group") {
       // Drill into the topmost child under the cursor.
       const group = findGroup(design, uid);
@@ -321,6 +331,7 @@ export function CanvasStage() {
           className="absolute inset-0"
           style={{ width: w, height: h }}
           onPointerDown={(e) => {
+            if (croppingUid !== null) return; // crop mode owns interaction
             // marquee start on empty canvas
             const p = toCanvas(e.clientX, e.clientY);
             marqueeRef.current = { x0: p.x, y0: p.y };
@@ -328,7 +339,7 @@ export function CanvasStage() {
           }}
         >
           {/* per-item hit areas (topmost index wins via DOM order) */}
-          {[...items]
+          {croppingUid === null && [...items]
             .filter((it) => it.type !== "filter")
             .sort((a, b) => ((a as any).index ?? 0) - ((b as any).index ?? 0))
             .map((item) => {
@@ -365,7 +376,8 @@ export function CanvasStage() {
             ))}
 
           {/* single-select chrome */}
-          {single !== null &&
+          {croppingUid === null &&
+            single !== null &&
             singleBox &&
             editingUid !== single &&
             (() => {
@@ -443,6 +455,22 @@ export function CanvasStage() {
               />
             )}
 
+          {/* crop mode */}
+          {croppingUid !== null &&
+            (() => {
+              const loc = locate(design, croppingUid);
+              if (!loc || loc.item.type !== "image") return null;
+              return (
+                <CropOverlay
+                  item={loc.item as unknown as ImageItem}
+                  zoom={zoom}
+                  toCanvas={toCanvas}
+                  onCancel={cancelCrop}
+                  onCommit={(src, geom) => commitCrop(croppingUid, src, geom)}
+                />
+              );
+            })()}
+
           {/* inline text editing */}
           {single !== null && editingUid === single && isText && singleItem && (
             <InlineTextEditor
@@ -455,6 +483,203 @@ export function CanvasStage() {
             />
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+type CropHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "move";
+
+function CropOverlay({
+  item,
+  zoom,
+  toCanvas,
+  onCancel,
+  onCommit,
+}: {
+  item: ImageItem;
+  zoom: number;
+  toCanvas: (cx: number, cy: number) => { x: number; y: number };
+  onCancel: () => void;
+  onCommit: (
+    src: string,
+    geom: { xpos: number; ypos: number; width: number; height: number }
+  ) => void;
+}) {
+  const boxLeft = item.xpos - item.width / 2;
+  const boxTop = item.ypos - item.height / 2;
+  const clampRect = (r: CropRect): CropRect => {
+    const w = Math.max(8, Math.min(r.w, item.width));
+    const h = Math.max(8, Math.min(r.h, item.height));
+    const x = Math.max(boxLeft, Math.min(r.x, boxLeft + item.width - w));
+    const y = Math.max(boxTop, Math.min(r.y, boxTop + item.height - h));
+    return { x, y, w, h };
+  };
+
+  const [crop, setCrop] = useState<CropRect>(() => ({
+    x: boxLeft + item.width * 0.12,
+    y: boxTop + item.height * 0.12,
+    w: item.width * 0.76,
+    h: item.height * 0.76,
+  }));
+  const dragRef = useRef<{ handle: CropHandle; start: CropRect; startCanvas: { x: number; y: number } } | null>(
+    null
+  );
+  const cropRef = useRef(crop);
+  cropRef.current = crop;
+
+  const bake = () => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const nW = img.naturalWidth || item.width;
+      const nH = img.naturalHeight || item.height;
+      const r = computeCrop(item, cropRef.current, nW, nH);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(r.sw));
+      canvas.height = Math.max(1, Math.round(r.sh));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return onCancel();
+      ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, 0, 0, canvas.width, canvas.height);
+      let dataUri: string;
+      try {
+        dataUri = canvas.toDataURL("image/png");
+      } catch {
+        return onCancel(); // tainted canvas (cross-origin) — cannot bake
+      }
+      onCommit(dataUri, { xpos: r.xpos, ypos: r.ypos, width: r.width, height: r.height });
+    };
+    img.onerror = () => onCancel();
+    img.src = item.source;
+  };
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const p = toCanvas(e.clientX, e.clientY);
+      const dx = p.x - d.startCanvas.x;
+      const dy = p.y - d.startCanvas.y;
+      const s = d.start;
+      let r: CropRect;
+      if (d.handle === "move") {
+        r = { x: s.x + dx, y: s.y + dy, w: s.w, h: s.h };
+      } else {
+        let x = s.x;
+        let y = s.y;
+        let w = s.w;
+        let h = s.h;
+        if (d.handle.includes("w")) { x = s.x + dx; w = s.w - dx; }
+        if (d.handle.includes("e")) { w = s.w + dx; }
+        if (d.handle.includes("n")) { y = s.y + dy; h = s.h - dy; }
+        if (d.handle.includes("s")) { h = s.h + dy; }
+        r = { x, y, w, h };
+      }
+      setCrop(clampRect(r));
+    };
+    const onUp = () => { dragRef.current = null; };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Enter") { e.preventDefault(); bake(); }
+      if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("keydown", onKey, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const px = (v: number) => v * zoom;
+  const rectStyle: CSSProperties = {
+    position: "absolute",
+    left: px(crop.x),
+    top: px(crop.y),
+    width: px(crop.w),
+    height: px(crop.h),
+    boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
+    outline: "1.5px solid #4f8cff",
+    cursor: "move",
+  };
+  const handleBase: CSSProperties = {
+    position: "absolute",
+    width: 12,
+    height: 12,
+    marginLeft: -6,
+    marginTop: -6,
+    background: "#fff",
+    border: "1.5px solid #4f8cff",
+    borderRadius: 2,
+  };
+  const handlePos: Record<Exclude<CropHandle, "move">, CSSProperties> = {
+    nw: { left: 0, top: 0, cursor: "nwse-resize" },
+    n: { left: "50%", top: 0, cursor: "ns-resize" },
+    ne: { left: "100%", top: 0, cursor: "nesw-resize" },
+    e: { left: "100%", top: "50%", cursor: "ew-resize" },
+    se: { left: "100%", top: "100%", cursor: "nwse-resize" },
+    s: { left: "50%", top: "100%", cursor: "ns-resize" },
+    sw: { left: 0, top: "100%", cursor: "nesw-resize" },
+    w: { left: 0, top: "50%", cursor: "ew-resize" },
+  };
+
+  const startDrag = (e: RPointerEvent, handle: CropHandle) => {
+    e.stopPropagation();
+    dragRef.current = { handle, start: crop, startCanvas: toCanvas(e.clientX, e.clientY) };
+  };
+
+  return (
+    <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => e.stopPropagation()}>
+      {/* full (uncropped) image beneath the mask */}
+      <img
+        src={item.source}
+        alt=""
+        draggable={false}
+        style={{
+          position: "absolute",
+          left: px(boxLeft),
+          top: px(boxTop),
+          width: px(item.width),
+          height: px(item.height),
+          objectFit: "fill",
+          pointerEvents: "none",
+        }}
+      />
+      <div style={rectStyle} onPointerDown={(e) => startDrag(e, "move")}>
+        {(Object.keys(handlePos) as Exclude<CropHandle, "move">[]).map((hk) => (
+          <div
+            key={hk}
+            style={{ ...handleBase, ...handlePos[hk] }}
+            onPointerDown={(e) => startDrag(e, hk)}
+          />
+        ))}
+      </div>
+      {/* toolbar */}
+      <div
+        style={{
+          position: "absolute",
+          left: px(crop.x),
+          top: px(crop.y + crop.h) + 8,
+          display: "flex",
+          gap: 6,
+        }}
+      >
+        <button
+          className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={bake}
+        >
+          Apply crop ⏎
+        </button>
+        <button
+          className="rounded bg-neutral-700 px-3 py-1 text-xs text-neutral-100 hover:bg-neutral-600"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={onCancel}
+        >
+          Cancel ⎋
+        </button>
       </div>
     </div>
   );

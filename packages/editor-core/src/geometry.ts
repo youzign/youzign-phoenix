@@ -124,8 +124,28 @@ export function itemBox(item: Item & Record<string, any>): SelBox {
         h: item.height || 140,
         rotation: item.rotation,
       };
-    case "text":
     case "text-curved": {
+      const spanDeg = Math.abs((item.endAngle ?? 0) - (item.startAngle ?? 0));
+      if (item.radius > 0 && spanDeg > 0) {
+        // Selection box bounds the arc, centred on the apex at (xpos,ypos).
+        const half = ((spanDeg / 2) * Math.PI) / 180;
+        const r = item.radius;
+        const pad = (item.size ?? 24) * 1.2;
+        const w = 2 * (half >= Math.PI / 2 ? r : r * Math.sin(half)) + pad;
+        const h = r * (1 - Math.cos(half)) + pad;
+        // apex sits pad/2 from the near edge; box grows away from the apex.
+        const s = item.topDirection ? 1 : -1;
+        return { cx: item.xpos, cy: item.ypos + (s * (h - pad)) / 2, w, h, rotation: item.rotation };
+      }
+      const sx = item.textAreaWidth ? item.mcWidth / item.textAreaWidth : 1;
+      const sy = item.textAreaHeight ? item.mcHeight / item.textAreaHeight : 1;
+      const left = item.xpos + item.textAreaxpos * sx;
+      const top = item.ypos + item.textAreaypos * sy;
+      const w = item.mcWidth || item.textAreaWidth * sx;
+      const h = item.mcHeight || item.textAreaHeight * sy;
+      return { cx: left + w / 2, cy: top + h / 2, w, h, rotation: item.rotation };
+    }
+    case "text": {
       const sx = item.textAreaWidth ? item.mcWidth / item.textAreaWidth : 1;
       const sy = item.textAreaHeight ? item.mcHeight / item.textAreaHeight : 1;
       const left = item.xpos + item.textAreaxpos * sx;

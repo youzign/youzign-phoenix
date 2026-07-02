@@ -67,9 +67,11 @@ Both legacy sample designstrings are committed verbatim as fixtures at
 | Gradient background (linear + radial, legacy angle mapping) — unit-tested | Background image (`bg_type="image"`) |
 | Images with graceful 404 → bounded placeholder showing the URL | SWF (Flash) clipart source (`.swf` legacy URLs; the `source_svg` equivalent renders) |
 | SVG clipart: fetched, sanitized, inlined, and recolored (legacy per-`Layer` `@@@` color bands → path `fill`); non-SVG source falls back to the image path; 404 → colored bounded placeholder | |
-| Per-glyph text color (runs merged into `<span>`s) | `text-curved` layout (parsed & round-tripped, not yet laid out on an arc) |
+| Per-glyph text color (runs merged into `<span>`s) | |
+| Curved text (`text-curved`): SVG `textPath` on an arc from `radius`/`start_angle`/`end_angle`/`top_direction`; editable via a Curve amount control — unit-tested geometry | |
 | Text positioning via the Flash text matrix (`mcWidth/textAreaWidth` scale) | |
-| Shadows (`is_shadow`, `shadow_distance`/`_angle`/`_color`/`_opacity`) — legacy `drop-shadow(cosθ·d, sinθ·d, 10px, rgba(color,opacity))`; editable | Image cropping / flip-crop |
+| Shadows (`is_shadow`, `shadow_distance`/`_angle`/`_color`/`_opacity`) — legacy `drop-shadow(cosθ·d, sinθ·d, 10px, rgba(color,opacity))`; editable | |
+| Image crop — faithful to legacy's *destructive* model: crop mode (double-click an image / Crop button → drag a crop rect, Enter/Escape) bakes the sub-region into a new image source and sets `cropped="true"`. Youzign never stored a crop sub-region in the designstring (only the `cropped` flag; the TS-era editor redirected "crop" to the background-eraser), so a baked source is the fidelity-correct representation. Crop math unit-tested | Re-cropping live S3 originals (AWS suspended; tested with a local fixture image) |
 | Blur (`is_blur`, `blur_size`) — legacy `blur(blur_size / 2)`; editable | |
 | Borders (`is_border`, `border_size`, `border_color`) — non-text: legacy 8-direction `drop-shadow` outline; text: `text-shadow` ring outline (+ no-fill); editable | |
 | Groups / one-level nesting, group scale/rotation/opacity | |

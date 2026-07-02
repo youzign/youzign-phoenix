@@ -4,6 +4,9 @@ import {
   patchItem,
   setTextColor,
   setShapeFill,
+  setCurve,
+  applyCrop,
+  type CropResult,
   createTextItem,
   createShapeItem,
   cloneItemForDuplicate,
@@ -69,6 +72,7 @@ interface EditorState {
   selectedUids: number[];
   drillGroupUid: number | null; // the group we've drilled into (child selection)
   editingUid: number | null; // text item currently in inline edit
+  croppingUid: number | null; // image item currently in crop mode
   zoom: number;
   past: Design[];
   future: Design[];
@@ -93,6 +97,12 @@ interface EditorState {
   endGesture: () => void;
   recolorSelected: (hex: string) => void;
   setContentByUid: (uid: number, content: string) => void;
+  setCurveByUid: (uid: number, amount: number) => void;
+
+  // image crop mode
+  beginCrop: (uid: number) => void;
+  cancelCrop: () => void;
+  commitCrop: (uid: number, bakedSource: string, geom: Pick<CropResult, "xpos" | "ypos" | "width" | "height">) => void;
 
   addText: () => void;
   addShape: (kind: ShapeKind) => void;
@@ -135,20 +145,21 @@ export const useEditor = create<EditorState>((set, get) => {
     selectedUids: [],
     drillGroupUid: null,
     editingUid: null,
+    croppingUid: null,
     zoom: 0.6,
     past: [],
     future: [],
 
     load: (xml, name) => {
       const design = tagUids(parse(xml));
-      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, past: [], future: [] });
+      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, past: [], future: [] });
     },
 
     setName: (name) => set({ designName: name }),
     setZoom: (z) => set({ zoom: z }),
 
     select: (uid) =>
-      set({ selectedUids: uid === null ? [] : [uid], drillGroupUid: null, editingUid: null }),
+      set({ selectedUids: uid === null ? [] : [uid], drillGroupUid: null, editingUid: null, croppingUid: null }),
     toggleSelect: (uid) =>
       set((s) => ({ selectedUids: toggleUid(s.selectedUids, uid), drillGroupUid: null, editingUid: null })),
     setSelection: (uids) =>
@@ -222,6 +233,22 @@ export const useEditor = create<EditorState>((set, get) => {
           patchItem(it as any, { content });
         }
       }),
+
+    setCurveByUid: (uid, amount) =>
+      commit((d) => {
+        const it = findByUid(d, uid);
+        if (it && it.type === "text-curved") setCurve(it as any, amount);
+      }),
+
+    beginCrop: (uid) => set({ croppingUid: uid, selectedUids: [uid], drillGroupUid: null, editingUid: null }),
+    cancelCrop: () => set({ croppingUid: null }),
+    commitCrop: (uid, bakedSource, geom) => {
+      commit((d) => {
+        const it = findByUid(d, uid);
+        if (it && it.type === "image") applyCrop(it as any, bakedSource, geom);
+      });
+      set({ croppingUid: null });
+    },
 
     addText: () => {
       const d0 = get().design;

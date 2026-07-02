@@ -3,6 +3,7 @@ import {
   textColorHex,
   shapeFillHex,
   isShape,
+  curveAmount,
   GOOGLE_FONTS,
   fontPatch,
   type ItemPatch,
@@ -289,6 +290,8 @@ export function PropertiesPanel() {
   const selectedCount = useEditor((s) => s.selectedUids.length);
   const patch = useEditor((s) => s.patchSelected);
   const recolor = useEditor((s) => s.recolorSelected);
+  const setCurveByUid = useEditor((s) => s.setCurveByUid);
+  const beginCrop = useEditor((s) => s.beginCrop);
 
   if (selectedCount === 0) {
     return (
@@ -431,6 +434,47 @@ export function PropertiesPanel() {
               </button>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* curved text: arc control (legacy radius / angle / direction) */}
+      {item.type === "text-curved" && (
+        <section className="flex flex-col gap-2 border-t border-neutral-800 pt-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+              Curve
+            </span>
+            <span className="text-xs text-neutral-400">{curveAmount(any)}</span>
+          </div>
+          <input
+            type="range"
+            min={-100}
+            max={100}
+            step={1}
+            value={curveAmount(any)}
+            onChange={(e) => setCurveByUid(any._uid, Number(e.target.value))}
+            className="w-full accent-blue-500"
+          />
+          <div className="flex justify-between text-[10px] text-neutral-600">
+            <span>▽ down</span>
+            <span>straight</span>
+            <span>△ up</span>
+          </div>
+        </section>
+      )}
+
+      {/* image: crop */}
+      {item.type === "image" && (
+        <section className="border-t border-neutral-800 pt-3">
+          <button
+            className="w-full rounded bg-neutral-800 px-2 py-1.5 text-xs text-neutral-200 hover:bg-neutral-700"
+            onClick={() => beginCrop(any._uid)}
+          >
+            Crop image
+          </button>
+          {any.cropped && (
+            <p className="mt-1 text-[10px] text-neutral-500">Cropped · double-click to re-crop</p>
+          )}
         </section>
       )}
 
