@@ -17,6 +17,10 @@ import {
   ASPECT_PRESETS,
   buildFalRequest,
   mapFalResponse,
+  buildFalEditRequest,
+  clampImages,
+  MAX_EDIT_IMAGES,
+  FAL_EDIT_MODEL,
 } from "../src/library/generate.js";
 
 describe("iconify adapter", () => {
@@ -144,5 +148,42 @@ describe("fal.ai generate adapter", () => {
     expect(mapFalResponse({ images: [{ width: 100 }, null, {}] })).toEqual([]);
     expect(mapFalResponse({})).toEqual([]);
     expect(mapFalResponse(null)).toEqual([]);
+  });
+});
+
+describe("fal.ai image-to-image (nano-banana edit) adapter", () => {
+  it("targets the nano-banana 2 lite edit endpoint", () => {
+    expect(FAL_EDIT_MODEL).toBe("google/nano-banana-2-lite/edit");
+    expect(MAX_EDIT_IMAGES).toBe(10);
+  });
+
+  it("builds an edit payload: trimmed prompt + image_urls array", () => {
+    expect(
+      buildFalEditRequest("  put them on a beach  ", ["data:a", "https://b.png"])
+    ).toEqual({
+      prompt: "put them on a beach",
+      image_urls: ["data:a", "https://b.png"],
+      num_images: 1,
+    });
+  });
+
+  it("clamps reference images to the 10-image ceiling", () => {
+    const many = Array.from({ length: 14 }, (_, i) => `img-${i}`);
+    expect(clampImages(many)).toHaveLength(10);
+    expect(clampImages(many)[9]).toBe("img-9");
+    // request builder applies the same clamp
+    const req = buildFalEditRequest("x", many);
+    expect(req.image_urls).toHaveLength(10);
+    // under the ceiling passes through untouched
+    expect(clampImages(["a", "b"])).toEqual(["a", "b"]);
+    expect(clampImages([])).toEqual([]);
+  });
+
+  it("maps the edit response through the shared image mapper", () => {
+    const out = mapFalResponse({
+      images: [{ url: "https://fal/out/edit.png", width: 1024, height: 1024 }],
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ url: "https://fal/out/edit.png", width: 1024 });
   });
 });
