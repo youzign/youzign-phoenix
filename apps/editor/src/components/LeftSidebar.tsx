@@ -45,7 +45,10 @@ import {
 import {
   ASPECT_PRESETS,
   FAL_KEY_URL,
+  MAX_EDIT_IMAGES,
   generate,
+  editImages,
+  clampImages,
   type AspectPreset,
   type GenResult,
 } from "../library/generate.js";
@@ -999,38 +1002,168 @@ function DezygnBridgeCard() {
   );
 }
 
-/** Connected state: prompt, aspect presets, generate, session results grid. */
+type GenMode = "generate" | "edit";
+
+/** A reference image queued for an edit: id for keying, a url (https or base64
+ *  data URI) sent to fal, and a thumbnail (same as url) + label. */
+interface EditRef {
+  id: string;
+  url: string;
+  label: string;
+}
+
+/** Connected state: a Generate / Edit mode toggle over a shared session-results
+ *  grid. Generate = text-to-image (FLUX); Edit = image-to-image composition with
+ *  up to ten reference images (nano-banana 2 lite edit). */
 function FalGenerate({ onDisconnect }: { onDisconnect: () => void }) {
-  const [prompt, setPrompt] = useState("");
-  const [preset, setPreset] = useState<AspectPreset>(ASPECT_PRESETS[0]);
+  const [mode, setMode] = useState<GenMode>("generate");
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
   const [results, setResults] = useState<GenResult[]>([]);
   const addPhoto = useEditor((s) => s.addPhoto);
 
-  const run = () => {
-    const p = prompt.trim();
-    if (!p || state === "loading") return;
-    setState("loading");
-    setError("");
-    generate(p, preset, getKey("fal"))
-      .then((res) => {
-        setResults((prev) => [...res, ...prev]);
-        setState("idle");
-      })
-      .catch((e) => {
-        setState("error");
-        // A network/CORS failure surfaces as a TypeError with no status.
-        setError(
-          /fal 4|fal 5/.test(String(e?.message))
-            ? `fal rejected the request (${String(e.message).replace("fal ", "")}). Check your key and prompt.`
-            : "Couldn’t reach fal.ai from the browser (network or CORS). Try again."
-        );
-      });
+  const onError = (e: any) => {
+    setState("error");
+    // A network/CORS failure surfaces as a TypeError with no status.
+    setError(
+      /fal 4|fal 5/.test(String(e?.message))
+        ? `fal rejected the request (${String(e.message).replace("fal ", "")}). Check your key and inputs.`
+        : "Couldn’t reach fal.ai from the browser (network or CORS). Try again."
+    );
+  };
+  const onResults = (res: GenResult[]) => {
+    setResults((prev) => [...res, ...prev]);
+    setState("idle");
   };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {/* mode toggle */}
+      <div className="mb-3 flex gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
+        {(
+          [
+            { id: "generate", label: "Generate", icon: "sparkles" },
+            { id: "edit", label: "Edit", icon: "wand" },
+          ] as { id: GenMode; label: string; icon: IconName }[]
+        ).map((m) => (
+          <button
+            key={m.id}
+            onClick={() => {
+              setMode(m.id);
+              if (state === "error") setState("idle");
+            }}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[11.5px] font-semibold transition-colors duration-150 ${
+              mode === m.id
+                ? "bg-[var(--accent)] text-white"
+                : "text-neutral-400 hover:text-neutral-100"
+            }`}
+          >
+            <Icon name={m.icon} size={13} /> {m.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "generate" ? (
+        <GenerateControls
+          busy={state === "loading"}
+          onStart={() => {
+            setState("loading");
+            setError("");
+          }}
+          onResults={onResults}
+          onError={onError}
+        />
+      ) : (
+        <EditControls
+          busy={state === "loading"}
+          onStart={() => {
+            setState("loading");
+            setError("");
+          }}
+          onResults={onResults}
+          onError={onError}
+        />
+      )}
+
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+        {state === "loading" && results.length === 0 && (
+          <SkeletonGrid cols={2} rows={2} />
+        )}
+        {state === "error" && <QuietLine>{error}</QuietLine>}
+        {state !== "loading" && results.length === 0 && state !== "error" && (
+          <QuietLine>
+            {mode === "generate"
+              ? "Your generations show up here. Click one to drop it on the canvas."
+              : "Add reference images, describe the edit, and results land here."}
+          </QuietLine>
+        )}
+        {results.length > 0 && (
+          <div className="grid grid-cols-2 gap-2.5">
+            {results.map((r) => (
+              <button
+                key={r.id}
+                title="Add to canvas"
+                onClick={() =>
+                  addPhoto({
+                    source: r.url,
+                    width: r.width,
+                    height: r.height,
+                    attribution: {
+                      author: "",
+                      authorLink: "",
+                      link: r.url,
+                      provider: "fal.ai",
+                    },
+                  })
+                }
+                className="group relative aspect-square overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--accent)]/50"
+              >
+                <img
+                  src={r.url}
+                  alt=""
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={() => {
+          setKey("fal", "");
+          onDisconnect();
+        }}
+        className="mt-2 self-start text-[10px] text-neutral-600 hover:text-neutral-400"
+      >
+        Disconnect fal.ai
+      </button>
+    </div>
+  );
+}
+
+interface ModeProps {
+  busy: boolean;
+  onStart: () => void;
+  onResults: (res: GenResult[]) => void;
+  onError: (e: unknown) => void;
+}
+
+/** Text-to-image controls (prompt + aspect presets + generate). */
+function GenerateControls({ busy, onStart, onResults, onError }: ModeProps) {
+  const [prompt, setPrompt] = useState("");
+  const [preset, setPreset] = useState<AspectPreset>(ASPECT_PRESETS[0]);
+
+  const run = () => {
+    const p = prompt.trim();
+    if (!p || busy) return;
+    onStart();
+    generate(p, preset, getKey("fal")).then(onResults).catch(onError);
+  };
+
+  return (
+    <>
       <textarea
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
@@ -1060,10 +1193,10 @@ function FalGenerate({ onDisconnect }: { onDisconnect: () => void }) {
 
       <button
         onClick={run}
-        disabled={!prompt.trim() || state === "loading"}
+        disabled={!prompt.trim() || busy}
         className="mt-2.5 inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-2 text-[12.5px] font-semibold text-white transition-colors duration-150 hover:brightness-110 disabled:opacity-30"
       >
-        {state === "loading" ? (
+        {busy ? (
           <>
             <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
             Generating…
@@ -1074,59 +1207,188 @@ function FalGenerate({ onDisconnect }: { onDisconnect: () => void }) {
           </>
         )}
       </button>
+    </>
+  );
+}
 
-      <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
-        {state === "loading" && results.length === 0 && (
-          <SkeletonGrid cols={2} rows={2} />
-        )}
-        {state === "error" && <QuietLine>{error}</QuietLine>}
-        {state !== "loading" && results.length === 0 && state !== "error" && (
-          <QuietLine>
-            Your generations show up here. Click one to drop it on the canvas.
-          </QuietLine>
-        )}
-        {results.length > 0 && (
-          <div className="grid grid-cols-2 gap-2.5">
-            {results.map((r) => (
-              <button
-                key={r.id}
-                title="Add to canvas"
-                onClick={() =>
-                  addPhoto({
-                    source: r.url,
-                    width: r.width,
-                    height: r.height,
-                    attribution: {
-                      author: "",
-                      authorLink: "",
-                      link: r.url,
-                      provider: "fal.ai (FLUX)",
-                    },
-                  })
-                }
-                className="group relative aspect-square overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--accent)]/50"
-              >
-                <img
-                  src={r.url}
-                  alt=""
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                />
-              </button>
-            ))}
+/** Image-to-image controls: a reference-image strip (upload / My uploads /
+ *  selected canvas image) capped at ten, a prompt, and generate. */
+function EditControls({ busy, onStart, onResults, onError }: ModeProps) {
+  const [prompt, setPrompt] = useState("");
+  const [refs, setRefs] = useState<EditRef[]>([]);
+  const [uploads, setUploads] = useState<UploadRecord[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Selected canvas image (offer a one-tap "use this" chip).
+  const selected = useEditor((s) => s.selectedItem());
+  const selImage =
+    selected && (selected as any).type === "image"
+      ? {
+          source: (selected as any).source as string,
+          uid: (selected as any)._uid as number,
+        }
+      : null;
+
+  // Keep the My-uploads quick-pick in sync with IndexedDB.
+  useEffect(() => {
+    let alive = true;
+    const refresh = () => allUploads().then((r) => alive && setUploads(r));
+    refresh();
+    const off = onUploadsChanged(refresh);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+
+  const room = MAX_EDIT_IMAGES - refs.length;
+
+  const addRefs = (incoming: EditRef[]) =>
+    setRefs((prev) => clampImages([...prev, ...incoming]));
+  const removeRef = (id: string) =>
+    setRefs((prev) => prev.filter((r) => r.id !== id));
+
+  const onFiles = async (files: FileList | File[]) => {
+    if (!files || (files as FileList).length === 0) return;
+    const recs = await ingestFiles(files); // persists to My uploads too
+    addRefs(recs.map((r) => ({ id: r.id, url: r.dataUri, label: r.name })));
+  };
+
+  const run = () => {
+    const p = prompt.trim();
+    if (!p || refs.length === 0 || busy) return;
+    onStart();
+    editImages(p, refs.map((r) => r.url), getKey("fal"))
+      .then(onResults)
+      .catch(onError);
+  };
+
+  return (
+    <>
+      {/* reference-image strip */}
+      <div className="mb-2 flex items-center justify-between">
+        <SectionLabel>Reference images</SectionLabel>
+        <span className="text-[10px] font-medium text-neutral-500">
+          {refs.length}/{MAX_EDIT_IMAGES}
+        </span>
+      </div>
+
+      <div className="mb-2 grid grid-cols-4 gap-1.5">
+        {refs.map((r) => (
+          <div
+            key={r.id}
+            className="group relative aspect-square overflow-hidden rounded-lg border border-white/[0.08] bg-[repeating-conic-gradient(#2a2a30_0%_25%,#232329_0%_50%)] bg-[length:12px_12px]"
+            title={r.label}
+          >
+            <img src={r.url} alt={r.label} className="h-full w-full object-contain" />
+            <button
+              onClick={() => removeRef(r.id)}
+              title="Remove"
+              className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded bg-black/60 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+            >
+              <Icon name="plus" size={10} className="rotate-45" />
+            </button>
           </div>
+        ))}
+        {room > 0 && (
+          <button
+            onClick={() => fileRef.current?.click()}
+            title="Upload images"
+            className="flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-white/[0.14] text-neutral-500 transition-colors hover:border-[var(--accent)]/50 hover:text-neutral-200"
+          >
+            <Icon name="plus" size={15} />
+            <span className="text-[8px] font-medium">Add</span>
+          </button>
+        )}
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files) void onFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+
+      {/* quick sources */}
+      <div className="mb-2.5 flex flex-wrap gap-1.5">
+        {selImage && room > 0 && (
+          <button
+            onClick={() =>
+              addRefs([
+                {
+                  id: `sel_${selImage.uid}_${Date.now()}`,
+                  url: selImage.source,
+                  label: "Canvas selection",
+                },
+              ])
+            }
+            className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-[11px] font-medium text-[var(--accent)] transition-colors hover:brightness-110"
+          >
+            <Icon name="image" size={12} /> Use selected image
+          </button>
+        )}
+        {uploads.length > 0 && (
+          <button
+            onClick={() => setShowPicker((v) => !v)}
+            className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-medium text-neutral-300 transition-colors hover:bg-white/[0.1] hover:text-neutral-100"
+          >
+            <Icon name="image" size={12} /> My uploads
+          </button>
         )}
       </div>
 
-      <button
-        onClick={() => {
-          setKey("fal", "");
-          onDisconnect();
+      {showPicker && uploads.length > 0 && (
+        <div className="mb-2.5 max-h-28 overflow-y-auto rounded-lg border border-white/[0.06] bg-white/[0.02] p-1.5">
+          <div className="grid grid-cols-5 gap-1.5">
+            {uploads.map((u) => (
+              <button
+                key={u.id}
+                disabled={room <= 0}
+                onClick={() =>
+                  addRefs([{ id: `up_${u.id}_${Date.now()}`, url: u.dataUri, label: u.name }])
+                }
+                title={u.name}
+                className="aspect-square overflow-hidden rounded-md border border-white/[0.06] bg-black/20 transition-transform hover:scale-105 disabled:opacity-30"
+              >
+                <img src={u.dataUri} alt={u.name} className="h-full w-full object-contain" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <textarea
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run();
         }}
-        className="mt-2 self-start text-[10px] text-neutral-600 hover:text-neutral-400"
+        placeholder="Describe the edit or composition… e.g. combine into one scene on a beach"
+        rows={3}
+        className="resize-none rounded-lg bg-white/[0.05] px-2.5 py-2 text-[13px] leading-relaxed text-neutral-100 placeholder:text-neutral-500 outline-none focus:bg-white/[0.08] focus:ring-1 focus:ring-[var(--accent)]/70"
+      />
+
+      <button
+        onClick={run}
+        disabled={!prompt.trim() || refs.length === 0 || busy}
+        className="mt-2.5 inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-2 text-[12.5px] font-semibold text-white transition-colors duration-150 hover:brightness-110 disabled:opacity-30"
       >
-        Disconnect fal.ai
+        {busy ? (
+          <>
+            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            Editing…
+          </>
+        ) : (
+          <>
+            <Icon name="wand" size={14} /> Generate edit
+          </>
+        )}
       </button>
-    </div>
+    </>
   );
 }
