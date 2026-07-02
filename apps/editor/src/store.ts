@@ -9,6 +9,9 @@ import {
   type CropResult,
   createTextItem,
   createShapeItem,
+  createClipartItem,
+  createImageItem,
+  fitToCanvas,
   cloneItemForDuplicate,
   ensureUid,
   toggleUid,
@@ -20,7 +23,15 @@ import {
 
 const LS_PREFIX = "youzign-next:design:";
 
-type IdItem = Item & WithUid;
+/** Photo provenance kept in memory only — never written to the designstring. */
+export interface PhotoAttribution {
+  author: string;
+  authorLink: string;
+  link: string;
+  provider: string;
+}
+
+type IdItem = Item & WithUid & { _attribution?: PhotoAttribution };
 
 /** Recursively tag every item (incl. group children) with a stable _uid. */
 function tagUids(design: Design): Design {
@@ -106,6 +117,14 @@ interface EditorState {
 
   addText: () => void;
   addShape: (kind: ShapeKind) => void;
+  addClipart: (source: string) => void;
+  addPhoto: (photo: {
+    source: string;
+    width: number;
+    height: number;
+    pixabay?: boolean;
+    attribution?: PhotoAttribution;
+  }) => void;
   duplicateSelected: () => void;
   deleteSelected: () => void;
   nudgeSelected: (dx: number, dy: number) => void;
@@ -262,6 +281,35 @@ export const useEditor = create<EditorState>((set, get) => {
       const d0 = get().design;
       const item = createShapeItem(d0, kind, d0.canvasWidth / 2, d0.canvasHeight / 2) as IdItem;
       ensureUid(item);
+      commit((d) => d.items.push(item));
+      set({ selectedUids: [item._uid!], drillGroupUid: null });
+    },
+
+    addClipart: (source) => {
+      const d0 = get().design;
+      const box = fitToCanvas(d0, 200, 200, 0.35);
+      const item = createClipartItem(d0, source, box.x, box.y, {
+        width: box.width,
+        height: box.height,
+      }) as IdItem;
+      ensureUid(item);
+      commit((d) => d.items.push(item));
+      set({ selectedUids: [item._uid!], drillGroupUid: null });
+    },
+
+    addPhoto: ({ source, width, height, pixabay, attribution }) => {
+      const d0 = get().design;
+      const box = fitToCanvas(d0, width, height, 0.6);
+      const item = createImageItem(
+        d0,
+        source,
+        box.x,
+        box.y,
+        { width: box.width, height: box.height },
+        { pixabay }
+      ) as IdItem;
+      ensureUid(item);
+      if (attribution) item._attribution = attribution;
       commit((d) => d.items.push(item));
       set({ selectedUids: [item._uid!], drillGroupUid: null });
     },
