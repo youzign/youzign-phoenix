@@ -8,6 +8,11 @@ import {
   mapPixabay,
   mapUnsplash,
 } from "../src/library/photos.js";
+import {
+  ASPECT_PRESETS,
+  buildFalRequest,
+  mapFalResponse,
+} from "../src/library/generate.js";
 
 describe("iconify adapter", () => {
   it("maps a search response to an icon-id list", () => {
@@ -106,5 +111,55 @@ describe("unsplash adapter", () => {
       link: "https://unsplash/abc",
     });
     expect(mapUnsplash({})).toEqual([]);
+  });
+});
+
+describe("fal.ai generate adapter", () => {
+  const square = ASPECT_PRESETS.find((p) => p.id === "square")!;
+  const landscape = ASPECT_PRESETS.find((p) => p.id === "landscape")!;
+  const portrait = ASPECT_PRESETS.find((p) => p.id === "portrait")!;
+
+  it("exposes square/landscape/portrait presets with flux-friendly dims", () => {
+    expect(square).toMatchObject({ width: 1024, height: 1024 });
+    expect(landscape.width).toBeGreaterThan(landscape.height);
+    expect(portrait.height).toBeGreaterThan(portrait.width);
+    // all dims are multiples of 32 (flux requirement)
+    for (const p of ASPECT_PRESETS) {
+      expect(p.width % 32).toBe(0);
+      expect(p.height % 32).toBe(0);
+    }
+  });
+
+  it("builds a request payload from prompt + preset", () => {
+    expect(buildFalRequest("  a red fox  ", landscape)).toEqual({
+      prompt: "a red fox",
+      image_size: { width: 1344, height: 768 },
+      num_images: 1,
+      enable_safety_checker: true,
+    });
+  });
+
+  it("maps a fal response to GenResult[], falling back to requested dims", () => {
+    const out = mapFalResponse(
+      {
+        seed: 42,
+        images: [
+          { url: "https://fal/out/a.png", width: 1024, height: 1024 },
+          { url: "https://fal/out/b.png" }, // missing dims -> fallback
+        ],
+      },
+      { width: 512, height: 768 }
+    );
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ url: "https://fal/out/a.png", width: 1024, height: 1024 });
+    expect(out[1]).toMatchObject({ url: "https://fal/out/b.png", width: 512, height: 768 });
+    // ids are stable + distinct
+    expect(new Set(out.map((r) => r.id)).size).toBe(2);
+  });
+
+  it("drops entries with no url and tolerates junk", () => {
+    expect(mapFalResponse({ images: [{ width: 100 }, null, {}] })).toEqual([]);
+    expect(mapFalResponse({})).toEqual([]);
+    expect(mapFalResponse(null)).toEqual([]);
   });
 });

@@ -13,6 +13,13 @@ import {
   type PhotoResult,
 } from "../library/photos.js";
 import { getKey, setKey } from "../library/settings.js";
+import {
+  ASPECT_PRESETS,
+  FAL_KEY_URL,
+  generate,
+  type AspectPreset,
+  type GenResult,
+} from "../library/generate.js";
 
 type Tab = "photos" | "icons" | "shapes" | "generate";
 
@@ -69,7 +76,7 @@ export function LeftSidebar() {
         {tab === "shapes" && <ShapesPanel onAddText={addText} />}
         {tab === "icons" && <IconsPanel />}
         {tab === "photos" && <PhotosPanel />}
-        {tab === "generate" && <ComingSoon onAddText={addText} />}
+        {tab === "generate" && <GeneratePanel />}
       </div>
     </div>
   );
@@ -439,23 +446,225 @@ function ShapeButton({ kind, onAdd }: { kind: ShapeKind; onAdd: () => void }) {
 
 /* ------------------------------- Create ---------------------------------- */
 
-function ComingSoon({ onAddText }: { onAddText: () => void }) {
+function GeneratePanel() {
+  const [hasKey, setHasKey] = useState(() => !!getKey("fal"));
+
   return (
-    <div className="flex flex-col items-center gap-3 p-4 pt-12 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.05] text-neutral-400">
-        <Icon name="sparkles" size={22} />
+    <div className="flex min-h-0 flex-1 flex-col p-4">
+      <PanelHeader>Create with AI</PanelHeader>
+      {hasKey ? (
+        <FalGenerate onDisconnect={() => setHasKey(false)} />
+      ) : (
+        <>
+          <FalConnect onSaved={() => setHasKey(true)} />
+          <DezygnBridgeCard />
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Calm connect state for the fal.ai BYOK path. */
+function FalConnect({ onSaved }: { onSaved: () => void }) {
+  const [value, setValue] = useState("");
+  const save = () => {
+    if (!value.trim()) return;
+    setKey("fal", value.trim());
+    onSaved();
+  };
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+        <Icon name="sparkles" size={20} />
       </div>
       <div>
-        <p className="text-[13px] font-medium text-neutral-200">Create with AI</p>
+        <p className="text-[13px] font-medium text-neutral-200">Connect fal.ai</p>
         <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
-          Generate art & copy with AI — coming soon.
+          Add a fal.ai API key to generate images with FLUX. Bring your own key —
+          it stays in this browser only, and you pay fal directly.
         </p>
       </div>
+      <input
+        type="password"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && save()}
+        placeholder="fal.ai API key"
+        className="rounded-lg bg-white/[0.05] px-2.5 py-2 text-[13px] text-neutral-100 placeholder:text-neutral-500 outline-none focus:bg-white/[0.08] focus:ring-1 focus:ring-[var(--accent)]/70"
+      />
+      <div className="flex items-center justify-between">
+        <a
+          href={FAL_KEY_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[11px] text-[var(--accent)] hover:underline"
+        >
+          Get a key
+        </a>
+        <button
+          onClick={save}
+          disabled={!value.trim()}
+          className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-semibold text-white transition-colors duration-150 hover:brightness-110 disabled:opacity-30"
+        >
+          Save key
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Dual-fuel bridge: the "use your Dezygn credits" path, stubbed for v1. */
+function DezygnBridgeCard() {
+  return (
+    <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05] text-neutral-400">
+          <Icon name="wand" size={16} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[12px] font-medium text-neutral-300">Connect Dezygn</p>
+          <p className="text-[10px] text-neutral-500">Use your Dezygn credits</p>
+        </div>
+        <span className="ml-auto shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-neutral-500">
+          Soon
+        </span>
+      </div>
+      <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">
+        No key to manage — generate straight from your Dezygn balance. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+/** Connected state: prompt, aspect presets, generate, session results grid. */
+function FalGenerate({ onDisconnect }: { onDisconnect: () => void }) {
+  const [prompt, setPrompt] = useState("");
+  const [preset, setPreset] = useState<AspectPreset>(ASPECT_PRESETS[0]);
+  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const [error, setError] = useState("");
+  const [results, setResults] = useState<GenResult[]>([]);
+  const addPhoto = useEditor((s) => s.addPhoto);
+
+  const run = () => {
+    const p = prompt.trim();
+    if (!p || state === "loading") return;
+    setState("loading");
+    setError("");
+    generate(p, preset, getKey("fal"))
+      .then((res) => {
+        setResults((prev) => [...res, ...prev]);
+        setState("idle");
+      })
+      .catch((e) => {
+        setState("error");
+        // A network/CORS failure surfaces as a TypeError with no status.
+        setError(
+          /fal 4|fal 5/.test(String(e?.message))
+            ? `fal rejected the request (${String(e.message).replace("fal ", "")}). Check your key and prompt.`
+            : "Couldn’t reach fal.ai from the browser (network or CORS). Try again."
+        );
+      });
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <textarea
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run();
+        }}
+        placeholder="Describe an image… e.g. a minimal indigo gradient poster background"
+        rows={3}
+        className="resize-none rounded-lg bg-white/[0.05] px-2.5 py-2 text-[13px] leading-relaxed text-neutral-100 placeholder:text-neutral-500 outline-none focus:bg-white/[0.08] focus:ring-1 focus:ring-[var(--accent)]/70"
+      />
+
+      <div className="mt-2.5 flex gap-1">
+        {ASPECT_PRESETS.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setPreset(p)}
+            className={`flex-1 rounded-md px-1.5 py-1.5 text-[11px] font-medium transition-colors duration-150 ${
+              preset.id === p.id
+                ? "bg-[var(--accent)] text-white"
+                : "bg-white/[0.05] text-neutral-400 hover:bg-white/[0.09] hover:text-neutral-100"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       <button
-        onClick={onAddText}
-        className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-white/[0.06] px-3 py-1.5 text-[12px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.12] hover:text-white"
+        onClick={run}
+        disabled={!prompt.trim() || state === "loading"}
+        className="mt-2.5 inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-2 text-[12.5px] font-semibold text-white transition-colors duration-150 hover:brightness-110 disabled:opacity-30"
       >
-        <Icon name="type" size={14} /> Add a text box
+        {state === "loading" ? (
+          <>
+            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            Generating…
+          </>
+        ) : (
+          <>
+            <Icon name="sparkles" size={14} /> Generate
+          </>
+        )}
+      </button>
+
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+        {state === "loading" && results.length === 0 && (
+          <SkeletonGrid cols={2} rows={2} />
+        )}
+        {state === "error" && (
+          <QuietLine>{error}</QuietLine>
+        )}
+        {state !== "loading" && results.length === 0 && state !== "error" && (
+          <QuietLine>
+            Your generations show up here. Click one to drop it on the canvas.
+          </QuietLine>
+        )}
+        {results.length > 0 && (
+          <div className="grid grid-cols-2 gap-2.5">
+            {results.map((r) => (
+              <button
+                key={r.id}
+                title="Add to canvas"
+                onClick={() =>
+                  addPhoto({
+                    source: r.url,
+                    width: r.width,
+                    height: r.height,
+                    attribution: {
+                      author: "",
+                      authorLink: "",
+                      link: r.url,
+                      provider: "fal.ai (FLUX)",
+                    },
+                  })
+                }
+                className="group relative aspect-square overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--accent)]/50"
+              >
+                <img
+                  src={r.url}
+                  alt=""
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={() => {
+          setKey("fal", "");
+          onDisconnect();
+        }}
+        className="mt-2 self-start text-[10px] text-neutral-600 hover:text-neutral-400"
+      >
+        Disconnect fal.ai
       </button>
     </div>
   );
