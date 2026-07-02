@@ -113,6 +113,8 @@ export function CanvasStage() {
   const cancelCrop = useEditor((s) => s.cancelCrop);
   const commitCrop = useEditor((s) => s.commitCrop);
   const addPhoto = useEditor((s) => s.addPhoto);
+  const lockedUids = useEditor((s) => s.lockedUids);
+  const isLocked = (uid: number) => lockedUids.includes(uid);
 
   const [fileOver, setFileOver] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -263,8 +265,11 @@ export function CanvasStage() {
 
   const startMove = (e: RPointerEvent, uids: number[]) => {
     e.stopPropagation();
+    // Locked items can be selected but never translated.
+    const movable = uids.filter((u) => !isLocked(u));
+    if (movable.length === 0) return;
     beginHistory();
-    const moveStarts = uids
+    const moveStarts = movable
       .map((uid) => {
         const loc = locate(design, uid);
         if (!loc || !("xpos" in loc.item)) return null;
@@ -290,7 +295,7 @@ export function CanvasStage() {
       mode: "move",
       startBox: { cx: 0, cy: 0, w: 0, h: 0, rotation: 0 },
       startCanvas: toCanvas(e.clientX, e.clientY),
-      uid: uids[0],
+      uid: movable[0],
       moveStarts,
       movingBox0,
       snapTargets,
@@ -305,6 +310,7 @@ export function CanvasStage() {
     handle?: HandleId
   ) => {
     e.stopPropagation();
+    if (isLocked(uid)) return; // locked items can't be resized/rotated
     const box = canvasBoxOf(design, uid);
     if (!box) return;
     // Image edge handles CROP (Canva); everything else resizes.
@@ -509,7 +515,7 @@ export function CanvasStage() {
               return (
                 <div
                   key={uid}
-                  style={{ ...boxToStyle(box), cursor: "move" }}
+                  style={{ ...boxToStyle(box), cursor: isLocked(uid) ? "default" : "move" }}
                   onPointerDown={(e) => onItemPointerDown(e, uid)}
                   onDoubleClick={(e) => onItemDoubleClick(e, item)}
                 />
@@ -567,8 +573,9 @@ export function CanvasStage() {
               };
               const corners: HandleId[] = ["nw", "ne", "se", "sw"];
               // Resize/rotate handles only for a single TOP-LEVEL, non-text item.
-              const showHandles = selectedIsTopLevel && !isText;
-              const showRotate = selectedIsTopLevel;
+              const locked = single !== null && isLocked(single);
+              const showHandles = selectedIsTopLevel && !isText && !locked;
+              const showRotate = selectedIsTopLevel && !locked;
               const isImageSel = singleItem?.type === "image";
               const handleVisual: CSSProperties = {
                 width: 12,

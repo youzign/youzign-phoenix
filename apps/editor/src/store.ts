@@ -5,6 +5,12 @@ import {
   patchItem,
   setTextColor,
   setShapeFill,
+  setShapeNoFill,
+  centerPatch,
+  stepForward,
+  stepBackward,
+  applyOrder,
+  type CenterAxis,
   setCurve,
   applyCrop,
   applySource,
@@ -159,6 +165,18 @@ interface EditorState {
   nudgeSelected: (dx: number, dy: number) => void;
   bringToFront: () => void;
   sendToBack: () => void;
+  bringForward: () => void;
+  sendBackward: () => void;
+  reorderLayers: (orderedTopFirstUids: number[]) => void;
+  centerSelected: (axis: CenterAxis) => void;
+  toggleTextStyle: (attr: "bold" | "italic" | "underline" | "strikethrough") => void;
+  setSelectedShapeNoFill: () => void;
+
+  // lock (session-only — NEVER serialized; legacy XML never stored isLocked)
+  lockedUids: number[];
+  toggleLockSelected: () => void;
+  toggleLockUid: (uid: number) => void;
+  isLocked: (uid: number) => boolean;
 
   resize: (newW: number, newH: number, opts: ResizeOptions) => void;
   // canvas background (design-level attrs)
@@ -214,10 +232,11 @@ export const useEditor = create<EditorState>((set, get) => {
     showGrid: false,
     past: [],
     future: [],
+    lockedUids: [],
 
     load: (xml, name) => {
       const design = tagUids(parse(xml));
-      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, past: [], future: [] });
+      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, past: [], future: [], lockedUids: [] });
     },
 
     setName: (name) => set({ designName: name }),
@@ -426,7 +445,8 @@ export const useEditor = create<EditorState>((set, get) => {
     },
 
     deleteSelected: () => {
-      const uids = get().selectedUids;
+      const locked = new Set(get().lockedUids);
+      const uids = get().selectedUids.filter((u) => !locked.has(u));
       if (uids.length === 0) return;
       const set0 = new Set(uids);
       commit((d) => {
@@ -486,6 +506,93 @@ export const useEditor = create<EditorState>((set, get) => {
         d.items.sort((a, b) => ((a as any).index ?? 0) - ((b as any).index ?? 0));
       });
     },
+
+    bringForward: () => {
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
+      commit((d) => {
+        const targets = uids
+          .map((u) => findByUid(d, u))
+          .filter((it) => it && d.items.includes(it)) as Item[];
+        if (targets.length) stepForward(d, targets);
+      });
+    },
+
+    sendBackward: () => {
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
+      commit((d) => {
+        const targets = uids
+          .map((u) => findByUid(d, u))
+          .filter((it) => it && d.items.includes(it)) as Item[];
+        if (targets.length) stepBackward(d, targets);
+      });
+    },
+
+    reorderLayers: (orderedTopFirstUids) => {
+      commit((d) => {
+        // Layers list is top-z-first; applyOrder wants back-to-front (ascending z).
+        const ascending = [...orderedTopFirstUids].reverse();
+        const ordered = ascending
+          .map((u) => findByUid(d, u))
+          .filter((it) => it && d.items.includes(it)) as Item[];
+        if (ordered.length > 1) applyOrder(d, ordered);
+      });
+    },
+
+    centerSelected: (axis) => {
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
+      const d0 = get().design;
+      const patch = centerPatch(d0, axis);
+      commit((d) => {
+        for (const uid of uids) {
+          const it = findByUid(d, uid);
+          if (it && "xpos" in it) patchItem(it as any, patch);
+        }
+      });
+    },
+
+    toggleTextStyle: (attr) => {
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
+      commit((d) => {
+        for (const uid of uids) {
+          const it = findByUid(d, uid);
+          if (it && (it.type === "text" || it.type === "text-curved")) {
+            patchItem(it as any, { [attr]: !(it as any)[attr] });
+          }
+        }
+      });
+    },
+
+    setSelectedShapeNoFill: () => {
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
+      commit((d) => {
+        for (const uid of uids) {
+          const it = findByUid(d, uid);
+          if (it && it.type === "clipart") setShapeNoFill(it as any);
+        }
+      });
+    },
+
+    toggleLockSelected: () =>
+      set((s) => {
+        const locked = new Set(s.lockedUids);
+        for (const u of s.selectedUids) {
+          if (locked.has(u)) locked.delete(u);
+          else locked.add(u);
+        }
+        return { lockedUids: [...locked] };
+      }),
+    toggleLockUid: (uid) =>
+      set((s) => ({
+        lockedUids: s.lockedUids.includes(uid)
+          ? s.lockedUids.filter((u) => u !== uid)
+          : [...s.lockedUids, uid],
+      })),
+    isLocked: (uid) => get().lockedUids.includes(uid),
 
     resize: (newW, newH, opts) =>
       commit((d) => resizeDesign(d, newW, newH, opts)),
