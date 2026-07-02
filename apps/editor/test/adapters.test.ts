@@ -2,11 +2,16 @@ import { describe, it, expect } from "vitest";
 import {
   mapIconifySearch,
   iconifySvgUrl,
+  iconifyColorPreviewUrl,
+  isColorIcon,
+  STYLE_PREFIXES,
+  DEFAULT_COLOR_ICONS,
+  ICON_CATEGORIES,
 } from "../src/library/iconify.js";
 import {
-  mapPexels,
-  mapPixabay,
   mapUnsplash,
+  mapUnsplashList,
+  PHOTO_CATEGORIES,
 } from "../src/library/photos.js";
 import {
   ASPECT_PRESETS,
@@ -29,79 +34,43 @@ describe("iconify adapter", () => {
       "https://api.iconify.design/mdi/home.svg"
     );
   });
-});
 
-describe("pexels adapter", () => {
-  it("maps photos to the common PhotoResult shape", () => {
-    const out = mapPexels({
-      photos: [
-        {
-          id: 123,
-          width: 1600,
-          height: 900,
-          url: "https://pexels/p/123",
-          photographer: "Ada",
-          photographer_url: "https://pexels/ada",
-          src: { medium: "m.jpg", large2x: "l.jpg" },
-        },
-      ],
-    });
-    expect(out).toEqual([
-      {
-        id: "123",
-        thumb: "m.jpg",
-        full: "l.jpg",
-        width: 1600,
-        height: 900,
-        author: "Ada",
-        authorLink: "https://pexels/ada",
-        link: "https://pexels/p/123",
-      },
-    ]);
-    expect(mapPexels({})).toEqual([]);
+  it("flags Color-set icons so they skip the recolor path", () => {
+    expect(isColorIcon("flat-color-icons:like")).toBe(true);
+    expect(isColorIcon("twemoji:star")).toBe(true);
+    // monochrome / Line sets are recolorable
+    expect(isColorIcon("mdi:home")).toBe(false);
+    expect(isColorIcon("lucide:heart")).toBe(false);
   });
-});
 
-describe("pixabay adapter", () => {
-  it("maps hits, using pageURL as author + item link", () => {
-    const out = mapPixabay({
-      hits: [
-        {
-          id: 5,
-          imageWidth: 800,
-          imageHeight: 600,
-          webformatURL: "w.jpg",
-          largeImageURL: "big.jpg",
-          user: "Grace",
-          pageURL: "https://pixabay/5",
-        },
-      ],
-    });
-    expect(out[0]).toMatchObject({
-      id: "5",
-      thumb: "w.jpg",
-      full: "big.jpg",
-      author: "Grace",
-      link: "https://pixabay/5",
-    });
-    expect(mapPixabay({})).toEqual([]);
+  it("keeps the icon's own colors in the Color preview (no color override)", () => {
+    expect(iconifyColorPreviewUrl("flat-color-icons:like")).not.toContain("color=");
+  });
+
+  it("opens pre-populated: default color grid + categories, per style", () => {
+    expect(DEFAULT_COLOR_ICONS.length).toBeGreaterThan(12);
+    expect(DEFAULT_COLOR_ICONS.every((id) => isColorIcon(id))).toBe(true);
+    expect(ICON_CATEGORIES.length).toBeGreaterThan(4);
+    expect(STYLE_PREFIXES.color).toContain("flat-color-icons");
+    expect(STYLE_PREFIXES.line.length).toBeGreaterThan(0);
   });
 });
 
 describe("unsplash adapter", () => {
-  it("maps results with nested user + urls", () => {
-    const out = mapUnsplash({
-      results: [
-        {
-          id: "abc",
-          width: 1200,
-          height: 800,
-          urls: { small: "s.jpg", regular: "r.jpg" },
-          user: { name: "Linus", links: { html: "https://unsplash/linus" } },
-          links: { html: "https://unsplash/abc" },
-        },
-      ],
-    });
+  const raw = {
+    id: "abc",
+    width: 1200,
+    height: 800,
+    urls: { small: "s.jpg", regular: "r.jpg" },
+    user: { name: "Linus", links: { html: "https://unsplash/linus" } },
+    links: {
+      html: "https://unsplash/abc",
+      download_location: "https://api.unsplash.com/photos/abc/download",
+    },
+  };
+
+  it("maps search results (`{ results }`) with nested user + urls + download loc", () => {
+    const out = mapUnsplash({ results: [raw] });
     expect(out[0]).toMatchObject({
       id: "abc",
       thumb: "s.jpg",
@@ -109,8 +78,22 @@ describe("unsplash adapter", () => {
       author: "Linus",
       authorLink: "https://unsplash/linus",
       link: "https://unsplash/abc",
+      downloadLocation: "https://api.unsplash.com/photos/abc/download",
     });
     expect(mapUnsplash({})).toEqual([]);
+  });
+
+  it("maps the featured feed (bare array) with the same shape", () => {
+    const out = mapUnsplashList([raw]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ id: "abc", full: "r.jpg" });
+    // non-array input is tolerated
+    expect(mapUnsplashList({})).toEqual([]);
+    expect(mapUnsplashList(null)).toEqual([]);
+  });
+
+  it("ships a non-empty set of category chips (no empty search box)", () => {
+    expect(PHOTO_CATEGORIES.length).toBeGreaterThan(3);
   });
 });
 

@@ -11,6 +11,10 @@ import {
   createShapeItem,
   createClipartItem,
   createImageItem,
+  insertCombo,
+  type ComboId,
+  type TextPreset,
+  type ShapePreset,
   fitToCanvas,
   cloneItemForDuplicate,
   ensureUid,
@@ -115,9 +119,10 @@ interface EditorState {
   cancelCrop: () => void;
   commitCrop: (uid: number, bakedSource: string, geom: Pick<CropResult, "xpos" | "ypos" | "width" | "height">) => void;
 
-  addText: () => void;
-  addShape: (kind: ShapeKind) => void;
-  addClipart: (source: string) => void;
+  addText: (preset?: TextPreset) => void;
+  addShape: (kind: ShapeKind, preset?: ShapePreset) => void;
+  addClipart: (source: string, opts?: { recolorable?: boolean }) => void;
+  addCombo: (combo: ComboId) => void;
   addPhoto: (photo: {
     source: string;
     width: number;
@@ -269,32 +274,43 @@ export const useEditor = create<EditorState>((set, get) => {
       set({ croppingUid: null });
     },
 
-    addText: () => {
+    addText: (preset) => {
       const d0 = get().design;
-      const item = createTextItem(d0, d0.canvasWidth / 2, d0.canvasHeight / 2) as IdItem;
+      const item = createTextItem(d0, d0.canvasWidth / 2, d0.canvasHeight / 2, preset) as IdItem;
       ensureUid(item);
       commit((d) => d.items.push(item));
       set({ selectedUids: [item._uid!], drillGroupUid: null });
     },
 
-    addShape: (kind) => {
+    addShape: (kind, preset) => {
       const d0 = get().design;
-      const item = createShapeItem(d0, kind, d0.canvasWidth / 2, d0.canvasHeight / 2) as IdItem;
+      const item = createShapeItem(d0, kind, d0.canvasWidth / 2, d0.canvasHeight / 2, preset) as IdItem;
       ensureUid(item);
       commit((d) => d.items.push(item));
       set({ selectedUids: [item._uid!], drillGroupUid: null });
     },
 
-    addClipart: (source) => {
+    addClipart: (source, opts) => {
       const d0 = get().design;
       const box = fitToCanvas(d0, 200, 200, 0.35);
       const item = createClipartItem(d0, source, box.x, box.y, {
         width: box.width,
         height: box.height,
+        recolorable: opts?.recolorable,
       }) as IdItem;
       ensureUid(item);
       commit((d) => d.items.push(item));
       set({ selectedUids: [item._uid!], drillGroupUid: null });
+    },
+
+    addCombo: (combo) => {
+      const d0 = get().design;
+      const items = insertCombo(d0, combo) as IdItem[];
+      for (const it of items) ensureUid(it);
+      commit((d) => {
+        for (const it of items) d.items.push(it);
+      });
+      set({ selectedUids: items.map((it) => it._uid!), drillGroupUid: null });
     },
 
     addPhoto: ({ source, width, height, pixabay, attribution }) => {
