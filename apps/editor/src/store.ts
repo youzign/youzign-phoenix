@@ -106,12 +106,14 @@ interface EditorState {
   bgStage: string | null; // coarse progress stage of the active removal
   bgError: { uid: number; message: string } | null; // last removal failure
   zoom: number;
+  showGrid: boolean;
   past: Design[];
   future: Design[];
 
   load: (xml: string, name: string) => void;
   setName: (name: string) => void;
   setZoom: (z: number) => void;
+  toggleGrid: () => void;
 
   // selection
   select: (uid: number | null) => void;
@@ -209,6 +211,7 @@ export const useEditor = create<EditorState>((set, get) => {
     bgStage: null,
     bgError: null,
     zoom: 0.6,
+    showGrid: false,
     past: [],
     future: [],
 
@@ -219,6 +222,7 @@ export const useEditor = create<EditorState>((set, get) => {
 
     setName: (name) => set({ designName: name }),
     setZoom: (z) => set({ zoom: z }),
+    toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
 
     select: (uid) =>
       set({ selectedUids: uid === null ? [] : [uid], drillGroupUid: null, editingUid: null, croppingUid: null }),

@@ -25,6 +25,8 @@ export function TopBar({
   const setName = useEditor((s) => s.setName);
   const zoom = useEditor((s) => s.zoom);
   const setZoom = useEditor((s) => s.setZoom);
+  const showGrid = useEditor((s) => s.showGrid);
+  const toggleGrid = useEditor((s) => s.toggleGrid);
   const undo = useEditor((s) => s.undo);
   const redo = useEditor((s) => s.redo);
   const canUndo = useEditor((s) => s.past.length > 0);
@@ -76,6 +78,10 @@ export function TopBar({
         <IconButton icon="undo" label="Undo  ⌘Z" onClick={undo} disabled={!canUndo} />
         <IconButton icon="redo" label="Redo  ⇧⌘Z" onClick={redo} disabled={!canRedo} />
       </div>
+
+      <div className="mx-1 h-5 w-px bg-white/10" />
+
+      <IconButton icon="grid" label="Grid  G" onClick={toggleGrid} active={showGrid} />
 
       {/* center: zoom segmented control */}
       <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/[0.05] p-0.5">

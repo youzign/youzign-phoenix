@@ -6,8 +6,21 @@ import {
   childBoxInCanvas,
   combinedBox,
   boxIntersectsRect,
+  boxAABB,
   computeCrop,
+  resizeCorner,
+  resizeEdge,
+  edgeCropRect,
+  resolveSnap,
+  canvasTargets,
+  itemTargets,
+  gridTargets,
+  mergeTargets,
   type SelBox,
+  type SnapLines,
+  type SnapState,
+  type Corner,
+  type Edge,
   type CropRect,
 } from "@youzign/editor-core";
 import type { Design, ImageItem, Item } from "@youzign/designstring";
@@ -16,29 +29,28 @@ import { ingestFiles } from "../library/uploads.js";
 
 type IdItem = Item & { _uid?: number };
 
-function rot(x: number, y: number, deg: number) {
-  const r = (deg * Math.PI) / 180;
-  const c = Math.cos(r);
-  const s = Math.sin(r);
-  return { x: x * c - y * s, y: x * s + y * c };
-}
+/** Grid: 8px minor / 64px major (canvas units). Snap threshold ~6px screen. */
+const GRID_MINOR = 8;
+const GRID_MAJOR = 64;
+const SNAP_PX = 6;
 
-type Corner = "nw" | "ne" | "se" | "sw";
-const CORNER_SIGN: Record<Corner, [number, number]> = {
-  nw: [-1, -1],
-  ne: [1, -1],
-  se: [1, 1],
-  sw: [-1, 1],
-};
+type HandleId = Corner | Edge;
+const EDGES: Edge[] = ["n", "s", "e", "w"];
 
 interface Drag {
-  mode: "move" | "resize" | "rotate";
-  corner?: Corner;
+  mode: "move" | "resize" | "rotate" | "cropEdge";
+  handle?: HandleId;
   startBox: SelBox;
   startCanvas: { x: number; y: number };
   uid: number;
   // for multi-move: starting positions of every moved item
   moveStarts?: { uid: number; xpos: number; ypos: number }[];
+  // smart-snap state (move only)
+  movingBox0?: SelBox; // combined selection AABB at gesture start
+  snapTargets?: SnapLines;
+  engaged?: SnapState;
+  // image edge-crop
+  imageItem?: ImageItem;
 }
 
 interface Marquee {
@@ -81,6 +93,7 @@ function canvasBoxOf(design: Design, uid: number): SelBox | undefined {
 export function CanvasStage() {
   const design = useEditor((s) => s.design);
   const zoom = useEditor((s) => s.zoom);
+  const showGrid = useEditor((s) => s.showGrid);
   const selectedUids = useEditor((s) => s.selectedUids);
   const drillGroupUid = useEditor((s) => s.drillGroupUid);
   const editingUid = useEditor((s) => s.editingUid);
@@ -106,6 +119,8 @@ export function CanvasStage() {
   const dragRef = useRef<Drag | null>(null);
   const marqueeRef = useRef<{ x0: number; y0: number } | null>(null);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
+  const [guides, setGuides] = useState<SnapLines>({ v: [], h: [] });
+  const [liveCrop, setLiveCrop] = useState<CropRect | null>(null);
   const [, force] = useState(0);
 
   const w = design.canvasWidth * zoom;
@@ -134,8 +149,27 @@ export function CanvasStage() {
       const shift = e.shiftKey;
 
       if (d.mode === "move") {
-        const dx = p.x - d.startCanvas.x;
-        const dy = p.y - d.startCanvas.y;
+        let dx = p.x - d.startCanvas.x;
+        let dy = p.y - d.startCanvas.y;
+        // Smart snapping (Alt/Option disables it while held).
+        if (!e.altKey && d.movingBox0 && d.snapTargets) {
+          const mv = {
+            ...d.movingBox0,
+            cx: d.movingBox0.cx + dx,
+            cy: d.movingBox0.cy + dy,
+          };
+          const snap = resolveSnap(mv, d.snapTargets, {
+            threshold: SNAP_PX / zoom,
+            engaged: d.engaged,
+          });
+          dx += snap.dx;
+          dy += snap.dy;
+          d.engaged = snap.engaged;
+          setGuides(snap.guides);
+        } else {
+          d.engaged = { v: null, h: null };
+          setGuides({ v: [], h: [] });
+        }
         if (d.moveStarts && d.moveStarts.length) {
           livePatchMany(
             d.moveStarts.map((s) => ({
@@ -148,24 +182,16 @@ export function CanvasStage() {
         const ang = (Math.atan2(p.y - b.cy, p.x - b.cx) * 180) / Math.PI + 90;
         const snapped = shift ? Math.round(ang / 15) * 15 : ang;
         livePatch(d.uid, { rotation: snapped });
-      } else if (d.mode === "resize" && d.corner) {
-        const [sx, sy] = CORNER_SIGN[d.corner];
-        const oppLocal = { x: (-sx * b.w) / 2, y: (-sy * b.h) / 2 };
-        const oppWorldOff = rot(oppLocal.x, oppLocal.y, b.rotation);
-        const fixed = { x: b.cx + oppWorldOff.x, y: b.cy + oppWorldOff.y };
-        const newCenter = { x: (p.x + fixed.x) / 2, y: (p.y + fixed.y) / 2 };
-        const local = rot(p.x - newCenter.x, p.y - newCenter.y, -b.rotation);
-        let nw = Math.max(8, Math.abs(local.x) * 2);
-        let nh = Math.max(8, Math.abs(local.y) * 2);
-        if (shift) {
-          const ratio = b.w / b.h || 1;
-          if (nw / nh > ratio) nh = nw / ratio;
-          else nw = nh * ratio;
-        }
-        const newOppOff = rot((-sx * nw) / 2, (-sy * nh) / 2, b.rotation);
-        const cx = fixed.x - newOppOff.x;
-        const cy = fixed.y - newOppOff.y;
-        livePatch(d.uid, { width: nw, height: nh, xpos: cx, ypos: cy });
+      } else if (d.mode === "cropEdge" && d.handle && d.imageItem) {
+        setLiveCrop(edgeCropRect(d.imageItem, d.handle as Edge, p));
+      } else if (d.mode === "resize" && d.handle) {
+        // Corner: proportional BY DEFAULT, Shift unlocks free resize (Canva).
+        // Edge: single-axis stretch.
+        const isCorner = d.handle.length === 2;
+        const patch = isCorner
+          ? resizeCorner(b, d.handle as Corner, p, !shift)
+          : resizeEdge(b, d.handle as Edge, p);
+        livePatch(d.uid, patch);
       }
     };
     const onUp = () => {
@@ -193,20 +219,47 @@ export function CanvasStage() {
         force((n) => n + 1);
         return;
       }
-      if (dragRef.current) {
+      const d = dragRef.current;
+      if (d) {
         dragRef.current = null;
+        setGuides({ v: [], h: [] });
+        if (d.mode === "cropEdge") {
+          // Bake the edge-crop into a new image (destructive, like crop mode).
+          const rect = liveCrop;
+          setLiveCrop(null);
+          if (d.imageItem && rect) {
+            bakeImageCrop(d.imageItem, rect, (src, geom) =>
+              commitCrop(d.uid, src, geom)
+            );
+          }
+          // No endGesture(): commitCrop owns the history step.
+          force((n) => n + 1);
+          return;
+        }
         endGesture();
+        force((n) => n + 1);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      // Escape cancels an in-progress edge-crop drag.
+      if (e.key === "Escape" && dragRef.current?.mode === "cropEdge") {
+        e.preventDefault();
+        dragRef.current = null;
+        setLiveCrop(null);
+        setGuides({ v: [], h: [] });
         force((n) => n + 1);
       }
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("keydown", onKey, true);
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("keydown", onKey, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoom, marquee, design]);
+  }, [zoom, marquee, design, liveCrop]);
 
   const startMove = (e: RPointerEvent, uids: number[]) => {
     e.stopPropagation();
@@ -218,12 +271,30 @@ export function CanvasStage() {
         return { uid, xpos: (loc.item as any).xpos, ypos: (loc.item as any).ypos };
       })
       .filter(Boolean) as { uid: number; xpos: number; ypos: number }[];
+    // Combined AABB of the moving selection + snap targets (other items, canvas,
+    // grid) computed once at gesture start.
+    const movingBoxes = uids
+      .map((u) => canvasBoxOf(design, u))
+      .filter(Boolean) as SelBox[];
+    const movingBox0 = combinedBox(movingBoxes) ?? undefined;
+    const movingSet = new Set(uids);
+    const otherBoxes = (design.items as IdItem[])
+      .filter((it) => it.type !== "filter" && !movingSet.has(it._uid!))
+      .map((it) => itemBox(it as any));
+    const snapTargets = mergeTargets(
+      canvasTargets(design.canvasWidth, design.canvasHeight),
+      itemTargets(otherBoxes),
+      showGrid ? gridTargets(design.canvasWidth, design.canvasHeight, GRID_MINOR) : { v: [], h: [] }
+    );
     dragRef.current = {
       mode: "move",
       startBox: { cx: 0, cy: 0, w: 0, h: 0, rotation: 0 },
       startCanvas: toCanvas(e.clientX, e.clientY),
       uid: uids[0],
       moveStarts,
+      movingBox0,
+      snapTargets,
+      engaged: { v: null, h: null },
     };
   };
 
@@ -231,15 +302,31 @@ export function CanvasStage() {
     e: RPointerEvent,
     uid: number,
     mode: "resize" | "rotate",
-    corner?: Corner
+    handle?: HandleId
   ) => {
     e.stopPropagation();
     const box = canvasBoxOf(design, uid);
     if (!box) return;
+    // Image edge handles CROP (Canva); everything else resizes.
+    const loc = locate(design, uid);
+    const isImage = loc?.item.type === "image";
+    const isEdge = handle !== undefined && handle.length === 1;
+    if (mode === "resize" && isEdge && isImage) {
+      dragRef.current = {
+        mode: "cropEdge",
+        handle,
+        startBox: box,
+        startCanvas: toCanvas(e.clientX, e.clientY),
+        uid,
+        imageItem: loc!.item as unknown as ImageItem,
+      };
+      setLiveCrop(null);
+      return;
+    }
     beginHistory();
     dragRef.current = {
       mode,
-      corner,
+      handle,
       startBox: box,
       startCanvas: toCanvas(e.clientX, e.clientY),
       uid,
@@ -380,6 +467,25 @@ export function CanvasStage() {
       >
         <DesignCanvas design={design} zoom={zoom} />
 
+        {/* grid overlay (toggle: G / TopBar) — 8px minor / 64px major */}
+        {showGrid && (
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              backgroundImage:
+                "linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px)," +
+                "linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)," +
+                "linear-gradient(to right, rgba(255,255,255,0.10) 1px, transparent 1px)," +
+                "linear-gradient(to bottom, rgba(255,255,255,0.10) 1px, transparent 1px)",
+              backgroundSize:
+                `${GRID_MINOR * zoom}px ${GRID_MINOR * zoom}px,` +
+                `${GRID_MINOR * zoom}px ${GRID_MINOR * zoom}px,` +
+                `${GRID_MAJOR * zoom}px ${GRID_MAJOR * zoom}px,` +
+                `${GRID_MAJOR * zoom}px ${GRID_MAJOR * zoom}px`,
+            }}
+          />
+        )}
+
         {/* interaction overlay */}
         <div
           ref={overlayRef}
@@ -436,58 +542,127 @@ export function CanvasStage() {
             singleBox &&
             editingUid !== single &&
             (() => {
-              const handle: CSSProperties = {
-                position: "absolute",
-                width: 11,
-                height: 11,
-                marginLeft: -6,
-                marginTop: -6,
-                background: "#fff",
-                border: "1.5px solid #6366f1",
-                borderRadius: 2,
-                pointerEvents: "auto",
+              // Friendly, rounded selection chrome (per owner: less boxy/sharp
+              // than Dezygn). Handles have a large invisible hit area with a
+              // smaller rounded visual + subtle shadow.
+              const POS: Record<HandleId, CSSProperties> = {
+                nw: { left: 0, top: 0 },
+                ne: { left: "100%", top: 0 },
+                se: { left: "100%", top: "100%" },
+                sw: { left: 0, top: "100%" },
+                n: { left: "50%", top: 0 },
+                s: { left: "50%", top: "100%" },
+                e: { left: "100%", top: "50%" },
+                w: { left: 0, top: "50%" },
               };
-              const corners: Record<Corner, CSSProperties> = {
-                nw: { left: 0, top: 0, cursor: "nwse-resize" },
-                ne: { left: "100%", top: 0, cursor: "nesw-resize" },
-                se: { left: "100%", top: "100%", cursor: "nwse-resize" },
-                sw: { left: 0, top: "100%", cursor: "nesw-resize" },
+              const CURSOR: Record<HandleId, string> = {
+                nw: "nwse-resize",
+                se: "nwse-resize",
+                ne: "nesw-resize",
+                sw: "nesw-resize",
+                n: "ns-resize",
+                s: "ns-resize",
+                e: "ew-resize",
+                w: "ew-resize",
               };
+              const corners: HandleId[] = ["nw", "ne", "se", "sw"];
               // Resize/rotate handles only for a single TOP-LEVEL, non-text item.
               const showHandles = selectedIsTopLevel && !isText;
               const showRotate = selectedIsTopLevel;
+              const isImageSel = singleItem?.type === "image";
+              const handleVisual: CSSProperties = {
+                width: 12,
+                height: 12,
+                background: "#fff",
+                border: "1.5px solid var(--accent)",
+                borderRadius: 3,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+              };
+              const renderHandle = (id: HandleId) => (
+                <div
+                  key={id}
+                  style={{
+                    position: "absolute",
+                    ...POS[id],
+                    width: 22,
+                    height: 22,
+                    marginLeft: -11,
+                    marginTop: -11,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: CURSOR[id],
+                    pointerEvents: "auto",
+                    touchAction: "none",
+                  }}
+                  onPointerDown={(e) => startTransform(e, single, "resize", id)}
+                >
+                  <div style={handleVisual} />
+                </div>
+              );
               return (
                 <div style={{ ...boxToStyle(singleBox), pointerEvents: "none" }}>
                   <div
                     className="absolute inset-0"
-                    style={{ outline: "1.5px solid #6366f1", outlineOffset: 0 }}
+                    style={{
+                      border: "1.5px solid var(--accent)",
+                      borderRadius: 3,
+                      boxSizing: "border-box",
+                    }}
                   />
                   {showRotate && (
                     <div
                       style={{
                         position: "absolute",
                         left: "50%",
-                        top: -26,
-                        width: 13,
-                        height: 13,
-                        marginLeft: -7,
-                        background: "#6366f1",
-                        border: "2px solid #fff",
-                        borderRadius: "50%",
+                        top: -28,
+                        width: 26,
+                        height: 26,
+                        marginLeft: -13,
+                        marginTop: -13,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         cursor: "grab",
                         pointerEvents: "auto",
+                        touchAction: "none",
                       }}
                       onPointerDown={(e) => startTransform(e, single, "rotate")}
-                    />
-                  )}
-                  {showHandles &&
-                    (Object.keys(corners) as Corner[]).map((c) => (
+                    >
                       <div
-                        key={c}
-                        style={{ ...handle, ...corners[c] }}
-                        onPointerDown={(e) => startTransform(e, single, "resize", c)}
+                        style={{
+                          width: 14,
+                          height: 14,
+                          background: "var(--accent)",
+                          border: "2px solid #fff",
+                          borderRadius: "50%",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                        }}
                       />
-                    ))}
+                    </div>
+                  )}
+                  {showHandles && corners.map(renderHandle)}
+                  {/* Edge handles: image = crop-from-edge, others = stretch. */}
+                  {showHandles && EDGES.map(renderHandle)}
+                  {showHandles && isImageSel && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: "50%",
+                        top: "100%",
+                        transform: "translate(-50%, 14px)",
+                        whiteSpace: "nowrap",
+                        fontSize: 10,
+                        color: "#fff",
+                        background: "rgba(0,0,0,0.55)",
+                        padding: "1px 6px",
+                        borderRadius: 4,
+                        pointerEvents: "none",
+                      }}
+                    >
+                      drag edge to crop
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -525,6 +700,76 @@ export function CanvasStage() {
               />
             )}
 
+          {/* smart snap guide lines (Canva-style, full-canvas 1px accent) */}
+          {guides.v.map((x, i) => (
+            <div
+              key={`gv-${i}`}
+              style={{
+                position: "absolute",
+                left: x * zoom,
+                top: 0,
+                width: 1,
+                height: h,
+                background: "var(--accent)",
+                pointerEvents: "none",
+              }}
+            />
+          ))}
+          {guides.h.map((y, i) => (
+            <div
+              key={`gh-${i}`}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: y * zoom,
+                width: w,
+                height: 1,
+                background: "var(--accent)",
+                pointerEvents: "none",
+              }}
+            />
+          ))}
+
+          {/* live edge-crop preview (darken the cropped-away region) */}
+          {liveCrop &&
+            dragRef.current?.mode === "cropEdge" &&
+            (() => {
+              const im = dragRef.current!.imageItem!;
+              const bl = (im.xpos - im.width / 2) * zoom;
+              const bt = (im.ypos - im.height / 2) * zoom;
+              return (
+                <>
+                  <img
+                    src={im.source}
+                    alt=""
+                    draggable={false}
+                    style={{
+                      position: "absolute",
+                      left: bl,
+                      top: bt,
+                      width: im.width * zoom,
+                      height: im.height * zoom,
+                      objectFit: "fill",
+                      opacity: 0.35,
+                      pointerEvents: "none",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: liveCrop.x * zoom,
+                      top: liveCrop.y * zoom,
+                      width: liveCrop.w * zoom,
+                      height: liveCrop.h * zoom,
+                      outline: "1.5px solid var(--accent)",
+                      boxShadow: "0 0 0 9999px rgba(0,0,0,0.35)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                </>
+              );
+            })()}
+
           {/* crop mode */}
           {croppingUid !== null &&
             (() => {
@@ -556,6 +801,42 @@ export function CanvasStage() {
       </div>
     </div>
   );
+}
+
+/**
+ * Bake a canvas-space crop rect into a new image data-URI + geometry, then hand
+ * it to `onCommit` (shared by crop-mode and Canva edge-crop). Cross-origin taint
+ * is swallowed silently (nothing committed).
+ */
+function bakeImageCrop(
+  item: ImageItem,
+  rect: CropRect,
+  onCommit: (
+    src: string,
+    geom: { xpos: number; ypos: number; width: number; height: number }
+  ) => void
+) {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    const nW = img.naturalWidth || item.width;
+    const nH = img.naturalHeight || item.height;
+    const r = computeCrop(item, rect, nW, nH);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(r.sw));
+    canvas.height = Math.max(1, Math.round(r.sh));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, 0, 0, canvas.width, canvas.height);
+    let dataUri: string;
+    try {
+      dataUri = canvas.toDataURL("image/png");
+    } catch {
+      return; // tainted canvas
+    }
+    onCommit(dataUri, { xpos: r.xpos, ypos: r.ypos, width: r.width, height: r.height });
+  };
+  img.src = item.source;
 }
 
 type CropHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "move";
