@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { Design } from "@youzign/designstring";
+import { signedIntToHex, type Design } from "@youzign/designstring";
 import { backgroundCss } from "./background.js";
 import { ItemView } from "./items.js";
 
@@ -23,7 +23,10 @@ export function DesignCanvas({ design, zoom = 1 }: DesignCanvasProps) {
     height: design.canvasHeight,
     overflow: "hidden",
     ...backgroundCss(design),
-    border: design.borderWidth > 0 ? `${design.borderWidth}px solid ${"#000"}` : undefined,
+    border:
+      design.borderWidth > 0
+        ? `${design.borderWidth}px solid ${signedIntToHex(design.borderColor)}`
+        : undefined,
   };
 
   const wrapperStyle: CSSProperties = {

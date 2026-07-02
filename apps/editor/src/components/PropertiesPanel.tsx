@@ -5,6 +5,11 @@ import {
   curveAmount,
   GOOGLE_FONTS,
   fontPatch,
+  GRADIENT_PRESETS,
+  GRADIENT_ANGLES,
+  backgroundColorHex,
+  gradientStopHex,
+  borderColorHex,
   type ItemPatch,
 } from "@youzign/editor-core";
 import { signedIntToHex, hexToSignedInt } from "@youzign/designstring";
@@ -295,6 +300,186 @@ function ToggleGroup<T extends string>({
   );
 }
 
+const ANGLE_LABEL: Record<number, string> = {
+  90: "↑",
+  45: "↗",
+  0: "→",
+  "-45": "↘",
+  "-90": "↓",
+  "-135": "↙",
+  180: "←",
+  135: "↖",
+};
+
+/** Canvas background editor — shown when nothing is selected. */
+function CanvasPanel() {
+  const design = useEditor((s) => s.design);
+  const name = useEditor((s) => s.designName);
+  const setBgColor = useEditor((s) => s.setBgColor);
+  const setBgTransparent = useEditor((s) => s.setBgTransparent);
+  const applyPreset = useEditor((s) => s.applyGradientPreset);
+  const setStop = useEditor((s) => s.setGradientStopColor);
+  const setMode = useEditor((s) => s.setGradientMode);
+  const setAngle = useEditor((s) => s.setBgGradientAngle);
+  const reverse = useEditor((s) => s.reverseBgGradient);
+  const setBorderWidth = useEditor((s) => s.setCanvasBorderWidth);
+  const setBorderColor = useEditor((s) => s.setCanvasBorderColor);
+
+  const isGradient = design.bgType === "gradient";
+  const transparent = !!design.transparent;
+
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-0.5">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+          Canvas
+        </div>
+        <div className="truncate text-[13px] font-medium text-neutral-200">{name}</div>
+        <div className="text-[12px] tabular-nums text-neutral-500">
+          {Math.round(design.canvasWidth)} × {Math.round(design.canvasHeight)} px
+        </div>
+      </div>
+
+      <Divider />
+
+      {/* background type */}
+      <section className="flex flex-col gap-3">
+        <SectionLabel>Background</SectionLabel>
+        <div className="flex items-center gap-0.5 rounded-lg bg-white/[0.04] p-0.5">
+          {([
+            { key: "color", label: "Solid" },
+            { key: "gradient", label: "Gradient" },
+          ] as const).map((o) => {
+            const active = !transparent && (o.key === "gradient" ? isGradient : !isGradient);
+            return (
+              <button
+                key={o.key}
+                onClick={() =>
+                  o.key === "gradient" ? applyGradientDefault() : setBgColor(backgroundColorHex(design))
+                }
+                className={`inline-flex h-7 flex-1 items-center justify-center rounded-md text-[12px] font-medium transition-colors duration-150 ${
+                  active ? "bg-[var(--accent)] text-white shadow-sm" : "text-neutral-400 hover:bg-white/[0.08] hover:text-white"
+                }`}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* solid color */}
+        {!isGradient && !transparent && (
+          <Field label="Color">
+            <ColorSwatch value={backgroundColorHex(design)} onChange={(hex) => setBgColor(hex)} />
+          </Field>
+        )}
+
+        {/* gradient editor */}
+        {isGradient && !transparent && (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-6 gap-1.5">
+              {GRADIENT_PRESETS.map(([a, b], i) => (
+                <button
+                  key={i}
+                  title={`Gradient ${i + 1}`}
+                  onClick={() => applyPreset(i)}
+                  className="h-7 rounded-md ring-1 ring-inset ring-white/10 transition-transform duration-100 hover:scale-105"
+                  style={{ background: `linear-gradient(180deg, ${a} 0%, ${b} 100%)` }}
+                />
+              ))}
+            </div>
+
+            <div className="flex items-center gap-0.5 rounded-lg bg-white/[0.04] p-0.5">
+              {([
+                { key: true, label: "Linear" },
+                { key: false, label: "Radial" },
+              ] as const).map((o) => {
+                const active = design.isLinear === o.key;
+                return (
+                  <button
+                    key={String(o.key)}
+                    onClick={() => setMode(o.key)}
+                    className={`inline-flex h-7 flex-1 items-center justify-center rounded-md text-[12px] font-medium transition-colors duration-150 ${
+                      active ? "bg-[var(--accent)] text-white shadow-sm" : "text-neutral-400 hover:bg-white/[0.08] hover:text-white"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {design.isLinear && (
+              <div className="grid grid-cols-8 gap-1">
+                {GRADIENT_ANGLES.map((a) => {
+                  const active = design.angle === a;
+                  return (
+                    <button
+                      key={a}
+                      title={`${a}°`}
+                      onClick={() => setAngle(a)}
+                      className={`flex h-7 items-center justify-center rounded-md text-[13px] transition-colors duration-150 ${
+                        active ? "bg-[var(--accent)] text-white" : "bg-white/[0.04] text-neutral-400 hover:bg-white/[0.08] hover:text-white"
+                      }`}
+                    >
+                      {ANGLE_LABEL[a] ?? a}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Start">
+                <ColorSwatch value={gradientStopHex(design, 1)} onChange={(hex) => setStop(1, hex)} />
+              </Field>
+              <Field label="End">
+                <ColorSwatch value={gradientStopHex(design, 2)} onChange={(hex) => setStop(2, hex)} />
+              </Field>
+            </div>
+
+            <button
+              onClick={reverse}
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-2 text-[12.5px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.1] hover:text-white"
+            >
+              <Icon name="redo" size={15} /> Reverse colors
+            </button>
+          </div>
+        )}
+      </section>
+
+      <Divider />
+
+      {/* transparent */}
+      <SectionLabel right={<Switch on={transparent} onChange={() => setBgTransparent(!transparent)} />}>
+        Transparent
+      </SectionLabel>
+
+      <Divider />
+
+      {/* border */}
+      <section className="flex flex-col gap-2.5">
+        <SectionLabel>Canvas border</SectionLabel>
+        <Field label="Color">
+          <ColorSwatch value={borderColorHex(design)} onChange={(hex) => setBorderColor(hex)} />
+        </Field>
+        <NumberField
+          label="Width"
+          value={Math.round(design.borderWidth)}
+          onChange={(v) => setBorderWidth(v)}
+          min={0}
+          unit="px"
+        />
+      </section>
+    </div>
+  );
+
+  function applyGradientDefault() {
+    // Switching to gradient with no gradient yet → seed the first preset.
+    if (!isGradient) applyPreset(0);
+  }
+}
+
 export function PropertiesPanel() {
   const item = useEditor((s) => s.selectedItem());
   const selectedCount = useEditor((s) => s.selectedUids.length);
@@ -308,16 +493,7 @@ export function PropertiesPanel() {
   const bgError = useEditor((s) => s.bgError);
 
   if (selectedCount === 0) {
-    return (
-      <div className="flex flex-col items-center gap-3 px-5 pt-16 text-center">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/[0.05] text-neutral-500">
-          <Icon name="shapes" size={20} />
-        </div>
-        <p className="text-[12px] leading-relaxed text-neutral-500">
-          Nothing selected.<br />Click an item on the canvas to edit it.
-        </p>
-      </div>
-    );
+    return <CanvasPanel />;
   }
 
   if (selectedCount > 1 || !item) {
