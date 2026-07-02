@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { SHAPE_KINDS, shapeSvg, type ShapeKind } from "@youzign/editor-core";
 import { useEditor } from "../store.js";
+import { Icon, type IconName } from "./ui.js";
 
 type Tab = "search" | "icons" | "shapes" | "generate";
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "search", label: "Search", icon: "🔍" },
-  { id: "icons", label: "Icons", icon: "⭐" },
-  { id: "shapes", label: "Shapes", icon: "⬛" },
-  { id: "generate", label: "Generate", icon: "✨" },
+const TABS: { id: Tab; label: string; icon: IconName }[] = [
+  { id: "search", label: "Search", icon: "search" },
+  { id: "icons", label: "Icons", icon: "star" },
+  { id: "shapes", label: "Shapes", icon: "shapes" },
+  { id: "generate", label: "Create", icon: "sparkles" },
 ];
 
 export function LeftSidebar() {
@@ -19,46 +20,47 @@ export function LeftSidebar() {
   return (
     <div className="flex h-full">
       {/* icon rail */}
-      <nav className="flex w-14 flex-col items-center gap-1 border-r border-neutral-800 bg-neutral-950 py-3">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            title={t.label}
-            onClick={() => setTab(t.id)}
-            className={`flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-lg text-[10px] transition ${
-              tab === t.id
-                ? "bg-neutral-800 text-white"
-                : "text-neutral-500 hover:bg-neutral-900 hover:text-neutral-300"
-            }`}
-          >
-            <span className="text-base leading-none">{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
+      <nav className="flex w-[68px] flex-col items-center gap-1 border-r border-white/[0.06] bg-[#1c1c1f] py-3">
+        {TABS.map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              title={t.label}
+              onClick={() => setTab(t.id)}
+              className={`flex h-14 w-14 flex-col items-center justify-center gap-1 rounded-xl transition-colors duration-150 ${
+                active
+                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                  : "text-neutral-500 hover:bg-white/[0.06] hover:text-neutral-200"
+              }`}
+            >
+              <Icon name={t.icon} size={20} />
+              <span className="text-[10px] font-medium">{t.label}</span>
+            </button>
+          );
+        })}
       </nav>
 
       {/* panel */}
-      <div className="w-60 overflow-y-auto border-r border-neutral-800 bg-neutral-900 p-3">
+      <div className="w-64 overflow-y-auto border-r border-white/[0.06] bg-[#202024] p-4">
         {tab === "shapes" ? (
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                Shapes
-              </h2>
+              <h2 className="text-[13px] font-semibold text-neutral-100">Shapes</h2>
               <button
                 onClick={addText}
-                className="rounded bg-blue-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-blue-500"
+                className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 text-[12px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.12] hover:text-white"
               >
-                + Text
+                <Icon name="type" size={14} /> Text
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2.5">
               {SHAPE_KINDS.map((k) => (
                 <ShapeButton key={k} kind={k} onAdd={() => addShape(k)} />
               ))}
             </div>
-            <p className="mt-3 text-[11px] leading-relaxed text-neutral-500">
-              Click a shape to drop it on the canvas. Recolor it in the right
+            <p className="mt-4 text-[11px] leading-relaxed text-neutral-500">
+              Click a shape to drop it on the canvas, then recolor it in the right
               panel.
             </p>
           </div>
@@ -75,27 +77,37 @@ function ShapeButton({ kind, onAdd }: { kind: ShapeKind; onAdd: () => void }) {
     <button
       onClick={onAdd}
       title={kind}
-      className="flex aspect-square items-center justify-center rounded-lg border border-neutral-700 bg-neutral-800 p-2 hover:border-blue-500 hover:bg-neutral-750"
-      dangerouslySetInnerHTML={{ __html: shapeSvg(kind, "#c8ccd4") }}
-    />
+      className="group flex aspect-square items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--accent)]/50 hover:bg-white/[0.07] hover:shadow-md"
+    >
+      <span
+        className="h-full w-full text-neutral-300 transition-colors group-hover:text-white [&>svg]:h-full [&>svg]:w-full"
+        dangerouslySetInnerHTML={{ __html: shapeSvg(kind, "currentColor") }}
+      />
+    </button>
   );
 }
 
-function ComingSoon({ tab, onAddText }: { tab: string; onAddText: () => void }) {
-  const copy: Record<string, string> = {
-    search: "Search millions of stock photos — coming soon.",
-    icons: "Browse the icon & clipart library — coming soon.",
-    generate: "Generate art & copy with AI — coming soon.",
+function ComingSoon({ tab, onAddText }: { tab: Tab; onAddText: () => void }) {
+  const copy: Record<string, { title: string; body: string; icon: IconName }> = {
+    search: { title: "Stock photos", body: "Search millions of stock photos — coming soon.", icon: "search" },
+    icons: { title: "Icons & clipart", body: "Browse the icon & clipart library — coming soon.", icon: "star" },
+    generate: { title: "Create with AI", body: "Generate art & copy with AI — coming soon.", icon: "sparkles" },
   };
+  const c = copy[tab];
   return (
-    <div className="flex flex-col items-center gap-3 pt-8 text-center">
-      <div className="text-3xl opacity-40">{tab === "generate" ? "✨" : "🚧"}</div>
-      <p className="text-xs text-neutral-500">{copy[tab]}</p>
+    <div className="flex flex-col items-center gap-3 pt-12 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.05] text-neutral-400">
+        <Icon name={c.icon} size={22} />
+      </div>
+      <div>
+        <p className="text-[13px] font-medium text-neutral-200">{c.title}</p>
+        <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">{c.body}</p>
+      </div>
       <button
         onClick={onAddText}
-        className="rounded bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 hover:bg-neutral-700"
+        className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-white/[0.06] px-3 py-1.5 text-[12px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.12] hover:text-white"
       >
-        + Add a text box
+        <Icon name="type" size={14} /> Add a text box
       </button>
     </div>
   );

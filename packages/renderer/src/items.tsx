@@ -59,25 +59,47 @@ function ImageItemView({ item }: { item: ImageItem }) {
       <div
         style={{
           ...style,
-          border: "2px dashed #b45",
-          background: "repeating-linear-gradient(45deg,#2a2a2a,#2a2a2a 10px,#242424 10px,#242424 20px)",
-          color: "#c88",
-          fontSize: 12,
-          fontFamily: "monospace",
-          padding: 6,
+          borderRadius: Math.min(12, item.width * 0.06, item.height * 0.06),
+          border: "1px solid rgba(0,0,0,0.08)",
+          background:
+            "repeating-linear-gradient(45deg,#eceef2,#eceef2 9px,#e3e6ec 9px,#e3e6ec 18px)",
+          color: "#8b93a1",
           overflow: "hidden",
           boxSizing: "border-box",
           display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          padding: 12,
           alignItems: "center",
           justifyContent: "center",
           textAlign: "center",
-          wordBreak: "break-all",
         }}
         title={item.source}
       >
-        {`image 404 · ${item.width}×${item.height}`}
-        <br />
-        {item.source}
+        <svg
+          width={Math.max(20, Math.min(40, item.width * 0.22))}
+          height={Math.max(20, Math.min(40, item.width * 0.22))}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M21 15V5a2 2 0 0 0-2-2H9M3 3l18 18" />
+          <path d="M3 7v12a2 2 0 0 0 2 2h12M8.5 10.5 3 17" />
+        </svg>
+        {Math.min(item.width, item.height) > 90 && (
+          <span
+            style={{
+              fontSize: 12,
+              fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+              fontWeight: 500,
+            }}
+          >
+            Image unavailable
+          </span>
+        )}
       </div>
     );
   }

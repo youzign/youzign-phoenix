@@ -95,14 +95,14 @@ export function App() {
   }, [undo, redo, del, nudge, escapeSelection, editing]);
 
   return (
-    <div className="flex h-full flex-col bg-[#0e0e11] text-neutral-200">
+    <div className="flex h-full flex-col bg-[#17171a] text-neutral-200">
       <TopBar fixtures={FIXTURES} fixture={fixture} onFixture={setFixture} />
       <div className="flex min-h-0 flex-1">
         <LeftSidebar />
         <main className="min-w-0 flex-1">
           <CanvasStage />
         </main>
-        <aside className="w-64 overflow-y-auto border-l border-neutral-800 bg-neutral-900">
+        <aside className="w-[272px] overflow-y-auto border-l border-white/[0.06] bg-[#202024]">
           <PropertiesPanel />
         </aside>
       </div>
