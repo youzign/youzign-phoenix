@@ -5,7 +5,9 @@ import {
   isShape,
   GOOGLE_FONTS,
   fontPatch,
+  type ItemPatch,
 } from "@youzign/editor-core";
+import { signedIntToHex, hexToSignedInt } from "@youzign/designstring";
 import { useEditor } from "../store.js";
 import { ensureGoogleFonts } from "../fonts.js";
 
@@ -138,6 +140,145 @@ function OpsSection() {
         >
           Delete
         </button>
+      </div>
+    </section>
+  );
+}
+
+const toggleBtn = (on: boolean) =>
+  `rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+    on ? "bg-blue-600 text-white" : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+  }`;
+
+const colorInput = "h-6 w-8 cursor-pointer rounded bg-neutral-800";
+const smallNum =
+  "w-14 rounded bg-neutral-800 px-2 py-1 text-right text-neutral-100 outline-none focus:ring-1 focus:ring-blue-500";
+
+/** Shadow / Border / Blur — writes the exact legacy attributes via patch. */
+function EffectsSection({
+  any,
+  patch,
+}: {
+  any: any;
+  patch: (p: ItemPatch) => void;
+}) {
+  return (
+    <section className="flex flex-col gap-3 border-t border-neutral-800 pt-3">
+      {/* Shadow */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+            Shadow
+          </span>
+          <button
+            className={toggleBtn(!!any.isShadow)}
+            onClick={() => patch({ isShadow: !any.isShadow })}
+          >
+            {any.isShadow ? "On" : "Off"}
+          </button>
+        </div>
+        {any.isShadow && (
+          <div className="grid grid-cols-2 gap-2">
+            <Row label="Color">
+              <input
+                type="color"
+                className={colorInput}
+                value={signedIntToHex(any.shadowColor ?? 0)}
+                onChange={(e) => patch({ shadowColor: hexToSignedInt(e.target.value) })}
+              />
+            </Row>
+            <Row label="Opacity">
+              <input
+                type="number"
+                min={0}
+                max={1}
+                step={0.05}
+                className={smallNum}
+                value={Number(any.shadowOpacity ?? 0)}
+                onChange={(e) => patch({ shadowOpacity: Number(e.target.value) })}
+              />
+            </Row>
+            <Row label="Distance">
+              <input
+                type="number"
+                min={0}
+                className={smallNum}
+                value={Math.round(any.shadowDistance ?? 0)}
+                onChange={(e) => patch({ shadowDistance: Number(e.target.value) })}
+              />
+            </Row>
+            <Row label="Angle">
+              <input
+                type="number"
+                className={smallNum}
+                value={Math.round(any.shadowAngle ?? 0)}
+                onChange={(e) => patch({ shadowAngle: Number(e.target.value) })}
+              />
+            </Row>
+          </div>
+        )}
+      </div>
+
+      {/* Border */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+            Border
+          </span>
+          <button
+            className={toggleBtn(!!any.isBorder)}
+            onClick={() => patch({ isBorder: !any.isBorder })}
+          >
+            {any.isBorder ? "On" : "Off"}
+          </button>
+        </div>
+        {any.isBorder && (
+          <div className="grid grid-cols-2 gap-2">
+            <Row label="Color">
+              <input
+                type="color"
+                className={colorInput}
+                value={signedIntToHex(any.borderColor ?? 0)}
+                onChange={(e) => patch({ borderColor: hexToSignedInt(e.target.value) })}
+              />
+            </Row>
+            <Row label="Width">
+              <input
+                type="number"
+                min={0}
+                className={smallNum}
+                value={Math.round(any.borderSize ?? 0)}
+                onChange={(e) => patch({ borderSize: Number(e.target.value) })}
+              />
+            </Row>
+          </div>
+        )}
+      </div>
+
+      {/* Blur */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+            Blur
+          </span>
+          <button
+            className={toggleBtn(!!any.isBlur)}
+            onClick={() => patch({ isBlur: !any.isBlur })}
+          >
+            {any.isBlur ? "On" : "Off"}
+          </button>
+        </div>
+        {any.isBlur && (
+          <Row label="Amount">
+            <input
+              type="number"
+              min={0}
+              className={smallNum}
+              value={Math.round(any.blurSize ?? 0)}
+              onChange={(e) => patch({ blurSize: Number(e.target.value) })}
+            />
+          </Row>
+        )}
       </div>
     </section>
   );
@@ -306,6 +447,9 @@ export function PropertiesPanel() {
           </Row>
         </section>
       )}
+
+      {/* effects: shadow / border / blur */}
+      {"xpos" in any && <EffectsSection any={any} patch={patch} />}
 
       {/* z-order + ops */}
       <OpsSection />

@@ -68,10 +68,13 @@ Both legacy sample designstrings are committed verbatim as fixtures at
 | Images with graceful 404 → bounded placeholder showing the URL | SWF (Flash) clipart source (`.swf` legacy URLs; the `source_svg` equivalent renders) |
 | SVG clipart: fetched, sanitized, inlined, and recolored (legacy per-`Layer` `@@@` color bands → path `fill`); non-SVG source falls back to the image path; 404 → colored bounded placeholder | |
 | Per-glyph text color (runs merged into `<span>`s) | `text-curved` layout (parsed & round-tripped, not yet laid out on an arc) |
-| Text positioning via the Flash text matrix (`mcWidth/textAreaWidth` scale) | Shadows (`shadow_*`) |
-| Groups / one-level nesting, group scale/rotation/opacity | Blur (`is_blur`, `blur_size`) |
-| Opacity, rotation, hFlip/vFlip | Borders (`is_border`, `border_size`) |
-| Round-trip `parse`/`serialize` (deep-equal + string-stable) | Image cropping / flip-crop |
+| Text positioning via the Flash text matrix (`mcWidth/textAreaWidth` scale) | |
+| Shadows (`is_shadow`, `shadow_distance`/`_angle`/`_color`/`_opacity`) — legacy `drop-shadow(cosθ·d, sinθ·d, 10px, rgba(color,opacity))`; editable | Image cropping / flip-crop |
+| Blur (`is_blur`, `blur_size`) — legacy `blur(blur_size / 2)`; editable | |
+| Borders (`is_border`, `border_size`, `border_color`) — non-text: legacy 8-direction `drop-shadow` outline; text: `text-shadow` ring outline (+ no-fill); editable | |
+| Groups / one-level nesting, group scale/rotation/opacity | |
+| Opacity, rotation, hFlip/vFlip | |
+| Round-trip `parse`/`serialize` (deep-equal + string-stable) | |
 | Unknown-attribute preservation (forward-compat) | Custom uploaded fonts (only Google-hosted Arvo is wired) |
 | Font family from the `font` attr (Arvo loaded via Google Fonts) | Filters (`<filter>` item is parsed but a visual no-op) |
 

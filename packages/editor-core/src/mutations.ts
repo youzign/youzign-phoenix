@@ -46,6 +46,14 @@ const NUM_FIELDS: Record<string, string> = {
   size: "size",
   scaleX: "scaleX",
   scaleY: "scaleY",
+  // effect fields (legacy per-item attributes)
+  shadowDistance: "shadow_distance",
+  shadowAngle: "shadow_angle",
+  shadowColor: "shadow_color",
+  shadowOpacity: "shadow_opacity",
+  borderSize: "border_size",
+  borderColor: "border_color",
+  blurSize: "blur_size",
 };
 const BOOL_FIELDS: Record<string, string> = {
   hFlip: "hFlip",
@@ -54,6 +62,9 @@ const BOOL_FIELDS: Record<string, string> = {
   italic: "italic",
   underline: "underline",
   strikethrough: "strikethrough",
+  isShadow: "is_shadow",
+  isBorder: "is_border",
+  isBlur: "is_blur",
 };
 const STR_FIELDS: Record<string, string> = {
   alignment: "alignment",
@@ -82,6 +93,17 @@ export interface ItemPatch {
   font?: string;
   fontType?: string;
   content?: string;
+  // effects (color fields are legacy signed-int values, matching the model)
+  isShadow?: boolean;
+  shadowDistance?: number;
+  shadowAngle?: number;
+  shadowColor?: number;
+  shadowOpacity?: number;
+  isBorder?: boolean;
+  borderSize?: number;
+  borderColor?: number;
+  isBlur?: boolean;
+  blurSize?: number;
 }
 
 /** Apply a typed patch to an item, mutating in place and syncing rawAttrs. */

@@ -10,6 +10,7 @@ import {
 } from "@youzign/designstring";
 import { boxTopLeft, flipTransform, matrixToCss, textPlacement } from "./geometry.js";
 import { inlineClipartSvg, isSvgSource } from "./clipart.js";
+import { effectFilter, textBorderShadow } from "./effects.js";
 
 /** Render an item by type. */
 export function ItemView({ item }: { item: Item }) {
@@ -40,6 +41,7 @@ function ImageItemView({ item }: { item: ImageItem }) {
     width: item.width,
     height: item.height,
     opacity: item.opacity,
+    filter: effectFilter(item),
     transformOrigin: "center center",
     transform: `rotate(${item.rotation}deg) ${flipTransform(item.hFlip, item.vFlip)}`.trim(),
   };
@@ -123,15 +125,21 @@ function TextItemView({ item }: { item: TextItem }) {
     textAlign: (item.alignment as CSSProperties["textAlign"]) || "left",
     whiteSpace: "pre",
     opacity: item.opacity,
+    filter: effectFilter(item),
+    textShadow: textBorderShadow(item),
     transform: matrixToCss(matrix),
     transformOrigin: "0 0",
     overflow: "visible",
   };
 
+  // Legacy: with a border of size > 1 and "no fill", the glyph fill goes
+  // transparent so only the outline (textShadow) shows.
+  const noFill = item.isNoFill && item.isBorder && item.borderSize > 1;
+
   return (
     <div style={style}>
       {runs.map((r, i) => (
-        <span key={i} style={{ color: r.color }}>
+        <span key={i} style={{ color: noFill ? "transparent" : r.color }}>
           {r.text}
         </span>
       ))}
@@ -179,6 +187,7 @@ function ClipartItemView({ item }: { item: ClipartItem }) {
     width: item.width,
     height: item.height,
     opacity: item.opacity,
+    filter: effectFilter(item),
     transformOrigin: "center center",
     transform: `rotate(${item.rotation}deg) ${flipTransform(item.hFlip, item.vFlip)}`.trim(),
   };
@@ -230,6 +239,7 @@ function GroupItemView({ item }: { item: GroupItem }) {
     width: 0,
     height: 0,
     opacity: item.opacity,
+    filter: effectFilter(item),
     transformOrigin: "0 0",
     transform: `rotate(${item.rotation}deg) scale(${item.scaleX}, ${item.scaleY}) ${flipTransform(
       item.hFlip,
