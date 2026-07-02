@@ -4,3 +4,5 @@ export * from "./mutations.js";
 export * from "./bg-removal.js";
 export * from "./geometry.js";
 export * from "./selection.js";
+export * from "./resize.js";
+export * from "./canvas-presets.js";

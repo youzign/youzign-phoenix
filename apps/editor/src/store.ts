@@ -18,6 +18,8 @@ import {
   type TextPreset,
   type ShapePreset,
   fitToCanvas,
+  resizeDesign,
+  type ResizeOptions,
   cloneItemForDuplicate,
   ensureUid,
   toggleUid,
@@ -144,6 +146,8 @@ interface EditorState {
   nudgeSelected: (dx: number, dy: number) => void;
   bringToFront: () => void;
   sendToBack: () => void;
+
+  resize: (newW: number, newH: number, opts: ResizeOptions) => void;
 
   undo: () => void;
   redo: () => void;
@@ -453,6 +457,9 @@ export const useEditor = create<EditorState>((set, get) => {
         d.items.sort((a, b) => ((a as any).index ?? 0) - ((b as any).index ?? 0));
       });
     },
+
+    resize: (newW, newH, opts) =>
+      commit((d) => resizeDesign(d, newW, newH, opts)),
 
     undo: () =>
       set((s) => {
