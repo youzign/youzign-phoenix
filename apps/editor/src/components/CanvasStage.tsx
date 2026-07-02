@@ -322,7 +322,19 @@ export function CanvasStage() {
     <div className="flex h-full w-full items-center justify-center overflow-auto bg-[#141417] p-10">
       <div
         className="relative shadow-2xl ring-1 ring-white/[0.06]"
-        style={{ width: w, height: h }}
+        style={{
+          width: w,
+          height: h,
+          ...(design.transparent
+            ? {
+                backgroundColor: "#fff",
+                backgroundImage:
+                  "linear-gradient(45deg, #d4d4d8 25%, transparent 25%), linear-gradient(-45deg, #d4d4d8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d4d4d8 75%), linear-gradient(-45deg, transparent 75%, #d4d4d8 75%)",
+                backgroundSize: "20px 20px",
+                backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
+              }
+            : null),
+        }}
       >
         <DesignCanvas design={design} zoom={zoom} />
 

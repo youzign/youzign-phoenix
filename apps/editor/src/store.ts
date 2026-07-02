@@ -20,6 +20,16 @@ import {
   fitToCanvas,
   resizeDesign,
   type ResizeOptions,
+  setBackgroundColor,
+  setTransparent,
+  setGradientPreset,
+  setGradientStop,
+  setGradientLinear,
+  setGradientAngle,
+  setGradientRatios,
+  reverseGradient,
+  setBorderWidth,
+  setBorderColor,
   cloneItemForDuplicate,
   ensureUid,
   toggleUid,
@@ -148,6 +158,17 @@ interface EditorState {
   sendToBack: () => void;
 
   resize: (newW: number, newH: number, opts: ResizeOptions) => void;
+  // canvas background (design-level attrs)
+  setBgColor: (hex: string) => void;
+  setBgTransparent: (transparent: boolean) => void;
+  applyGradientPreset: (index: number) => void;
+  setGradientStopColor: (which: 1 | 2, hex: string) => void;
+  setGradientMode: (isLinear: boolean) => void;
+  setBgGradientAngle: (angle: number) => void;
+  setGradientRatio: (ratio1: number, ratio2: number) => void;
+  reverseBgGradient: () => void;
+  setCanvasBorderWidth: (width: number) => void;
+  setCanvasBorderColor: (hex: string) => void;
 
   undo: () => void;
   redo: () => void;
@@ -460,6 +481,16 @@ export const useEditor = create<EditorState>((set, get) => {
 
     resize: (newW, newH, opts) =>
       commit((d) => resizeDesign(d, newW, newH, opts)),
+    setBgColor: (hex) => commit((d) => setBackgroundColor(d, hex)),
+    setBgTransparent: (transparent) => commit((d) => setTransparent(d, transparent)),
+    applyGradientPreset: (index) => commit((d) => setGradientPreset(d, index)),
+    setGradientStopColor: (which, hex) => commit((d) => setGradientStop(d, which, hex)),
+    setGradientMode: (isLinear) => commit((d) => setGradientLinear(d, isLinear)),
+    setBgGradientAngle: (angle) => commit((d) => setGradientAngle(d, angle)),
+    setGradientRatio: (ratio1, ratio2) => commit((d) => setGradientRatios(d, ratio1, ratio2)),
+    reverseBgGradient: () => commit((d) => reverseGradient(d)),
+    setCanvasBorderWidth: (width) => commit((d) => setBorderWidth(d, width)),
+    setCanvasBorderColor: (hex) => commit((d) => setBorderColor(d, hex)),
 
     undo: () =>
       set((s) => {
