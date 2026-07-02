@@ -11,6 +11,7 @@ import {
   resizeCorner,
   resizeEdge,
   edgeCropRect,
+  snapRotation,
   resolveSnap,
   canvasTargets,
   itemTargets,
@@ -116,6 +117,9 @@ export function CanvasStage() {
   const cancelMagic = useEditor((s) => s.cancelMagic);
   const applyMagicErase = useEditor((s) => s.applyMagicErase);
   const applyMagicGrab = useEditor((s) => s.applyMagicGrab);
+  const blurPreview = useEditor((s) => s.blurPreview);
+  const applyMagicBlur = useEditor((s) => s.applyMagicBlur);
+  const cancelMagicBlur = useEditor((s) => s.cancelMagicBlur);
   const bgProcessingUids = useEditor((s) => s.bgProcessingUids);
   const beginCrop = useEditor((s) => s.beginCrop);
   const cancelCrop = useEditor((s) => s.cancelCrop);
@@ -131,6 +135,9 @@ export function CanvasStage() {
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [guides, setGuides] = useState<SnapLines>({ v: [], h: [] });
   const [liveCrop, setLiveCrop] = useState<CropRect | null>(null);
+  const [rotHud, setRotHud] = useState<
+    { deg: number; left: number; top: number; strong: boolean } | null
+  >(null);
   const [, force] = useState(0);
 
   const w = design.canvasWidth * zoom;
@@ -190,8 +197,23 @@ export function CanvasStage() {
         }
       } else if (d.mode === "rotate") {
         const ang = (Math.atan2(p.y - b.cy, p.x - b.cx) * 180) / Math.PI + 90;
-        const snapped = shift ? Math.round(ang / 15) * 15 : ang;
-        livePatch(d.uid, { rotation: snapped });
+        // Auto-snap to 45° guides by default; Ctrl/Cmd = fine (no snap);
+        // Shift = 15° stepper.
+        const snap = snapRotation(ang, {
+          fine: e.ctrlKey || e.metaKey,
+          step: shift,
+        });
+        livePatch(d.uid, { rotation: snap.angle });
+        // Degree readout pill positioned near the cursor (overlay-relative px).
+        const r = overlayRef.current?.getBoundingClientRect();
+        if (r) {
+          setRotHud({
+            deg: Math.round(snap.angle),
+            left: e.clientX - r.left + 16,
+            top: e.clientY - r.top - 28,
+            strong: snap.snapped && snap.strong,
+          });
+        }
       } else if (d.mode === "cropEdge" && d.handle && d.imageItem) {
         setLiveCrop(edgeCropRect(d.imageItem, d.handle as Edge, p));
       } else if (d.mode === "resize" && d.handle) {
@@ -233,6 +255,7 @@ export function CanvasStage() {
       if (d) {
         dragRef.current = null;
         setGuides({ v: [], h: [] });
+        setRotHud(null);
         if (d.mode === "cropEdge") {
           // Bake the edge-crop into a new image (destructive, like crop mode).
           const rect = liveCrop;
@@ -270,6 +293,17 @@ export function CanvasStage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoom, marquee, design, liveCrop]);
+
+  // Blur preview: Enter bakes, Escape cancels.
+  useEffect(() => {
+    if (!blurPreview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Enter") { e.preventDefault(); applyMagicBlur(); }
+      if (e.key === "Escape") { e.preventDefault(); cancelMagicBlur(); }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [blurPreview, applyMagicBlur, cancelMagicBlur]);
 
   const startMove = (e: RPointerEvent, uids: number[]) => {
     e.stopPropagation();
@@ -746,6 +780,35 @@ export function CanvasStage() {
             />
           ))}
 
+          {/* rotation degree readout (house-style dark pill, near the cursor) */}
+          {rotHud && (
+            <div
+              data-testid="rotate-hud"
+              style={{
+                position: "absolute",
+                left: rotHud.left,
+                top: rotHud.top,
+                transform: "translateY(-100%)",
+                pointerEvents: "none",
+                fontSize: 11,
+                fontWeight: 600,
+                fontVariantNumeric: "tabular-nums",
+                color: "#fff",
+                background: rotHud.strong ? "var(--accent)" : "rgba(20,20,23,0.92)",
+                border: rotHud.strong
+                  ? "1px solid #fff"
+                  : "1px solid rgba(255,255,255,0.14)",
+                borderRadius: 6,
+                padding: "3px 7px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.45)",
+                whiteSpace: "nowrap",
+                zIndex: 30,
+              }}
+            >
+              {rotHud.deg}°
+            </div>
+          )}
+
           {/* live edge-crop preview (darken the cropped-away region) */}
           {liveCrop &&
             dragRef.current?.mode === "cropEdge" &&
@@ -831,6 +894,36 @@ export function CanvasStage() {
               );
             })()}
 
+          {/* live background-blur preview (non-destructive overlay on the item) */}
+          {blurPreview &&
+            (() => {
+              const loc = locate(design, blurPreview.uid);
+              if (!loc || loc.item.type !== "image") return null;
+              const im = loc.item as unknown as ImageItem;
+              const bl = (im.xpos - im.width / 2) * zoom;
+              const bt = (im.ypos - im.height / 2) * zoom;
+              return (
+                <img
+                  data-testid="blur-preview"
+                  src={blurPreview.src}
+                  alt=""
+                  draggable={false}
+                  style={{
+                    position: "absolute",
+                    left: bl,
+                    top: bt,
+                    width: im.width * zoom,
+                    height: im.height * zoom,
+                    objectFit: "fill",
+                    pointerEvents: "none",
+                    outline: "1.5px solid var(--accent)",
+                    transform: im.rotation ? `rotate(${im.rotation}deg)` : undefined,
+                    transformOrigin: "center center",
+                  }}
+                />
+              );
+            })()}
+
           {/* inline text editing */}
           {single !== null && editingUid === single && isText && singleItem && (
             <InlineTextEditor
@@ -912,11 +1005,13 @@ function CropOverlay({
     return { x, y, w, h };
   };
 
+  // Start at the exact image edges (whole image selected) — the user shrinks
+  // from there by dragging an edge/corner.
   const [crop, setCrop] = useState<CropRect>(() => ({
-    x: boxLeft + item.width * 0.12,
-    y: boxTop + item.height * 0.12,
-    w: item.width * 0.76,
-    h: item.height * 0.76,
+    x: boxLeft,
+    y: boxTop,
+    w: item.width,
+    h: item.height,
   }));
   const dragRef = useRef<{ handle: CropHandle; start: CropRect; startCanvas: { x: number; y: number } } | null>(
     null

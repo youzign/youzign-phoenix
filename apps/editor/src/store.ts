@@ -133,6 +133,14 @@ interface EditorState {
   magicBusy: boolean; // an async magic op is running
   magicStage: string | null; // coarse progress label
   magicError: { uid: number; message: string } | null;
+  // live background-blur preview (non-destructive until Apply)
+  blurPreview: {
+    uid: number;
+    amount: number;
+    cutout: string; // cached U²-Net subject cutout (mask compute done once)
+    src: string; // current composited preview PNG data-URI
+    recomputing: boolean; // a debounced recompute is in flight
+  } | null;
   zoom: number;
   showGrid: boolean;
   past: Design[];
@@ -177,7 +185,11 @@ interface EditorState {
   clearMagicError: () => void;
   applyMagicErase: (uid: number, maskDataUri: string) => Promise<void>;
   applyMagicGrab: (uid: number, imgX: number, imgY: number) => Promise<void>;
-  applyMagicBlur: (uid: number, amount: number) => Promise<void>;
+  // background blur: preview flow (compute cutout once, recompute blur live)
+  beginMagicBlur: (uid: number, amount: number) => Promise<void>;
+  setMagicBlurAmount: (amount: number) => Promise<void>;
+  applyMagicBlur: () => void;
+  cancelMagicBlur: () => void;
 
   addText: (preset?: TextPreset) => void;
   addShape: (kind: ShapeKind, preset?: ShapePreset) => void;
@@ -265,6 +277,7 @@ export const useEditor = create<EditorState>((set, get) => {
     magicBusy: false,
     magicStage: null,
     magicError: null,
+    blurPreview: null,
     zoom: 0.6,
     showGrid: false,
     past: [],
@@ -273,7 +286,7 @@ export const useEditor = create<EditorState>((set, get) => {
 
     load: (xml, name) => {
       const design = tagUids(parse(xml));
-      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, past: [], future: [], lockedUids: [] });
+      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, blurPreview: null, past: [], future: [], lockedUids: [] });
     },
 
     setName: (name) => set({ designName: name }),
@@ -465,25 +478,20 @@ export const useEditor = create<EditorState>((set, get) => {
         const cx = itemLeft + (extract.bounds.x + extract.bounds.width / 2) * sx;
         const cy = itemTop + (extract.bounds.y + extract.bounds.height / 2) * sy;
 
-        // Best-effort hole-fill of the original (full Canva Magic Grab). If it
-        // fails, we still keep the lifted subject (extract-only fallback).
+        // Hole-fill the original so the subject is PLUCKED, not duplicated
+        // (full Canva Magic Grab). If the bria fill fails we must NOT silently
+        // keep the original intact (that reads as a duplicate) — surface the
+        // error and abort the lift so the user can retry.
         set({ magicStage: "erasing" });
-        let erasedPng: string | null = null;
-        try {
-          const erasedUrl = await eraseRegion(source, maskUrl, key);
-          erasedPng = await toDataUri(erasedUrl);
-        } catch {
-          erasedPng = null;
-        }
+        const erasedUrl = await eraseRegion(source, maskUrl, key);
+        const erasedPng = await toDataUri(erasedUrl);
 
         const d0 = get().design;
         const subject = createImageItem(d0, extract.dataUri, cx, cy, { width: newW, height: newH }) as IdItem;
         ensureUid(subject);
         commit((d) => {
-          if (erasedPng) {
-            const orig = findByUid(d, uid);
-            if (orig && orig.type === "image") applySource(orig as any, erasedPng);
-          }
+          const orig = findByUid(d, uid);
+          if (orig && orig.type === "image") applySource(orig as any, erasedPng);
           d.items.push(subject);
         });
         set({ magicMode: null, magicUid: null, selectedUids: [subject._uid!], drillGroupUid: null });
@@ -494,25 +502,69 @@ export const useEditor = create<EditorState>((set, get) => {
       }
     },
 
-    applyMagicBlur: async (uid, amount) => {
+    // Enter blur PREVIEW: compute the subject cutout once (the expensive U²-Net
+    // step) and cache it, then composite an initial blurred preview. The item is
+    // NOT mutated — the preview renders as a non-destructive canvas overlay.
+    beginMagicBlur: async (uid, amount) => {
       const item = findByUid(get().design, uid);
-      if (!item || item.type !== "image" || get().magicBusy) return;
+      if (!item || item.type !== "image" || get().magicBusy || get().blurPreview) return;
       const source = (item as any).source as string;
-      set({ magicBusy: true, magicStage: "cutout", magicError: null });
+      set({
+        magicMode: null,
+        magicUid: uid,
+        selectedUids: [uid],
+        drillGroupUid: null,
+        editingUid: null,
+        croppingUid: null,
+        magicBusy: true,
+        magicStage: "cutout",
+        magicError: null,
+      });
       try {
         const cutout = await removeBackground(source, { onStage: (st) => set({ magicStage: st }) });
         set({ magicStage: "blur" });
-        const png = await blurBackgroundComposite(source, cutout, amount);
-        commit((d) => {
-          const it = findByUid(d, uid);
-          if (it && it.type === "image") applySource(it as any, png);
-        });
+        const src = await blurBackgroundComposite(source, cutout, amount);
+        set({ blurPreview: { uid, amount, cutout, src, recomputing: false } });
       } catch (err) {
         set({ magicError: { uid, message: magicMessage(err) } });
       } finally {
         set({ magicBusy: false, magicStage: null });
       }
     },
+
+    // Recompute the preview for a new blur amount from the cached cutout (only
+    // the canvas blur re-runs — the mask is reused). Debounced by the caller.
+    setMagicBlurAmount: async (amount) => {
+      const bp = get().blurPreview;
+      if (!bp) return;
+      set({ blurPreview: { ...bp, amount, recomputing: true } });
+      const item = findByUid(get().design, bp.uid);
+      if (!item || item.type !== "image") return;
+      const source = (item as any).source as string;
+      try {
+        const src = await blurBackgroundComposite(source, bp.cutout, amount);
+        const cur = get().blurPreview;
+        if (cur && cur.uid === bp.uid && cur.amount === amount) {
+          set({ blurPreview: { ...cur, src, recomputing: false } });
+        }
+      } catch {
+        const cur = get().blurPreview;
+        if (cur) set({ blurPreview: { ...cur, recomputing: false } });
+      }
+    },
+
+    // Bake the current preview into the item (destructive, with undo history).
+    applyMagicBlur: () => {
+      const bp = get().blurPreview;
+      if (!bp) return;
+      commit((d) => {
+        const it = findByUid(d, bp.uid);
+        if (it && it.type === "image") applySource(it as any, bp.src);
+      });
+      set({ blurPreview: null, magicUid: null });
+    },
+
+    cancelMagicBlur: () => set({ blurPreview: null, magicUid: null }),
 
     addText: (preset) => {
       const d0 = get().design;

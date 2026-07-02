@@ -741,15 +741,27 @@ function CanvasPanel() {
 function MagicSection({ uid }: { uid: number }) {
   const beginErase = useEditor((s) => s.beginMagicErase);
   const beginGrab = useEditor((s) => s.beginMagicGrab);
+  const beginBlur = useEditor((s) => s.beginMagicBlur);
+  const setBlurAmountLive = useEditor((s) => s.setMagicBlurAmount);
   const applyBlur = useEditor((s) => s.applyMagicBlur);
+  const cancelBlur = useEditor((s) => s.cancelMagicBlur);
+  const blurPreview = useEditor((s) => s.blurPreview);
   const magicBusy = useEditor((s) => s.magicBusy);
   const magicMode = useEditor((s) => s.magicMode);
   const magicStage = useEditor((s) => s.magicStage);
   const magicError = useEditor((s) => s.magicError);
   const magicUid = useEditor((s) => s.magicUid);
 
-  const [blurOpen, setBlurOpen] = useState(false);
   const [blurAmount, setBlurAmount] = useState(14);
+  const blurActive = blurPreview !== null && blurPreview.uid === uid;
+  // Debounce live recompute of the preview as the slider drags.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onBlurSlider = (v: number) => {
+    setBlurAmount(v);
+    if (!blurActive) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => void setBlurAmountLive(v), 90);
+  };
   const hasFal = !!getKey("fal");
   const busy = magicBusy;
   const stageLabel =
@@ -790,19 +802,26 @@ function MagicSection({ uid }: { uid: number }) {
           <Icon name="sparkles" size={16} /> Grab
         </button>
         <button
-          className={`${btn} ${blurOpen ? activeBtn : ""}`}
-          onClick={() => setBlurOpen((v) => !v)}
-          disabled={busy}
+          className={`${btn} ${blurActive ? activeBtn : ""}`}
+          onClick={() => (blurActive ? cancelBlur() : void beginBlur(uid, blurAmount))}
+          disabled={busy && !blurActive}
           title="Blur the background, keep the subject sharp (runs on your device)"
         >
           <Icon name="droplet" size={16} /> Blur
         </button>
       </div>
 
-      {blurOpen && (
+      {blurActive && (
         <div className="mt-1 flex flex-col gap-2 rounded-md bg-white/[0.03] p-2.5">
-          <SectionLabel right={<span className="text-[12px] tabular-nums text-neutral-300">{blurAmount}px</span>}>
-            Background blur
+          <SectionLabel
+            right={
+              <span className="inline-flex items-center gap-1.5 text-[12px] tabular-nums text-neutral-300">
+                {blurPreview?.recomputing && <Spinner />}
+                {blurAmount}px
+              </span>
+            }
+          >
+            Background blur · preview
           </SectionLabel>
           <input
             type="range"
@@ -810,21 +829,27 @@ function MagicSection({ uid }: { uid: number }) {
             max={40}
             step={1}
             value={blurAmount}
-            onChange={(e) => setBlurAmount(Number(e.target.value))}
+            onChange={(e) => onBlurSlider(Number(e.target.value))}
             className="yz-range"
-            disabled={busy}
           />
-          <button
-            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--accent)] px-2 py-2 text-[12.5px] font-semibold text-white transition-colors duration-150 hover:brightness-110 disabled:cursor-progress disabled:opacity-70"
-            onClick={async () => { await applyBlur(uid, blurAmount); setBlurOpen(false); }}
-            disabled={busy}
-          >
-            {busy ? (<><Spinner /> {stageLabel}</>) : "Apply blur"}
-          </button>
+          <div className="flex gap-1.5">
+            <button
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-[var(--accent)] px-2 py-2 text-[12.5px] font-semibold text-white transition-colors duration-150 hover:brightness-110"
+              onClick={() => applyBlur()}
+            >
+              Apply ⏎
+            </button>
+            <button
+              className="inline-flex flex-1 items-center justify-center rounded-md bg-white/10 px-2 py-2 text-[12.5px] text-neutral-100 hover:bg-white/20"
+              onClick={() => cancelBlur()}
+            >
+              Cancel ⎋
+            </button>
+          </div>
         </div>
       )}
 
-      {busy && !blurOpen && (
+      {busy && !blurActive && (
         <p className="inline-flex items-center gap-1.5 text-[10px] text-neutral-400"><Spinner /> {stageLabel}</p>
       )}
       {magicError && magicError.uid === uid ? (

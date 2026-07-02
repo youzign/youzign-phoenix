@@ -112,6 +112,49 @@ export function resizeEdge(
  * to `p` (clamped so it can only shrink and stays a positive rect). The other
  * three edges stay put.
  */
+export interface RotationSnap {
+  /** angle to apply (degrees, normalised to [0,360)) */
+  angle: number;
+  /** true when the angle was snapped to a guide */
+  snapped: boolean;
+  /** true when snapped to a cardinal (0/90/180/270) — draw a stronger tick */
+  strong: boolean;
+}
+
+/** Normalise any angle to the [0, 360) range. */
+export function normalizeAngle(angle: number): number {
+  return ((angle % 360) + 360) % 360;
+}
+
+/**
+ * Rotation snapping for the top rotate handle.
+ *  - default: auto-snap to the nearest 45° guide within `threshold` degrees
+ *    (cardinals 0/90/180/270 flagged `strong`);
+ *  - `fine` (Ctrl/Cmd held): no snapping, raw angle passes through;
+ *  - `step` (Shift held): quantise to 15° increments.
+ * Returns a normalised angle in [0, 360).
+ */
+export function snapRotation(
+  angle: number,
+  opts: { fine?: boolean; step?: boolean; threshold?: number } = {}
+): RotationSnap {
+  const norm = normalizeAngle(angle);
+  if (opts.fine) return { angle: norm, snapped: false, strong: false };
+  if (opts.step) {
+    const s = normalizeAngle(Math.round(norm / 15) * 15);
+    return { angle: s, snapped: true, strong: s % 90 === 0 };
+  }
+  const threshold = opts.threshold ?? 4;
+  const nearest = Math.round(norm / 45) * 45; // 0..360
+  let d = Math.abs(norm - nearest);
+  if (d > 180) d = 360 - d;
+  if (d <= threshold) {
+    const n = normalizeAngle(nearest);
+    return { angle: n, snapped: true, strong: n % 90 === 0 };
+  }
+  return { angle: norm, snapped: false, strong: false };
+}
+
 export function edgeCropRect(
   box: { xpos: number; ypos: number; width: number; height: number },
   edge: Edge,

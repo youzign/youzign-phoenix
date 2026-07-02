@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resizeCorner, resizeEdge, edgeCropRect } from "../src/transform.js";
+import { resizeCorner, resizeEdge, edgeCropRect, snapRotation, normalizeAngle } from "../src/transform.js";
 import type { SelBox } from "../src/geometry.js";
 
 const box: SelBox = { cx: 100, cy: 100, w: 100, h: 50, rotation: 0 };
@@ -68,5 +68,61 @@ describe("edgeCropRect", () => {
   it("south crop shrinks height", () => {
     const r = edgeCropRect(ibox, "s", { x: 0, y: 120 });
     expect(r.h).toBeCloseTo(70); // 120 - top(50)
+  });
+  it("is bidirectional within a gesture: dragging back out restores full width", () => {
+    // West edge dragged inward to x=40 then back out toward/past the original edge.
+    const inward = edgeCropRect(ibox, "w", { x: 40, y: 0 });
+    expect(inward.w).toBeCloseTo(160);
+    const back = edgeCropRect(ibox, "w", { x: 0, y: 0 }); // back to original left
+    expect(back.x).toBeCloseTo(0);
+    expect(back.w).toBeCloseTo(200); // fully un-cropped
+  });
+});
+
+describe("normalizeAngle", () => {
+  it("wraps into [0,360)", () => {
+    expect(normalizeAngle(0)).toBe(0);
+    expect(normalizeAngle(360)).toBe(0);
+    expect(normalizeAngle(-45)).toBe(315);
+    expect(normalizeAngle(450)).toBe(90);
+  });
+});
+
+describe("snapRotation", () => {
+  it("snaps to nearest 45° within threshold", () => {
+    const r = snapRotation(47);
+    expect(r.angle).toBe(45);
+    expect(r.snapped).toBe(true);
+    expect(r.strong).toBe(false);
+  });
+  it("flags cardinals as strong", () => {
+    expect(snapRotation(2).strong).toBe(true); // -> 0
+    expect(snapRotation(88).strong).toBe(true); // -> 90
+    expect(snapRotation(182).strong).toBe(true); // -> 180
+  });
+  it("does not snap outside threshold", () => {
+    const r = snapRotation(30);
+    expect(r.snapped).toBe(false);
+    expect(r.angle).toBe(30);
+  });
+  it("snaps -45-equivalent to 315", () => {
+    expect(snapRotation(-44).angle).toBe(315);
+    expect(snapRotation(357).angle).toBe(0);
+  });
+  it("fine mode disables snapping and normalises", () => {
+    const r = snapRotation(46, { fine: true });
+    expect(r.snapped).toBe(false);
+    expect(r.angle).toBe(46);
+    expect(snapRotation(-10, { fine: true }).angle).toBe(350);
+  });
+  it("step mode quantises to 15°", () => {
+    expect(snapRotation(52, { step: true }).angle).toBe(45);
+    expect(snapRotation(58, { step: true }).angle).toBe(60);
+    expect(snapRotation(58, { step: true }).strong).toBe(false);
+    expect(snapRotation(88, { step: true }).strong).toBe(true); // 90
+  });
+  it("honours a custom threshold", () => {
+    expect(snapRotation(50, { threshold: 8 }).angle).toBe(45);
+    expect(snapRotation(50, { threshold: 2 }).snapped).toBe(false);
   });
 });
