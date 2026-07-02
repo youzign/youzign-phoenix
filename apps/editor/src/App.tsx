@@ -39,6 +39,7 @@ export function App() {
   const del = useEditor((s) => s.deleteSelected);
   const nudge = useEditor((s) => s.nudgeSelected);
   const escapeSelection = useEditor((s) => s.escapeSelection);
+  const toggleGrid = useEditor((s) => s.toggleGrid);
   const editing = useEditor((s) => s.editingUid);
   const design = useEditor((s) => s.design);
 
@@ -81,6 +82,9 @@ export function App() {
       } else if (e.key === "Escape") {
         e.preventDefault();
         escapeSelection();
+      } else if (e.key.toLowerCase() === "g" && !mod) {
+        e.preventDefault();
+        toggleGrid();
       } else if (e.key.startsWith("Arrow")) {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
@@ -96,7 +100,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, del, nudge, escapeSelection, editing]);
+  }, [undo, redo, del, nudge, escapeSelection, toggleGrid, editing]);
 
   return (
     <div className="flex h-full flex-col bg-[#17171a] text-neutral-200">

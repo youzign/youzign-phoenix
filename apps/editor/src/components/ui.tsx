@@ -27,6 +27,7 @@ export type IconName =
   | "copy"
   | "trash"
   | "crop"
+  | "grid"
   | "scissors"
   | "bold"
   | "italic"
@@ -93,6 +94,12 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   trash: <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0-.7 12a2 2 0 0 1-2 2H8.7a2 2 0 0 1-2-2L6 7" />,
   crop: <path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14" />,
+  grid: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+    </>
+  ),
   scissors: (
     <>
       <circle cx="6" cy="6" r="3" />
