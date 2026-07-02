@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { removeBackground, BgRemovalError } from "./bg/removeBackground.js";
 import { parse, serialize, type Design, type Item } from "@youzign/designstring";
 import {
   patchItem,
@@ -6,6 +7,7 @@ import {
   setShapeFill,
   setCurve,
   applyCrop,
+  applySource,
   type CropResult,
   createTextItem,
   createShapeItem,
@@ -88,6 +90,9 @@ interface EditorState {
   drillGroupUid: number | null; // the group we've drilled into (child selection)
   editingUid: number | null; // text item currently in inline edit
   croppingUid: number | null; // image item currently in crop mode
+  bgProcessingUids: number[]; // image items whose background is being removed
+  bgStage: string | null; // coarse progress stage of the active removal
+  bgError: { uid: number; message: string } | null; // last removal failure
   zoom: number;
   past: Design[];
   future: Design[];
@@ -118,6 +123,10 @@ interface EditorState {
   beginCrop: (uid: number) => void;
   cancelCrop: () => void;
   commitCrop: (uid: number, bakedSource: string, geom: Pick<CropResult, "xpos" | "ypos" | "width" | "height">) => void;
+
+  // background removal (local, in-worker)
+  removeBg: (uid: number) => Promise<void>;
+  clearBgError: () => void;
 
   addText: (preset?: TextPreset) => void;
   addShape: (kind: ShapeKind, preset?: ShapePreset) => void;
@@ -170,13 +179,16 @@ export const useEditor = create<EditorState>((set, get) => {
     drillGroupUid: null,
     editingUid: null,
     croppingUid: null,
+    bgProcessingUids: [],
+    bgStage: null,
+    bgError: null,
     zoom: 0.6,
     past: [],
     future: [],
 
     load: (xml, name) => {
       const design = tagUids(parse(xml));
-      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, past: [], future: [] });
+      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, past: [], future: [] });
     },
 
     setName: (name) => set({ designName: name }),
@@ -273,6 +285,40 @@ export const useEditor = create<EditorState>((set, get) => {
       });
       set({ croppingUid: null });
     },
+
+    removeBg: async (uid) => {
+      const item = findByUid(get().design, uid);
+      if (!item || item.type !== "image") return;
+      const source = (item as any).source as string;
+      if (get().bgProcessingUids.includes(uid)) return;
+      set((s) => ({
+        bgProcessingUids: [...s.bgProcessingUids, uid],
+        bgStage: "load",
+        bgError: null,
+      }));
+      try {
+        const png = await removeBackground(source, {
+          onStage: (stage) => set({ bgStage: stage }),
+        });
+        // Destructive source swap (same pattern as crop) with undo history.
+        commit((d) => {
+          const it = findByUid(d, uid);
+          if (it && it.type === "image") applySource(it as any, png);
+        });
+      } catch (err) {
+        const message =
+          err instanceof BgRemovalError
+            ? err.message
+            : "Background removal failed on this device.";
+        set({ bgError: { uid, message } });
+      } finally {
+        set((s) => ({
+          bgProcessingUids: s.bgProcessingUids.filter((u) => u !== uid),
+          bgStage: null,
+        }));
+      }
+    },
+    clearBgError: () => set({ bgError: null }),
 
     addText: (preset) => {
       const d0 = get().design;
@@ -442,4 +488,9 @@ export const useEditor = create<EditorState>((set, get) => {
 
 export function localStorageKey(name: string) {
   return LS_PREFIX + name;
+}
+
+// Dev-only affordance: expose the store for screenshot/E2E scripts.
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  (window as any).__editor = useEditor;
 }

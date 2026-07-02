@@ -296,6 +296,15 @@ export function computeCrop(
   };
 }
 
+/**
+ * Swap only an image item's source (same destructive bake pattern as crop, but
+ * geometry is unchanged). Used by background removal, which replaces the pixels
+ * with a PNG-with-alpha cutout at the same box. No invented attributes.
+ */
+export function applySource(item: ImageItem, source: string): void {
+  patchItem(item as any, { source });
+}
+
 /** Commit a crop: swap in the baked image + new geometry, mark cropped. */
 export function applyCrop(
   item: ImageItem,
