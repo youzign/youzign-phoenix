@@ -58,6 +58,7 @@ const BOOL_FIELDS: Record<string, string> = {
 const STR_FIELDS: Record<string, string> = {
   alignment: "alignment",
   font: "font",
+  fontType: "fontType",
 };
 
 export interface ItemPatch {
@@ -79,6 +80,7 @@ export interface ItemPatch {
   strikethrough?: boolean;
   alignment?: string;
   font?: string;
+  fontType?: string;
   content?: string;
 }
 

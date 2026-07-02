@@ -7,6 +7,17 @@ import { TopBar } from "./components/TopBar.js";
 import { LeftSidebar } from "./components/LeftSidebar.js";
 import { CanvasStage } from "./components/CanvasStage.js";
 import { PropertiesPanel } from "./components/PropertiesPanel.js";
+import { ensureGoogleFonts } from "./fonts.js";
+import type { Item } from "@youzign/designstring";
+
+function collectFonts(items: Item[], out: Set<string>): void {
+  for (const it of items) {
+    if ((it.type === "text" || it.type === "text-curved") && (it as any).font) {
+      out.add((it as any).font);
+    }
+    if (it.type === "group") collectFonts(it.items, out);
+  }
+}
 
 const FIXTURES: Record<string, string> = {
   "mountains-input.xml": inputXml,
@@ -23,6 +34,15 @@ export function App() {
   const nudge = useEditor((s) => s.nudgeSelected);
   const escapeSelection = useEditor((s) => s.escapeSelection);
   const editing = useEditor((s) => s.editingUid);
+  const design = useEditor((s) => s.design);
+
+  // Load webfonts for every family used in the current design (so the canvas
+  // renders them live). ensureGoogleFonts dedupes, so this is cheap to re-run.
+  useEffect(() => {
+    const fonts = new Set<string>();
+    collectFonts(design.items, fonts);
+    ensureGoogleFonts([...fonts]);
+  }, [design]);
 
   // Load the selected fixture.
   useEffect(() => {

@@ -1,5 +1,96 @@
-import { textColorHex, shapeFillHex, isShape } from "@youzign/editor-core";
+import { useEffect, useRef, useState } from "react";
+import {
+  textColorHex,
+  shapeFillHex,
+  isShape,
+  GOOGLE_FONTS,
+  fontPatch,
+} from "@youzign/editor-core";
 import { useEditor } from "../store.js";
+import { ensureGoogleFonts } from "../fonts.js";
+
+function FontPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (family: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Selected family may be a legacy face not in the curated list — show it too.
+  const families =
+    value && !GOOGLE_FONTS.includes(value) ? [value, ...GOOGLE_FONTS] : GOOGLE_FONTS;
+  const filtered = families.filter((f) =>
+    f.toLowerCase().includes(query.trim().toLowerCase())
+  );
+
+  // Load faces for every visible option so each renders in its own font.
+  useEffect(() => {
+    if (open) ensureGoogleFonts(filtered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, query]);
+
+  // Close on outside click.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        className="flex w-full items-center justify-between rounded bg-neutral-800 px-2 py-1.5 text-xs text-neutral-100 hover:bg-neutral-700"
+        style={{ fontFamily: `"${value}", sans-serif` }}
+        onClick={() => {
+          setOpen((o) => !o);
+          setQuery("");
+        }}
+      >
+        <span className="truncate">{value || "Select font"}</span>
+        <span className="ml-2 text-neutral-500">▾</span>
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded border border-neutral-700 bg-neutral-900 shadow-xl">
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search fonts…"
+            className="w-full rounded-t bg-neutral-800 px-2 py-1.5 text-xs text-neutral-100 outline-none"
+          />
+          <ul className="max-h-64 overflow-y-auto py-1">
+            {filtered.map((f) => (
+              <li key={f}>
+                <button
+                  className={`flex w-full items-center px-2 py-1.5 text-left text-sm hover:bg-neutral-800 ${
+                    f === value ? "text-blue-400" : "text-neutral-200"
+                  }`}
+                  style={{ fontFamily: `"${f}", sans-serif` }}
+                  onClick={() => {
+                    onChange(f);
+                    setOpen(false);
+                  }}
+                >
+                  {f}
+                </button>
+              </li>
+            ))}
+            {filtered.length === 0 && (
+              <li className="px-2 py-2 text-xs text-neutral-500">No matches</li>
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -143,6 +234,13 @@ export function PropertiesPanel() {
       {/* text properties */}
       {isTextItem && (
         <section className="flex flex-col gap-2 border-t border-neutral-800 pt-3">
+          <FontPicker
+            value={any.font}
+            onChange={(family) => {
+              ensureGoogleFonts([family]);
+              patch(fontPatch(family));
+            }}
+          />
           <Row label="Font size">
             <input
               type="number"
