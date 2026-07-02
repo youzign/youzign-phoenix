@@ -4,3 +4,4 @@ dist
 .DS_Store
 apps/editor/dist
 .dev-server.log
+.claude/worktrees/
