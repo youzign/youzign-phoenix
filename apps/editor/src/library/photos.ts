@@ -1,7 +1,6 @@
-// Stock-photo provider adapters behind a single interface. Each adapter exposes
-// a pure `map*` function (raw API JSON -> PhotoResult[]) that is unit-tested,
-// and a `search()` that performs the fetch. Keys are read from localStorage
-// settings and passed in by the caller (never bundled).
+// Unsplash stock-photo adapter. Pure `map*` functions (raw API JSON ->
+// PhotoResult[]) are unit-tested; the fetching helpers use the built-in access
+// key (a localStorage override still wins, via unsplashKey()).
 
 export interface PhotoResult {
   id: string;
@@ -12,83 +11,25 @@ export interface PhotoResult {
   author: string;
   authorLink: string;
   link: string;
+  /** Unsplash download-tracking endpoint — pinged on insert per API guidelines. */
+  downloadLocation: string;
 }
 
-export type ProviderId = "pexels" | "pixabay" | "unsplash";
+export type ProviderId = "unsplash";
 
 export interface PhotoProvider {
   id: ProviderId;
   label: string;
-  /** Where to get a free API key (shown in the calm no-key state). */
+  /** Where to get a free API key (for the optional override). */
   keyUrl: string;
   search(query: string, page: number, key: string, signal?: AbortSignal): Promise<PhotoResult[]>;
 }
 
-/* --------------------------------- Pexels -------------------------------- */
+const API = "https://api.unsplash.com";
 
-export function mapPexels(json: any): PhotoResult[] {
-  const photos = Array.isArray(json?.photos) ? json.photos : [];
-  return photos.map((p: any) => ({
-    id: String(p.id),
-    thumb: p.src?.medium ?? p.src?.small ?? "",
-    full: p.src?.large2x ?? p.src?.large ?? p.src?.original ?? "",
-    width: p.width ?? 0,
-    height: p.height ?? 0,
-    author: p.photographer ?? "",
-    authorLink: p.photographer_url ?? "",
-    link: p.url ?? "",
-  }));
-}
-
-export const pexels: PhotoProvider = {
-  id: "pexels",
-  label: "Pexels",
-  keyUrl: "https://www.pexels.com/api/",
-  async search(query, page, key, signal) {
-    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(
-      query
-    )}&per_page=24&page=${page}`;
-    const res = await fetch(url, { headers: { Authorization: key }, signal });
-    if (!res.ok) throw new Error(`Pexels ${res.status}`);
-    return mapPexels(await res.json());
-  },
-};
-
-/* -------------------------------- Pixabay -------------------------------- */
-
-export function mapPixabay(json: any): PhotoResult[] {
-  const hits = Array.isArray(json?.hits) ? json.hits : [];
-  return hits.map((h: any) => ({
-    id: String(h.id),
-    thumb: h.webformatURL ?? h.previewURL ?? "",
-    full: h.largeImageURL ?? h.webformatURL ?? "",
-    width: h.imageWidth ?? h.webformatWidth ?? 0,
-    height: h.imageHeight ?? h.webformatHeight ?? 0,
-    author: h.user ?? "",
-    authorLink: h.pageURL ?? "",
-    link: h.pageURL ?? "",
-  }));
-}
-
-export const pixabay: PhotoProvider = {
-  id: "pixabay",
-  label: "Pixabay",
-  keyUrl: "https://pixabay.com/api/docs/",
-  async search(query, page, key, signal) {
-    const url = `https://pixabay.com/api/?key=${encodeURIComponent(
-      key
-    )}&q=${encodeURIComponent(query)}&image_type=photo&per_page=24&page=${page}`;
-    const res = await fetch(url, { signal });
-    if (!res.ok) throw new Error(`Pixabay ${res.status}`);
-    return mapPixabay(await res.json());
-  },
-};
-
-/* -------------------------------- Unsplash ------------------------------- */
-
-export function mapUnsplash(json: any): PhotoResult[] {
-  const results = Array.isArray(json?.results) ? json.results : [];
-  return results.map((r: any) => ({
+/** Map one raw Unsplash photo object to a PhotoResult. */
+function mapPhoto(r: any): PhotoResult {
+  return {
     id: String(r.id),
     thumb: r.urls?.small ?? r.urls?.thumb ?? "",
     full: r.urls?.regular ?? r.urls?.full ?? "",
@@ -97,25 +38,82 @@ export function mapUnsplash(json: any): PhotoResult[] {
     author: r.user?.name ?? "",
     authorLink: r.user?.links?.html ?? "",
     link: r.links?.html ?? "",
-  }));
+    downloadLocation: r.links?.download_location ?? "",
+  };
 }
+
+/** Search response shape: `{ results: [...] }`. */
+export function mapUnsplash(json: any): PhotoResult[] {
+  const results = Array.isArray(json?.results) ? json.results : [];
+  return results.map(mapPhoto);
+}
+
+/** List/featured response shape: a bare `[...]` array. */
+export function mapUnsplashList(json: any): PhotoResult[] {
+  const list = Array.isArray(json) ? json : [];
+  return list.map(mapPhoto);
+}
+
+async function get(url: string, key: string, signal?: AbortSignal): Promise<any> {
+  const res = await fetch(url, {
+    headers: { Authorization: `Client-ID ${key}` },
+    signal,
+  });
+  if (!res.ok) throw new Error(`Unsplash ${res.status}`);
+  return res.json();
+}
+
+/** A canned-search per category chip, plus the raw query search. */
+export async function searchPhotos(
+  query: string,
+  page: number,
+  key: string,
+  signal?: AbortSignal
+): Promise<PhotoResult[]> {
+  const url = `${API}/search/photos?query=${encodeURIComponent(
+    query
+  )}&per_page=24&page=${page}`;
+  return mapUnsplash(await get(url, key, signal));
+}
+
+/** The default "Featured" feed shown before any search (popular photos). */
+export async function featuredPhotos(
+  page: number,
+  key: string,
+  signal?: AbortSignal
+): Promise<PhotoResult[]> {
+  const url = `${API}/photos?order_by=popular&per_page=24&page=${page}`;
+  return mapUnsplashList(await get(url, key, signal));
+}
+
+/**
+ * Fire the Unsplash download-tracking ping (fire-and-forget) on insert, as the
+ * API guidelines require. No-op when the endpoint is missing.
+ */
+export function pingDownload(downloadLocation: string, key: string): void {
+  if (!downloadLocation) return;
+  try {
+    void fetch(downloadLocation, { headers: { Authorization: `Client-ID ${key}` } });
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Category chips → canned searches (the tab is never an empty search box). */
+export const PHOTO_CATEGORIES = [
+  "Business",
+  "Nature",
+  "People",
+  "Food",
+  "Technology",
+  "Abstract",
+  "Travel",
+  "Textures",
+] as const;
 
 export const unsplash: PhotoProvider = {
   id: "unsplash",
   label: "Unsplash",
   keyUrl: "https://unsplash.com/developers",
-  async search(query, page, key, signal) {
-    const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(
-      query
-    )}&per_page=24&page=${page}`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Client-ID ${key}` },
-      signal,
-    });
-    if (!res.ok) throw new Error(`Unsplash ${res.status}`);
-    return mapUnsplash(await res.json());
-  },
+  search: searchPhotos,
 };
-
-// Pexels first (spec).
-export const PHOTO_PROVIDERS: PhotoProvider[] = [pexels, pixabay, unsplash];

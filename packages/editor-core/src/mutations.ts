@@ -359,25 +359,48 @@ const COMMON_DEFAULTS = (
   ["blur_size", "0"],
 ];
 
-export function createTextItem(design: Design, x: number, y: number): TextItem {
+/** Optional styling for a text item — powers the preset text layers. */
+export interface TextPreset {
+  content?: string;
+  size?: number;
+  bold?: boolean;
+  italic?: boolean;
+  /** Fill color as hex (defaults to a near-black ink). */
+  color?: string;
+  /** Text-area width in px (defaults to 460). */
+  width?: number;
+  alignment?: string;
+  font?: string;
+}
+
+export function createTextItem(
+  design: Design,
+  x: number,
+  y: number,
+  preset: TextPreset = {}
+): TextItem {
   const index = nextIndex(design);
-  const size = 54;
-  const content = "Double-click to edit";
-  const w = 460;
+  const size = preset.size ?? 54;
+  const content = preset.content ?? "Double-click to edit";
+  const bold = preset.bold ?? false;
+  const italic = preset.italic ?? false;
+  const font = preset.font ?? "Arvo";
+  const alignment = preset.alignment ?? "center";
+  const w = preset.width ?? 460;
   const h = Math.round(size * 1.35);
-  const colorInt = hexToSignedInt("#222222");
+  const colorInt = hexToSignedInt(preset.color ?? "#222222");
   const colors = new Array(Array.from(content).length).fill(colorInt);
   const pairs: [string, string][] = [
     ["type", "text"],
     ...COMMON_DEFAULTS(index, x, y, 0, 0).filter(
       ([k]) => k !== "width" && k !== "height"
     ),
-    ["font", "Arvo"],
+    ["font", font],
     ["fontType", "External Font"],
     ["strikethrough", "false"],
     ["size", String(size)],
     ["color", serializeGlyphColors(colors)],
-    ["alignment", "center"],
+    ["alignment", alignment],
     ["scalex", "1"],
     ["scaley", "1"],
     ["wrapping", "false"],
@@ -388,8 +411,8 @@ export function createTextItem(design: Design, x: number, y: number): TextItem {
     ["mcHeight", String(h)],
     ["textAreaxpos", String(-w / 2)],
     ["textAreaypos", String(-h / 2)],
-    ["bold", "false"],
-    ["italic", "false"],
+    ["bold", String(bold)],
+    ["italic", String(italic)],
     ["isNoFill", "false"],
     ["underline", "false"],
   ];
@@ -418,12 +441,12 @@ export function createTextItem(design: Design, x: number, y: number): TextItem {
     isBlur: false,
     blurSize: 0,
     content,
-    font: "Arvo",
+    font,
     fontType: "External Font",
     strikethrough: false,
     size,
     colors,
-    alignment: "center",
+    alignment,
     scalex: 1,
     scaley: 1,
     wrapping: false,
@@ -434,22 +457,39 @@ export function createTextItem(design: Design, x: number, y: number): TextItem {
     mcHeight: h,
     textAreaxpos: -w / 2,
     textAreaypos: -h / 2,
-    bold: false,
-    italic: false,
+    bold,
+    italic,
     isNoFill: false,
     underline: false,
   };
+}
+
+export interface ShapePreset {
+  width?: number;
+  height?: number;
+  fill?: string;
+  shadow?: boolean;
+  border?: boolean;
+  borderSize?: number;
+  borderColor?: string;
 }
 
 export function createShapeItem(
   design: Design,
   kind: ShapeKind,
   x: number,
-  y: number
+  y: number,
+  preset: ShapePreset = {}
 ): ClipartItem {
   const index = nextIndex(design);
-  const { width, height } = shapeDefaultSize(kind);
-  const fill = "#3b82f6";
+  const def = shapeDefaultSize(kind);
+  const width = preset.width ?? def.width;
+  const height = preset.height ?? def.height;
+  const fill = preset.fill ?? "#3b82f6";
+  const isShadow = preset.shadow ?? false;
+  const isBorder = preset.border ?? false;
+  const borderSize = preset.borderSize ?? 0;
+  const borderColorInt = hexToSignedInt(preset.borderColor ?? "#000000");
   const uri = shapeDataUri(kind, fill);
   const pairs: [string, string][] = [
     ["type", "clipart"],
@@ -469,7 +509,7 @@ export function createShapeItem(
     "is_blur", "blur_size", "source", "source_svg", "color", "swf_id", "svg_id",
   ]);
   const carrier = carrierFrom(pairs, known);
-  return {
+  const item: ClipartItem = {
     type: "clipart",
     ...carrier,
     index,
@@ -497,6 +537,14 @@ export function createShapeItem(
     swfId: "",
     svgId: "",
   };
+  if (isShadow) patchItem(item as any, { isShadow: true });
+  if (isBorder)
+    patchItem(item as any, {
+      isBorder: true,
+      borderSize,
+      borderColor: borderColorInt,
+    });
+  return item;
 }
 
 /**
@@ -510,13 +558,26 @@ export function createClipartItem(
   source: string,
   x: number,
   y: number,
-  opts: { width?: number; height?: number; color?: string } = {}
+  opts: {
+    width?: number;
+    height?: number;
+    color?: string;
+    /**
+     * When false the item ships with an EMPTY colors array, so the renderer's
+     * recolor pass is skipped and the SVG's own fills are preserved verbatim —
+     * this is how colorful designed icons (flat-color-icons, twemoji…) render
+     * faithfully instead of being flattened by the Layer-band recolor path.
+     */
+    recolorable?: boolean;
+  } = {}
 ): ClipartItem {
   const index = nextIndex(design);
   const width = opts.width ?? 200;
   const height = opts.height ?? 200;
+  const recolorable = opts.recolorable ?? true;
   const colorInt = hexToSignedInt(opts.color ?? "#333333");
-  const colorStr = serializeGlyphColors([colorInt]);
+  const colors = recolorable ? [colorInt] : [];
+  const colorStr = recolorable ? serializeGlyphColors([colorInt]) : "";
   const pairs: [string, string][] = [
     ["type", "clipart"],
     ...COMMON_DEFAULTS(index, x, y, width, height),
@@ -557,7 +618,7 @@ export function createClipartItem(
     blurSize: 0,
     source,
     sourceSvg: "",
-    colors: [colorInt],
+    colors,
     swfId: "",
     svgId: "",
   };
@@ -666,6 +727,136 @@ export function cloneItemForDuplicate(design: Design, item: Item): Item {
     setRaw(copy as RawCarrier, "ypos", String(copy.ypos));
   }
   return copy;
+}
+
+// ---- combos -----------------------------------------------------------------
+//
+// A combo inserts several pre-styled items at once, laid out relative to the
+// canvas centre (a banner + a centred text layer, a circle badge + label, …).
+// Pure: returns the fully-positioned items (each a separate layer with a
+// sequential index) so the store can push + select them. Layout math is
+// resolved here to canvas coordinates, making it unit-testable.
+
+export type ComboId = "ribbon-text" | "badge" | "button" | "quote-card";
+
+export interface ComboDef {
+  id: ComboId;
+  label: string;
+}
+
+export const COMBOS: ComboDef[] = [
+  { id: "ribbon-text", label: "Ribbon + text" },
+  { id: "badge", label: "Badge" },
+  { id: "button", label: "Button" },
+  { id: "quote-card", label: "Quote card" },
+];
+
+const ACCENT = "#4f46e5";
+
+/** Build the positioned items for a combo, centred on the canvas. */
+export function insertCombo(design: Design, combo: ComboId): Item[] {
+  const cx = design.canvasWidth / 2;
+  const cy = design.canvasHeight / 2;
+  const base = nextIndex(design);
+  const items: Item[] = [];
+  const add = (it: Item) => {
+    patchItem(it as any, { index: base + items.length });
+    items.push(it);
+    return it;
+  };
+
+  switch (combo) {
+    case "ribbon-text": {
+      add(
+        createShapeItem(design, "rect", cx, cy, {
+          width: 560,
+          height: 120,
+          fill: ACCENT,
+          shadow: true,
+        })
+      );
+      add(
+        createTextItem(design, cx, cy, {
+          content: "YOUR HEADLINE",
+          size: 48,
+          bold: true,
+          color: "#ffffff",
+          width: 520,
+        })
+      );
+      break;
+    }
+    case "badge": {
+      add(
+        createShapeItem(design, "ellipse", cx, cy, {
+          width: 220,
+          height: 220,
+          fill: ACCENT,
+          shadow: true,
+        })
+      );
+      add(
+        createTextItem(design, cx, cy, {
+          content: "NEW",
+          size: 46,
+          bold: true,
+          color: "#ffffff",
+          width: 200,
+        })
+      );
+      break;
+    }
+    case "button": {
+      add(
+        createShapeItem(design, "rect", cx, cy, {
+          width: 300,
+          height: 92,
+          fill: ACCENT,
+          shadow: true,
+        })
+      );
+      add(
+        createTextItem(design, cx, cy, {
+          content: "Click here",
+          size: 32,
+          bold: true,
+          color: "#ffffff",
+          width: 280,
+        })
+      );
+      break;
+    }
+    case "quote-card": {
+      add(
+        createShapeItem(design, "rect", cx, cy, {
+          width: 640,
+          height: 360,
+          fill: "#f5f5f4",
+          shadow: true,
+        })
+      );
+      add(
+        createTextItem(design, cx, cy - 34, {
+          content: "“Design is intelligence made visible.”",
+          size: 40,
+          italic: true,
+          color: "#1c1c1e",
+          width: 540,
+        })
+      );
+      add(
+        createTextItem(design, cx, cy + 96, {
+          content: "— Alina Wheeler",
+          size: 24,
+          color: "#6b7280",
+          width: 540,
+        })
+      );
+      break;
+    }
+  }
+
+  return items;
 }
 
 export { setRaw };
