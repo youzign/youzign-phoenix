@@ -84,6 +84,7 @@ const BOOL_FIELDS: Record<string, string> = {
   cropped: "cropped",
   isInvert: "isInvert",
   isCornerRadiusIndividual: "isCornerRadiusIndividual",
+  isNoFill: "isNoFill",
 };
 const STR_FIELDS: Record<string, string> = {
   alignment: "alignment",
@@ -125,6 +126,8 @@ export interface ItemPatch {
   borderColor?: number;
   isBlur?: boolean;
   blurSize?: number;
+  /** Hollow text: glyph fill goes transparent so only the outline shows. */
+  isNoFill?: boolean;
   // blend mode + invert (legacy per-item attributes)
   blendMode?: string;
   isInvert?: boolean;
@@ -372,7 +375,7 @@ export function applyCrop(
 
 // ---- item construction ------------------------------------------------------
 
-function nextIndex(design: Design): number {
+export function nextIndex(design: Design): number {
   return design.items.reduce((m, it) => Math.max(m, (it as any).index ?? 0), -1) + 1;
 }
 
