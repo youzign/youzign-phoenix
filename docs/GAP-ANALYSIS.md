@@ -25,5 +25,12 @@ Multi-select + marquee (legacy was single-item only), working crop (legacy's was
 - BG removal: legacy used Deep-Image.ai + ClippingMagic SaaS → replaced by local ONNX (feat/bg-removal, in progress).
 - 🪦 out of scope OSS v1: marketplace, teams/share/push, suggest-template, server saves.
 
+## Bertrand's direction on the next wave (2026-07-02)
+- **Canvas sizes**: refresh the 2016 preset list — kill dead platforms (Google+), update dims to current platform specs; keep custom W×H. **Smart resize** is the big win: on canvas resize, elements scale proportionally and stay constrained (Canva-style) — legacy always cropped weirdly or left elements too small.
+- **Basket**: + image round corners, grouping objects.
+- **Selection handles = Canva behavior**: image edge handles (top/bottom/left/right middles) CROP; corner handles keep aspect BY DEFAULT, Shift breaks constraint (invert current behavior); selection chrome rounded & friendly, not sharp/boxy.
+- **Grid + smart snap guides**: object-to-object alignment lines, auto-snap (Canva-style).
+- **fal-powered magic tools** (after basics): magic grab (segmentation), magic eraser/remove, magic blur — the Canva magic suite via fal endpoints.
+
 ## Legacy oddities found
 `HISTORY_STEPS=50` never enforced (undo unbounded); ⌘←/→ text-width keycodes swapped; legacy crop button was an alert stub; "Pexels/Stocksnap/Skitterphoto" tabs were all Pixabay user-filters.
