@@ -138,6 +138,7 @@ interface EditorState {
     height: number;
     pixabay?: boolean;
     attribution?: PhotoAttribution;
+    at?: { x: number; y: number };
   }) => void;
   duplicateSelected: () => void;
   deleteSelected: () => void;
@@ -359,14 +360,17 @@ export const useEditor = create<EditorState>((set, get) => {
       set({ selectedUids: items.map((it) => it._uid!), drillGroupUid: null });
     },
 
-    addPhoto: ({ source, width, height, pixabay, attribution }) => {
+    addPhoto: ({ source, width, height, pixabay, attribution, at }) => {
       const d0 = get().design;
       const box = fitToCanvas(d0, width, height, 0.6);
+      // Drag-drop onto the canvas: centre the item on the cursor (clamped in-canvas).
+      const x = at ? Math.max(0, Math.min(at.x, d0.canvasWidth)) : box.x;
+      const y = at ? Math.max(0, Math.min(at.y, d0.canvasHeight)) : box.y;
       const item = createImageItem(
         d0,
         source,
-        box.x,
-        box.y,
+        x,
+        y,
         { width: box.width, height: box.height },
         { pixabay }
       ) as IdItem;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, MouseEvent as RMouseEvent, PointerEvent as RPointerEvent } from "react";
+import type { CSSProperties, DragEvent as RDragEvent, MouseEvent as RMouseEvent, PointerEvent as RPointerEvent } from "react";
 import { DesignCanvas } from "@youzign/renderer";
 import {
   itemBox,
@@ -12,6 +12,7 @@ import {
 } from "@youzign/editor-core";
 import type { Design, ImageItem, Item } from "@youzign/designstring";
 import { useEditor } from "../store.js";
+import { ingestFiles } from "../library/uploads.js";
 
 type IdItem = Item & { _uid?: number };
 
@@ -98,7 +99,9 @@ export function CanvasStage() {
   const beginCrop = useEditor((s) => s.beginCrop);
   const cancelCrop = useEditor((s) => s.cancelCrop);
   const commitCrop = useEditor((s) => s.commitCrop);
+  const addPhoto = useEditor((s) => s.addPhoto);
 
+  const [fileOver, setFileOver] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
   const marqueeRef = useRef<{ x0: number; y0: number } | null>(null);
@@ -318,11 +321,53 @@ export function CanvasStage() {
     transformOrigin: "center center",
   });
 
+  const isFileDrag = (e: RDragEvent) =>
+    Array.from(e.dataTransfer.types).includes("Files");
+
+  const onCanvasDrop = async (e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    setFileOver(false);
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    // Map drop point to canvas space (centred on cursor) before the async read.
+    const at = toCanvas(e.clientX, e.clientY);
+    const recs = await ingestFiles(files);
+    recs.forEach((r, i) =>
+      addPhoto({
+        source: r.dataUri,
+        width: r.width,
+        height: r.height,
+        at: { x: at.x + i * 16, y: at.y + i * 16 },
+      })
+    );
+  };
+
   return (
-    <div className="flex h-full w-full items-center justify-center overflow-auto bg-[#141417] p-10">
+    <div
+      className="flex h-full w-full items-center justify-center overflow-auto bg-[#141417] p-10"
+      onDragEnter={(e) => {
+        if (isFileDrag(e)) {
+          e.preventDefault();
+          setFileOver(true);
+        }
+      }}
+      onDragOver={(e) => {
+        if (isFileDrag(e)) e.preventDefault();
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget === e.target) setFileOver(false);
+      }}
+      onDrop={(e) => void onCanvasDrop(e)}
+    >
       <div
         className="relative shadow-2xl ring-1 ring-white/[0.06]"
-        style={{ width: w, height: h }}
+        style={{
+          width: w,
+          height: h,
+          outline: fileOver ? "2px dashed var(--accent)" : undefined,
+          outlineOffset: fileOver ? "6px" : undefined,
+        }}
       >
         <DesignCanvas design={design} zoom={zoom} />
 

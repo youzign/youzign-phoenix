@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   SHAPE_KINDS,
   shapeSvg,
@@ -29,6 +29,13 @@ import {
   type PhotoResult,
 } from "../library/photos.js";
 import { unsplashKey, getKey, setKey } from "../library/settings.js";
+import {
+  ingestFiles,
+  allUploads,
+  deleteUpload,
+  onUploadsChanged,
+  type UploadRecord,
+} from "../library/uploads.js";
 import {
   ASPECT_PRESETS,
   FAL_KEY_URL,
@@ -365,15 +372,66 @@ function PhotosPanel() {
     });
   };
 
+  // ---- local uploads (drag-drop / file picker → IndexedDB) ----
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  const [busy, setBusy] = useState(false);
+
+  const onFiles = async (files: FileList | File[]) => {
+    if (!files || (files as FileList).length === 0) return;
+    setBusy(true);
+    try {
+      await ingestFiles(files);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col p-4">
+    <div
+      className="relative flex min-h-0 flex-1 flex-col p-4"
+      onDragEnter={(e) => {
+        if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+        e.preventDefault();
+        dragDepth.current += 1;
+        setDragging(true);
+      }}
+      onDragOver={(e) => {
+        if (Array.from(e.dataTransfer.types).includes("Files")) e.preventDefault();
+      }}
+      onDragLeave={() => {
+        dragDepth.current = Math.max(0, dragDepth.current - 1);
+        if (dragDepth.current === 0) setDragging(false);
+      }}
+      onDrop={(e) => {
+        if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+        e.preventDefault();
+        dragDepth.current = 0;
+        setDragging(false);
+        void onFiles(e.dataTransfer.files);
+      }}
+    >
       <PanelHeader>Photos</PanelHeader>
+
+      <UploadsSection onFiles={onFiles} busy={busy} />
+
+      <SectionLabel>Unsplash</SectionLabel>
       <SearchField
         value={query}
         onChange={setQuery}
         placeholder="Search Unsplash…"
       />
       <ChipRow chips={PHOTO_CATEGORIES} active={query} onPick={setQuery} />
+
+      {dragging && (
+        <div className="pointer-events-none absolute inset-2 z-20 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--accent)] bg-[#202024]/92 backdrop-blur-sm">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+            <Icon name="image" size={22} />
+          </div>
+          <p className="text-[13px] font-semibold text-neutral-100">Drop to upload</p>
+          <p className="text-[11px] text-neutral-500">PNG, JPG, WEBP or SVG</p>
+        </div>
+      )}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {state === "loading" && <SkeletonGrid cols={2} rows={4} />}
@@ -421,6 +479,107 @@ function PhotosPanel() {
       <p className="mt-2 text-[10px] leading-relaxed text-neutral-600">
         Photos via Unsplash. Attribution is kept with each item.
       </p>
+    </div>
+  );
+}
+
+/** "My uploads": upload button + drop-aware thumbnail grid, backed by IndexedDB. */
+function UploadsSection({
+  onFiles,
+  busy,
+}: {
+  onFiles: (files: FileList | File[]) => void | Promise<void>;
+  busy: boolean;
+}) {
+  const [records, setRecords] = useState<UploadRecord[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const addPhoto = useEditor((s) => s.addPhoto);
+
+  useEffect(() => {
+    let alive = true;
+    const refresh = () => {
+      allUploads().then((r) => {
+        if (alive) setRecords(r);
+      });
+    };
+    refresh();
+    const off = onUploadsChanged(refresh);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+
+  const insert = (r: UploadRecord) =>
+    addPhoto({ source: r.dataUri, width: r.width, height: r.height });
+
+  return (
+    <div className="mb-4">
+      <div className="mb-2 flex items-center justify-between">
+        <SectionLabel>My uploads</SectionLabel>
+        <button
+          onClick={() => inputRef.current?.click()}
+          className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors duration-150 hover:brightness-110"
+        >
+          {busy ? (
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          ) : (
+            <Icon name="plus" size={13} />
+          )}
+          Upload
+        </button>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files) void onFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+
+      {records.length === 0 ? (
+        <button
+          onClick={() => inputRef.current?.click()}
+          className="flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.02] px-3 py-5 text-center transition-colors duration-150 hover:border-[var(--accent)]/50 hover:bg-white/[0.05]"
+        >
+          <Icon name="image" size={18} className="text-neutral-500" />
+          <span className="text-[11px] leading-relaxed text-neutral-500">
+            Drop images here or click to upload your own
+          </span>
+        </button>
+      ) : (
+        <div className="grid grid-cols-3 gap-2.5">
+          {records.map((r) => (
+            <div
+              key={r.id}
+              className="group relative aspect-square overflow-hidden rounded-xl border border-white/[0.06] bg-[repeating-conic-gradient(#2a2a30_0%_25%,#232329_0%_50%)] bg-[length:14px_14px] transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--accent)]/50"
+            >
+              <img
+                src={r.dataUri}
+                alt={r.name}
+                loading="lazy"
+                className="h-full w-full cursor-pointer object-contain"
+                onClick={() => insert(r)}
+                title="Click to add to canvas"
+              />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void deleteUpload(r.id);
+                }}
+                title="Remove upload"
+                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-md bg-black/60 text-white opacity-0 transition-opacity duration-150 hover:bg-red-600 group-hover:opacity-100"
+              >
+                <Icon name="plus" size={12} className="rotate-45" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
