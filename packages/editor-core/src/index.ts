@@ -1,6 +1,7 @@
 export * from "./fonts.js";
 export * from "./shapes.js";
 export * from "./mutations.js";
+export * from "./arrange.js";
 export * from "./background.js";
 export * from "./bg-removal.js";
 export * from "./geometry.js";

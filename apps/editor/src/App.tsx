@@ -10,6 +10,7 @@ import { TopBar } from "./components/TopBar.js";
 import { LeftSidebar } from "./components/LeftSidebar.js";
 import { CanvasStage } from "./components/CanvasStage.js";
 import { PropertiesPanel } from "./components/PropertiesPanel.js";
+import { LayersPanel } from "./components/LayersPanel.js";
 import { ensureGoogleFonts } from "./fonts.js";
 import type { Item } from "@youzign/designstring";
 
@@ -37,6 +38,8 @@ export function App() {
   const undo = useEditor((s) => s.undo);
   const redo = useEditor((s) => s.redo);
   const del = useEditor((s) => s.deleteSelected);
+  const dup = useEditor((s) => s.duplicateSelected);
+  const toggleTextStyle = useEditor((s) => s.toggleTextStyle);
   const nudge = useEditor((s) => s.nudgeSelected);
   const escapeSelection = useEditor((s) => s.escapeSelection);
   const editing = useEditor((s) => s.editingUid);
@@ -75,6 +78,18 @@ export function App() {
       } else if (mod && e.key.toLowerCase() === "y") {
         e.preventDefault();
         redo();
+      } else if (mod && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        dup();
+      } else if (mod && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleTextStyle("bold");
+      } else if (mod && e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        toggleTextStyle("italic");
+      } else if (mod && e.key.toLowerCase() === "u") {
+        e.preventDefault();
+        toggleTextStyle("underline");
       } else if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         del();
@@ -96,7 +111,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, del, nudge, escapeSelection, editing]);
+  }, [undo, redo, del, dup, toggleTextStyle, nudge, escapeSelection, editing]);
 
   return (
     <div className="flex h-full flex-col bg-[#17171a] text-neutral-200">
@@ -106,7 +121,8 @@ export function App() {
         <main className="min-w-0 flex-1">
           <CanvasStage />
         </main>
-        <aside className="w-[272px] overflow-y-auto border-l border-white/[0.06] bg-[#202024]">
+        <aside className="flex w-[272px] flex-col overflow-y-auto border-l border-white/[0.06] bg-[#202024]">
+          <LayersPanel />
           <PropertiesPanel />
         </aside>
       </div>

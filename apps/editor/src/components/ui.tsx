@@ -33,7 +33,18 @@ export type IconName =
   | "underline"
   | "align-left"
   | "align-center"
-  | "align-right";
+  | "align-right"
+  | "strikethrough"
+  | "flip-h"
+  | "flip-v"
+  | "center-h"
+  | "center-v"
+  | "lock"
+  | "unlock"
+  | "layer-forward"
+  | "layer-backward"
+  | "grip"
+  | "layers";
 
 const PATHS: Record<IconName, ReactNode> = {
   undo: <path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-1" />,
@@ -106,6 +117,66 @@ const PATHS: Record<IconName, ReactNode> = {
   "align-left": <path d="M4 6h16M4 12h10M4 18h13" />,
   "align-center": <path d="M4 6h16M7 12h10M5 18h14" />,
   "align-right": <path d="M4 6h16M10 12h10M7 18h13" />,
+  strikethrough: <path d="M4 12h16M6 7a4 4 0 0 1 4-3h4a4 4 0 0 1 3 2M8 17a4 4 0 0 0 4 3h2a4 4 0 0 0 4-3" />,
+  "flip-h": (
+    <>
+      <path d="M12 3v18" strokeDasharray="3 3" />
+      <path d="M8 8 4 12l4 4V8ZM16 8l4 4-4 4V8Z" />
+    </>
+  ),
+  "flip-v": (
+    <>
+      <path d="M3 12h18" strokeDasharray="3 3" />
+      <path d="M8 8 12 4l4 4H8ZM8 16l4 4 4-4H8Z" />
+    </>
+  ),
+  "center-h": (
+    <>
+      <path d="M12 3v18" strokeDasharray="3 3" />
+      <rect x="5" y="8" width="14" height="8" rx="1.5" />
+    </>
+  ),
+  "center-v": (
+    <>
+      <path d="M3 12h18" strokeDasharray="3 3" />
+      <rect x="8" y="5" width="8" height="14" rx="1.5" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="4.5" y="11" width="15" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </>
+  ),
+  unlock: (
+    <>
+      <rect x="4.5" y="11" width="15" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 7.5-2" />
+    </>
+  ),
+  "layer-forward": (
+    <>
+      <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+      <path d="m3 15 9 5 9-5" opacity="0.5" />
+    </>
+  ),
+  "layer-backward": (
+    <>
+      <path d="m12 11 9 5-9 5-9-5 9-5Z" />
+      <path d="m3 8 9-5 9 5" opacity="0.5" />
+    </>
+  ),
+  grip: (
+    <>
+      <circle cx="9" cy="6" r="1" />
+      <circle cx="9" cy="12" r="1" />
+      <circle cx="9" cy="18" r="1" />
+      <circle cx="15" cy="6" r="1" />
+      <circle cx="15" cy="12" r="1" />
+      <circle cx="15" cy="18" r="1" />
+    </>
+  ),
+  layers: <path d="m12 2 9 5-9 5-9-5 9-5ZM3 12l9 5 9-5M3 17l9 5 9-5" />,
 };
 
 export function Icon({

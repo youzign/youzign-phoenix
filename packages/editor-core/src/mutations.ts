@@ -18,6 +18,8 @@ import {
 import {
   shapeDataUri,
   shapeDefaultSize,
+  NO_FILL,
+  isNoFill,
   type ShapeKind,
 } from "./shapes.js";
 
@@ -205,11 +207,39 @@ export function setShapeFill(item: ClipartItem, hex: string): void {
   setRaw(item, "color", serializeGlyphColors(item.colors));
 }
 
+/**
+ * Set a parametric shape to a transparent (no) fill. Regenerates the inline SVG
+ * with `fill="none"` and records `shape_fill="none"` so it round-trips; any
+ * border/stroke effect keeps rendering. Recoloring with setShapeFill restores a
+ * solid fill. No-op on non-shape clipart (generic SVGs recolor differently).
+ */
+export function setShapeNoFill(item: ClipartItem): void {
+  const kind = item.rawAttrs["shape_kind"] as ShapeKind | undefined;
+  if (!kind) return;
+  const uri = shapeDataUri(kind, NO_FILL);
+  item.source = uri;
+  setRaw(item, "source", uri);
+  setRaw(item, "shape_fill", NO_FILL);
+}
+
 export function isShape(item: Item): boolean {
   return item.type === "clipart" && !!(item as ClipartItem).rawAttrs["shape_kind"];
 }
 
+/** True when a parametric shape is currently set to a transparent (no) fill. */
+export function isShapeNoFill(item: ClipartItem): boolean {
+  return isNoFill(item.rawAttrs["shape_fill"] ?? "");
+}
+
 export function shapeFillHex(item: ClipartItem): string {
+  const sf = item.rawAttrs["shape_fill"];
+  if (sf && !isNoFill(sf)) return sf;
+  if (sf && isNoFill(sf)) {
+    // Transparent: fall back to the last solid color (if any) or a default so
+    // the color picker shows a sane starting value.
+    if (item.colors && item.colors.length) return signedIntToHex(item.colors[0]);
+    return "#3b82f6";
+  }
   if (item.rawAttrs["shape_fill"]) return item.rawAttrs["shape_fill"];
   if (item.colors && item.colors.length) return signedIntToHex(item.colors[0]);
   return "#3b82f6";

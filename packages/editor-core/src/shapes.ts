@@ -15,6 +15,16 @@ export const SHAPE_KINDS: ShapeKind[] = [
   "line",
 ];
 
+/**
+ * Sentinel fill meaning "no fill / transparent". Stored verbatim in the
+ * `shape_fill` attribute so it round-trips, and emitted as SVG `fill="none"`.
+ */
+export const NO_FILL = "none";
+
+export function isNoFill(fill: string): boolean {
+  return fill === NO_FILL || fill === "transparent";
+}
+
 /** SVG inner body for a shape, drawn in a 0 0 100 100 viewBox. */
 function shapeBody(kind: ShapeKind, fill: string): string {
   switch (kind) {

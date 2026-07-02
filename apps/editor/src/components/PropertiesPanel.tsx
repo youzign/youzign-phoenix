@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   textColorHex,
   shapeFillHex,
+  isShape,
+  isShapeNoFill,
   curveAmount,
   GOOGLE_FONTS,
   fontPatch,
@@ -164,6 +166,78 @@ function OpsSection() {
         </div>
       </div>
     </section>
+  );
+}
+
+/** Flip / center / lock / one-step z-order — the parity "basket" controls. */
+function ArrangeSection({ uid }: { uid: number }) {
+  const patch = useEditor((s) => s.patchSelected);
+  const center = useEditor((s) => s.centerSelected);
+  const forward = useEditor((s) => s.bringForward);
+  const backward = useEditor((s) => s.sendBackward);
+  const toggleLock = useEditor((s) => s.toggleLockSelected);
+  const locked = useEditor((s) => s.lockedUids.includes(uid));
+  const item = useEditor((s) => s.selectedItem());
+  const hFlip = !!(item as any)?.hFlip;
+  const vFlip = !!(item as any)?.vFlip;
+  return (
+    <section className="flex flex-col gap-2">
+      <Divider />
+      <SectionLabel>Arrange</SectionLabel>
+      <div className="flex items-center gap-1">
+        <IconButton icon="flip-h" label="Flip horizontal" active={hFlip} onClick={() => patch({ hFlip: !hFlip })} />
+        <IconButton icon="flip-v" label="Flip vertical" active={vFlip} onClick={() => patch({ vFlip: !vFlip })} />
+        <IconButton icon="center-h" label="Center horizontally" onClick={() => center("h")} />
+        <IconButton icon="center-v" label="Center vertically" onClick={() => center("v")} />
+        <IconButton icon="layer-forward" label="Bring forward" onClick={forward} />
+        <IconButton icon="layer-backward" label="Send backward" onClick={backward} />
+        <div className="ml-auto">
+          <IconButton
+            icon={locked ? "lock" : "unlock"}
+            label={locked ? "Unlock" : "Lock"}
+            active={locked}
+            onClick={toggleLock}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Checkered "No fill" swatch + solid Fill picker for parametric shapes. */
+function ShapeFill({
+  fillHex,
+  noFill,
+  onColor,
+  onNoFill,
+}: {
+  fillHex: string;
+  noFill: boolean;
+  onColor: (hex: string) => void;
+  onNoFill: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        title="No fill (transparent)"
+        aria-label="No fill"
+        onClick={onNoFill}
+        className={`h-7 w-7 shrink-0 rounded-md ring-1 ring-inset transition-colors duration-150 ${
+          noFill ? "ring-[var(--accent)]" : "ring-white/15 hover:ring-white/30"
+        }`}
+        style={{
+          backgroundColor: "#fff",
+          backgroundImage:
+            "linear-gradient(45deg,#c8ccd4 25%,transparent 25%),linear-gradient(-45deg,#c8ccd4 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#c8ccd4 75%),linear-gradient(-45deg,transparent 75%,#c8ccd4 75%)",
+          backgroundSize: "8px 8px",
+          backgroundPosition: "0 0,0 4px,4px -4px,-4px 0",
+        }}
+      />
+      <div className={noFill ? "opacity-50" : ""}>
+        <ColorSwatch value={fillHex} onChange={onColor} />
+      </div>
+    </div>
   );
 }
 
@@ -634,6 +708,7 @@ export function PropertiesPanel() {
   const recolor = useEditor((s) => s.recolorSelected);
   const setCurveByUid = useEditor((s) => s.setCurveByUid);
   const beginCrop = useEditor((s) => s.beginCrop);
+  const setShapeNoFill = useEditor((s) => s.setSelectedShapeNoFill);
   const removeBg = useEditor((s) => s.removeBg);
   const bgProcessingUids = useEditor((s) => s.bgProcessingUids);
   const bgStage = useEditor((s) => s.bgStage);
@@ -732,6 +807,7 @@ export function PropertiesPanel() {
               { key: "bold", icon: "bold" as IconName, label: "Bold", on: !!any.bold },
               { key: "italic", icon: "italic" as IconName, label: "Italic", on: !!any.italic },
               { key: "underline", icon: "underline" as IconName, label: "Underline", on: !!any.underline },
+              { key: "strikethrough", icon: "strikethrough" as IconName, label: "Strikethrough", on: !!any.strikethrough },
             ]).map((o) => (
               <button
                 key={o.key}
@@ -828,10 +904,22 @@ export function PropertiesPanel() {
         <section className="flex flex-col gap-2.5">
           <Divider />
           <Field label="Fill">
-            <ColorSwatch value={fillHex} onChange={(hex) => recolor(hex)} />
+            {isShape(item) ? (
+              <ShapeFill
+                fillHex={fillHex}
+                noFill={isShapeNoFill(item as any)}
+                onColor={(hex) => recolor(hex)}
+                onNoFill={setShapeNoFill}
+              />
+            ) : (
+              <ColorSwatch value={fillHex} onChange={(hex) => recolor(hex)} />
+            )}
           </Field>
         </section>
       )}
+
+      {/* arrange: flip / center / lock / one-step z-order */}
+      {"xpos" in any && <ArrangeSection uid={any._uid} />}
 
       {/* effects */}
       {"xpos" in any && <EffectsSection any={any} patch={patch} />}
