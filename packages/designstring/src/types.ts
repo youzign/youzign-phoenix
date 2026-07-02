@@ -43,6 +43,12 @@ export interface CommonItemFields {
   borderColor: number;
   isBlur: boolean;
   blurSize: number;
+  /** CSS mix-blend-mode value (legacy `blendMode`, one of the 16 BlendMode values). */
+  blendMode: string;
+  /** Legacy invert effect toggle (`isInvert`). */
+  isInvert: boolean;
+  /** Legacy invert intensity 0..100 (`invertIntensity`). */
+  invertIntensity: number;
 }
 
 export interface ImageItem extends RawCarrier, CommonItemFields {
@@ -52,6 +58,13 @@ export interface ImageItem extends RawCarrier, CommonItemFields {
   canBeCropped: boolean;
   cropped: boolean;
   pixabay: boolean;
+  /** Legacy per-corner radius toggle (`isCornerRadiusIndividual`). */
+  isCornerRadiusIndividual: boolean;
+  /** Legacy corner radii, design px (`inputCornerTopLeft`…). */
+  inputCornerTopLeft: number;
+  inputCornerTopRight: number;
+  inputCornerBottomLeft: number;
+  inputCornerBottomRight: number;
 }
 
 export interface TextFields {

@@ -182,10 +182,157 @@ function EffectBlock({
   );
 }
 
+/** Legacy BlendMode.ts order (16 CSS mix-blend-mode values). */
+const BLEND_MODES: { label: string; value: string }[] = [
+  { label: "Normal", value: "normal" },
+  { label: "Multiply", value: "multiply" },
+  { label: "Screen", value: "screen" },
+  { label: "Overlay", value: "overlay" },
+  { label: "Darken", value: "darken" },
+  { label: "Lighten", value: "lighten" },
+  { label: "Color Dodge", value: "color-dodge" },
+  { label: "Color Burn", value: "color-burn" },
+  { label: "Hard Light", value: "hard-light" },
+  { label: "Soft Light", value: "soft-light" },
+  { label: "Difference", value: "difference" },
+  { label: "Exclusion", value: "exclusion" },
+  { label: "Hue", value: "hue" },
+  { label: "Saturation", value: "saturation" },
+  { label: "Color", value: "color" },
+  { label: "Luminosity", value: "luminosity" },
+];
+
+function BlendModeSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <select
+      value={value || "normal"}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full rounded-md bg-white/[0.05] px-2.5 py-2 text-[13px] text-neutral-100 outline-none transition-colors duration-150 hover:bg-white/[0.09] focus:bg-white/[0.09]"
+    >
+      {BLEND_MODES.map((m) => (
+        <option key={m.value} value={m.value} className="bg-neutral-800 text-neutral-100">
+          {m.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** Uniform + expandable per-corner radius for images (legacy inputCorner*). */
+function CornerRadiusBlock({ any, patch }: { any: any; patch: (p: ItemPatch) => void }) {
+  const individual = !!any.isCornerRadiusIndividual;
+  const tl = Math.round(any.inputCornerTopLeft ?? 0);
+  const setAll = (v: number) =>
+    patch({
+      inputCornerTopLeft: v,
+      inputCornerTopRight: v,
+      inputCornerBottomLeft: v,
+      inputCornerBottomRight: v,
+    });
+  return (
+    <div className="flex flex-col gap-2.5">
+      <SectionLabel
+        right={
+          <button
+            title={individual ? "Uniform radius" : "Per-corner radius"}
+            aria-label="Toggle per-corner radius"
+            onClick={() => patch({ isCornerRadiusIndividual: !individual })}
+            className={`inline-flex h-6 items-center rounded-md px-2 text-[11px] transition-colors duration-150 ${
+              individual
+                ? "bg-[var(--accent)] text-white"
+                : "bg-white/[0.06] text-neutral-300 hover:bg-white/[0.1]"
+            }`}
+          >
+            {individual ? "Per corner" : "Uniform"}
+          </button>
+        }
+      >
+        Corner radius
+      </SectionLabel>
+      {individual ? (
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField
+            label="Top L"
+            value={Math.round(any.inputCornerTopLeft ?? 0)}
+            onChange={(v) => patch({ inputCornerTopLeft: Math.max(0, v) })}
+            min={0}
+          />
+          <NumberField
+            label="Top R"
+            value={Math.round(any.inputCornerTopRight ?? 0)}
+            onChange={(v) => patch({ inputCornerTopRight: Math.max(0, v) })}
+            min={0}
+          />
+          <NumberField
+            label="Bot L"
+            value={Math.round(any.inputCornerBottomLeft ?? 0)}
+            onChange={(v) => patch({ inputCornerBottomLeft: Math.max(0, v) })}
+            min={0}
+          />
+          <NumberField
+            label="Bot R"
+            value={Math.round(any.inputCornerBottomRight ?? 0)}
+            onChange={(v) => patch({ inputCornerBottomRight: Math.max(0, v) })}
+            min={0}
+          />
+        </div>
+      ) : (
+        <NumberField
+          label="Radius"
+          value={tl}
+          onChange={(v) => setAll(Math.max(0, v))}
+          min={0}
+          unit="px"
+        />
+      )}
+    </div>
+  );
+}
+
 function EffectsSection({ any, patch }: { any: any; patch: (p: ItemPatch) => void }) {
   return (
     <section className="flex flex-col gap-4">
       <Divider />
+
+      {any.type === "image" && <CornerRadiusBlock any={any} patch={patch} />}
+
+      <div className="flex flex-col gap-2.5">
+        <SectionLabel>Blend mode</SectionLabel>
+        <BlendModeSelect
+          value={any.blendMode ?? "normal"}
+          onChange={(v) => patch({ blendMode: v })}
+        />
+      </div>
+
+      <EffectBlock
+        label="Invert"
+        on={!!any.isInvert}
+        onToggle={() =>
+          patch({
+            isInvert: !any.isInvert,
+            // Legacy: turning invert on with 0 intensity seeds it to 100.
+            ...(!any.isInvert && !(any.invertIntensity > 0)
+              ? { invertIntensity: 100 }
+              : {}),
+          })
+        }
+      >
+        <NumberField
+          label="Intensity"
+          value={Math.round(any.invertIntensity ?? 100)}
+          onChange={(v) => patch({ invertIntensity: Math.min(100, Math.max(0, v)) })}
+          min={0}
+          max={100}
+          unit="%"
+        />
+      </EffectBlock>
+
       <EffectBlock
         label="Shadow"
         on={!!any.isShadow}

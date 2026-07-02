@@ -17,7 +17,7 @@ import {
   curvedTextArc,
 } from "./geometry.js";
 import { inlineClipartSvg, isSvgSource } from "./clipart.js";
-import { effectFilter, textBorderShadow } from "./effects.js";
+import { effectFilter, textBorderShadow, blendModeCss, cornerRadiusCss } from "./effects.js";
 
 /** Render an item by type. */
 export function ItemView({ item }: { item: Item }) {
@@ -41,6 +41,11 @@ export function ItemView({ item }: { item: Item }) {
 
 function ImageItemView({ item }: { item: ImageItem }) {
   const [errored, setErrored] = useState(false);
+  // Retry when the source changes (a reused keyed <img> that errored on a prior
+  // src must not stay broken forever, e.g. when swapping designs/fixtures).
+  useEffect(() => {
+    setErrored(false);
+  }, [item.source]);
   const { left, top } = boxTopLeft(item);
   const style: CSSProperties = {
     position: "absolute",
@@ -50,6 +55,8 @@ function ImageItemView({ item }: { item: ImageItem }) {
     height: item.height,
     opacity: item.opacity,
     filter: effectFilter(item),
+    mixBlendMode: blendModeCss(item) as CSSProperties["mixBlendMode"],
+    borderRadius: cornerRadiusCss(item),
     transformOrigin: "center center",
     transform: `rotate(${item.rotation}deg) ${flipTransform(item.hFlip, item.vFlip)}`.trim(),
   };
@@ -156,6 +163,7 @@ function TextItemView({ item }: { item: TextItem }) {
     whiteSpace: "pre",
     opacity: item.opacity,
     filter: effectFilter(item),
+    mixBlendMode: blendModeCss(item) as CSSProperties["mixBlendMode"],
     textShadow: textBorderShadow(item),
     transform: matrixToCss(matrix),
     transformOrigin: "0 0",
@@ -206,6 +214,7 @@ function TextCurvedItemView({ item }: { item: TextCurvedItem }) {
     overflow: "visible",
     opacity: item.opacity,
     filter: effectFilter(item),
+    mixBlendMode: blendModeCss(item) as CSSProperties["mixBlendMode"],
     transformOrigin: `${arc.apexX}px ${arc.apexY}px`,
     transform: `rotate(${item.rotation}deg) ${flipTransform(item.hFlip, item.vFlip)}`.trim(),
   };
@@ -273,6 +282,7 @@ function ClipartItemView({ item }: { item: ClipartItem }) {
     height: item.height,
     opacity: item.opacity,
     filter: effectFilter(item),
+    mixBlendMode: blendModeCss(item) as CSSProperties["mixBlendMode"],
     transformOrigin: "center center",
     transform: `rotate(${item.rotation}deg) ${flipTransform(item.hFlip, item.vFlip)}`.trim(),
   };
@@ -325,6 +335,7 @@ function GroupItemView({ item }: { item: GroupItem }) {
     height: 0,
     opacity: item.opacity,
     filter: effectFilter(item),
+    mixBlendMode: blendModeCss(item) as CSSProperties["mixBlendMode"],
     transformOrigin: "0 0",
     transform: `rotate(${item.rotation}deg) scale(${item.scaleX}, ${item.scaleY}) ${flipTransform(
       item.hFlip,
