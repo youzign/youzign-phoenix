@@ -13,19 +13,67 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 const numInput =
   "w-20 rounded bg-neutral-800 px-2 py-1 text-right text-neutral-100 outline-none focus:ring-1 focus:ring-blue-500";
 
-export function PropertiesPanel() {
-  const item = useEditor((s) => s.selectedItem());
-  const patch = useEditor((s) => s.patchSelected);
-  const recolor = useEditor((s) => s.recolorSelected);
+function OpsSection() {
   const dup = useEditor((s) => s.duplicateSelected);
   const del = useEditor((s) => s.deleteSelected);
   const front = useEditor((s) => s.bringToFront);
   const back = useEditor((s) => s.sendToBack);
+  return (
+    <section className="flex flex-col gap-2 border-t border-neutral-800 pt-3">
+      <div className="flex gap-1">
+        <button
+          className="flex-1 rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-200 hover:bg-neutral-700"
+          onClick={front}
+        >
+          Bring to front
+        </button>
+        <button
+          className="flex-1 rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-200 hover:bg-neutral-700"
+          onClick={back}
+        >
+          Send to back
+        </button>
+      </div>
+      <div className="flex gap-1">
+        <button
+          className="flex-1 rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-200 hover:bg-neutral-700"
+          onClick={dup}
+        >
+          Duplicate
+        </button>
+        <button
+          className="flex-1 rounded bg-red-900/60 px-2 py-1 text-xs text-red-200 hover:bg-red-800"
+          onClick={del}
+        >
+          Delete
+        </button>
+      </div>
+    </section>
+  );
+}
 
-  if (!item) {
+export function PropertiesPanel() {
+  const item = useEditor((s) => s.selectedItem());
+  const selectedCount = useEditor((s) => s.selectedUids.length);
+  const patch = useEditor((s) => s.patchSelected);
+  const recolor = useEditor((s) => s.recolorSelected);
+
+  if (selectedCount === 0) {
     return (
       <div className="p-4 text-xs text-neutral-500">
         Nothing selected. Click an item on the canvas.
+      </div>
+    );
+  }
+
+  // Multi-select: minimal panel, ops only, never coordinate fields.
+  if (selectedCount > 1 || !item) {
+    return (
+      <div className="flex flex-col gap-4 p-4">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+          {selectedCount} items selected
+        </div>
+        <OpsSection />
       </div>
     );
   }
@@ -162,36 +210,7 @@ export function PropertiesPanel() {
       )}
 
       {/* z-order + ops */}
-      <section className="flex flex-col gap-2 border-t border-neutral-800 pt-3">
-        <div className="flex gap-1">
-          <button
-            className="flex-1 rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-200 hover:bg-neutral-700"
-            onClick={front}
-          >
-            Bring to front
-          </button>
-          <button
-            className="flex-1 rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-200 hover:bg-neutral-700"
-            onClick={back}
-          >
-            Send to back
-          </button>
-        </div>
-        <div className="flex gap-1">
-          <button
-            className="flex-1 rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-200 hover:bg-neutral-700"
-            onClick={dup}
-          >
-            Duplicate
-          </button>
-          <button
-            className="flex-1 rounded bg-red-900/60 px-2 py-1 text-xs text-red-200 hover:bg-red-800"
-            onClick={del}
-          >
-            Delete
-          </button>
-        </div>
-      </section>
+      <OpsSection />
     </div>
   );
 }

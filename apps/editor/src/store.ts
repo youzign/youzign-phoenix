@@ -8,6 +8,8 @@ import {
   createShapeItem,
   cloneItemForDuplicate,
   ensureUid,
+  toggleUid,
+  normalizeSelection,
   type ItemPatch,
   type ShapeKind,
   type WithUid,
@@ -17,8 +19,15 @@ const LS_PREFIX = "youzign-next:design:";
 
 type IdItem = Item & WithUid;
 
+/** Recursively tag every item (incl. group children) with a stable _uid. */
 function tagUids(design: Design): Design {
-  for (const it of design.items) ensureUid(it as IdItem);
+  const walk = (items: Item[]) => {
+    for (const it of items) {
+      ensureUid(it as IdItem);
+      if (it.type === "group") walk(it.items);
+    }
+  };
+  walk(design.items);
   return design;
 }
 
@@ -28,10 +37,37 @@ function snapshot(design: Design): Design {
   return structuredClone(design);
 }
 
+interface FindEntry {
+  item: IdItem;
+  siblings: Item[];
+  parent: IdItem | null;
+}
+
+/** Recursively locate an item by uid, returning it plus its container array. */
+function findEntry(design: Design, uid: number | null): FindEntry | undefined {
+  if (uid === null) return undefined;
+  const walk = (items: Item[], parent: IdItem | null): FindEntry | undefined => {
+    for (const it of items) {
+      if ((it as IdItem)._uid === uid) return { item: it as IdItem, siblings: items, parent };
+      if (it.type === "group") {
+        const hit = walk(it.items, it as IdItem);
+        if (hit) return hit;
+      }
+    }
+    return undefined;
+  };
+  return walk(design.items, null);
+}
+
+function findByUid(design: Design, uid: number | null): IdItem | undefined {
+  return findEntry(design, uid)?.item;
+}
+
 interface EditorState {
   design: Design;
   designName: string;
-  selectedUid: number | null;
+  selectedUids: number[];
+  drillGroupUid: number | null; // the group we've drilled into (child selection)
   editingUid: number | null; // text item currently in inline edit
   zoom: number;
   past: Design[];
@@ -40,13 +76,20 @@ interface EditorState {
   load: (xml: string, name: string) => void;
   setName: (name: string) => void;
   setZoom: (z: number) => void;
+
+  // selection
   select: (uid: number | null) => void;
+  toggleSelect: (uid: number) => void;
+  setSelection: (uids: number[]) => void;
+  drillInto: (childUid: number, groupUid: number) => void;
+  escapeSelection: () => void;
   setEditing: (uid: number | null) => void;
 
   patchSelected: (patch: ItemPatch) => void;
   patchItemByUid: (uid: number, patch: ItemPatch) => void;
   beginHistory: () => void;
   livePatchByUid: (uid: number, patch: ItemPatch) => void;
+  livePatchMany: (patches: { uid: number; patch: ItemPatch }[]) => void;
   endGesture: () => void;
   recolorSelected: (hex: string) => void;
   setContentByUid: (uid: number, content: string) => void;
@@ -62,12 +105,9 @@ interface EditorState {
   undo: () => void;
   redo: () => void;
 
-  selectedItem: () => IdItem | undefined;
-}
-
-function findByUid(design: Design, uid: number | null): IdItem | undefined {
-  if (uid === null) return undefined;
-  return design.items.find((i) => (i as IdItem)._uid === uid) as IdItem | undefined;
+  selectedItem: () => IdItem | undefined; // only when exactly one is selected
+  selectedItems: () => IdItem[];
+  findEntry: (uid: number) => FindEntry | undefined;
 }
 
 function persist(name: string, design: Design) {
@@ -92,7 +132,8 @@ export const useEditor = create<EditorState>((set, get) => {
   return {
     design: tagUids(parse("<data canvas_width=\"800\" canvas_height=\"600\" bg_color=\"-1\" bg_type=\"color\"></data>")),
     designName: "untitled",
-    selectedUid: null,
+    selectedUids: [],
+    drillGroupUid: null,
     editingUid: null,
     zoom: 0.6,
     past: [],
@@ -100,18 +141,32 @@ export const useEditor = create<EditorState>((set, get) => {
 
     load: (xml, name) => {
       const design = tagUids(parse(xml));
-      set({ design, designName: name, selectedUid: null, editingUid: null, past: [], future: [] });
+      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, past: [], future: [] });
     },
 
     setName: (name) => set({ designName: name }),
     setZoom: (z) => set({ zoom: z }),
-    select: (uid) => set({ selectedUid: uid, editingUid: null }),
+
+    select: (uid) =>
+      set({ selectedUids: uid === null ? [] : [uid], drillGroupUid: null, editingUid: null }),
+    toggleSelect: (uid) =>
+      set((s) => ({ selectedUids: toggleUid(s.selectedUids, uid), drillGroupUid: null, editingUid: null })),
+    setSelection: (uids) =>
+      set({ selectedUids: normalizeSelection(uids), drillGroupUid: null, editingUid: null }),
+    drillInto: (childUid, groupUid) =>
+      set({ selectedUids: [childUid], drillGroupUid: groupUid, editingUid: null }),
+    escapeSelection: () =>
+      set((s) =>
+        s.drillGroupUid !== null
+          ? { selectedUids: [s.drillGroupUid], drillGroupUid: null, editingUid: null }
+          : { selectedUids: [], drillGroupUid: null, editingUid: null }
+      ),
     setEditing: (uid) => set({ editingUid: uid }),
 
     patchSelected: (patch) => {
-      const uid = get().selectedUid;
-      if (uid === null) return;
-      get().patchItemByUid(uid, patch);
+      const uids = get().selectedUids;
+      if (uids.length !== 1) return;
+      get().patchItemByUid(uids[0], patch);
     },
 
     patchItemByUid: (uid, patch) =>
@@ -132,19 +187,31 @@ export const useEditor = create<EditorState>((set, get) => {
         return { design: next };
       }),
 
+    livePatchMany: (patches) =>
+      set((s) => {
+        const next = snapshot(s.design);
+        for (const { uid, patch } of patches) {
+          const it = findByUid(next, uid);
+          if (it) patchItem(it as any, patch);
+        }
+        return { design: next };
+      }),
+
     endGesture: () => {
       const s = get();
       persist(s.designName, s.design);
     },
 
     recolorSelected: (hex) => {
-      const uid = get().selectedUid;
-      if (uid === null) return;
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
       commit((d) => {
-        const it = findByUid(d, uid);
-        if (!it) return;
-        if (it.type === "text" || it.type === "text-curved") setTextColor(it as any, hex);
-        else if (it.type === "clipart") setShapeFill(it as any, hex);
+        for (const uid of uids) {
+          const it = findByUid(d, uid);
+          if (!it) continue;
+          if (it.type === "text" || it.type === "text-curved") setTextColor(it as any, hex);
+          else if (it.type === "clipart") setShapeFill(it as any, hex);
+        }
       });
     },
 
@@ -161,7 +228,7 @@ export const useEditor = create<EditorState>((set, get) => {
       const item = createTextItem(d0, d0.canvasWidth / 2, d0.canvasHeight / 2) as IdItem;
       ensureUid(item);
       commit((d) => d.items.push(item));
-      set({ selectedUid: item._uid! });
+      set({ selectedUids: [item._uid!], drillGroupUid: null });
     },
 
     addShape: (kind) => {
@@ -169,59 +236,83 @@ export const useEditor = create<EditorState>((set, get) => {
       const item = createShapeItem(d0, kind, d0.canvasWidth / 2, d0.canvasHeight / 2) as IdItem;
       ensureUid(item);
       commit((d) => d.items.push(item));
-      set({ selectedUid: item._uid! });
+      set({ selectedUids: [item._uid!], drillGroupUid: null });
     },
 
     duplicateSelected: () => {
-      const uid = get().selectedUid;
-      const orig = findByUid(get().design, uid);
-      if (!orig) return;
-      let newUid: number | null = null;
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
+      const newUids: number[] = [];
       commit((d) => {
-        const src = findByUid(d, uid)!;
-        const copy = cloneItemForDuplicate(d, src) as IdItem;
-        newUid = copy._uid!;
-        d.items.push(copy);
+        for (const uid of uids) {
+          const entry = findEntry(d, uid);
+          if (!entry) continue;
+          const copy = cloneItemForDuplicate(d, entry.item) as IdItem;
+          newUids.push(copy._uid!);
+          entry.siblings.push(copy);
+        }
       });
-      if (newUid !== null) set({ selectedUid: newUid });
+      if (newUids.length) set({ selectedUids: newUids, drillGroupUid: null });
     },
 
     deleteSelected: () => {
-      const uid = get().selectedUid;
-      if (uid === null) return;
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
+      const set0 = new Set(uids);
       commit((d) => {
-        d.items = d.items.filter((i) => (i as IdItem)._uid !== uid);
+        for (const uid of uids) {
+          const entry = findEntry(d, uid);
+          if (!entry) continue;
+          const i = entry.siblings.indexOf(entry.item);
+          if (i >= 0) entry.siblings.splice(i, 1);
+        }
       });
-      set({ selectedUid: null, editingUid: null });
+      set({ selectedUids: [], drillGroupUid: null, editingUid: null });
+      void set0;
     },
 
     nudgeSelected: (dx, dy) => {
-      const it = get().selectedItem();
-      if (!it || !("xpos" in it)) return;
-      get().patchItemByUid(it._uid!, {
-        xpos: (it as any).xpos + dx,
-        ypos: (it as any).ypos + dy,
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
+      const d = get().design;
+      const patches = uids
+        .map((uid) => {
+          const it = findByUid(d, uid);
+          if (!it || !("xpos" in it)) return null;
+          return { uid, patch: { xpos: (it as any).xpos + dx, ypos: (it as any).ypos + dy } };
+        })
+        .filter(Boolean) as { uid: number; patch: ItemPatch }[];
+      if (!patches.length) return;
+      commit((doc) => {
+        for (const { uid, patch } of patches) {
+          const it = findByUid(doc, uid);
+          if (it) patchItem(it as any, patch);
+        }
       });
     },
 
     bringToFront: () => {
-      const uid = get().selectedUid;
-      if (uid === null) return;
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
       commit((d) => {
-        const maxI = d.items.reduce((m, it) => Math.max(m, (it as any).index ?? 0), 0);
-        const it = findByUid(d, uid);
-        if (it) patchItem(it as any, { index: maxI + 1 });
+        let maxI = d.items.reduce((m, it) => Math.max(m, (it as any).index ?? 0), 0);
+        for (const uid of uids) {
+          const it = findByUid(d, uid);
+          if (it && d.items.includes(it)) patchItem(it as any, { index: ++maxI });
+        }
         d.items.sort((a, b) => ((a as any).index ?? 0) - ((b as any).index ?? 0));
       });
     },
 
     sendToBack: () => {
-      const uid = get().selectedUid;
-      if (uid === null) return;
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
       commit((d) => {
-        const minI = d.items.reduce((m, it) => Math.min(m, (it as any).index ?? 0), 0);
-        const it = findByUid(d, uid);
-        if (it) patchItem(it as any, { index: minI - 1 });
+        let minI = d.items.reduce((m, it) => Math.min(m, (it as any).index ?? 0), 0);
+        for (const uid of uids) {
+          const it = findByUid(d, uid);
+          if (it && d.items.includes(it)) patchItem(it as any, { index: --minI });
+        }
         d.items.sort((a, b) => ((a as any).index ?? 0) - ((b as any).index ?? 0));
       });
     },
@@ -246,7 +337,15 @@ export const useEditor = create<EditorState>((set, get) => {
         return { design: next, past: [...s.past, s.design], future: s.future.slice(1) };
       }),
 
-    selectedItem: () => findByUid(get().design, get().selectedUid),
+    selectedItem: () => {
+      const uids = get().selectedUids;
+      return uids.length === 1 ? findByUid(get().design, uids[0]) : undefined;
+    },
+    selectedItems: () =>
+      get()
+        .selectedUids.map((u) => findByUid(get().design, u))
+        .filter(Boolean) as IdItem[],
+    findEntry: (uid) => findEntry(get().design, uid),
   };
 });
 

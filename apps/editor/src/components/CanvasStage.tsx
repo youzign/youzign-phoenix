@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, PointerEvent as RPointerEvent } from "react";
+import type { CSSProperties, MouseEvent as RMouseEvent, PointerEvent as RPointerEvent } from "react";
 import { DesignCanvas } from "@youzign/renderer";
-import { itemBox, type SelBox } from "@youzign/editor-core";
-import type { Item } from "@youzign/designstring";
+import {
+  itemBox,
+  childBoxInCanvas,
+  combinedBox,
+  boxIntersectsRect,
+  type SelBox,
+} from "@youzign/editor-core";
+import type { Design, Item } from "@youzign/designstring";
 import { useEditor } from "../store.js";
 
 type IdItem = Item & { _uid?: number };
@@ -28,22 +34,68 @@ interface Drag {
   startBox: SelBox;
   startCanvas: { x: number; y: number };
   uid: number;
+  // for multi-move: starting positions of every moved item
+  moveStarts?: { uid: number; xpos: number; ypos: number }[];
+}
+
+interface Marquee {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/** Find a top-level group by uid (for drill hit-testing). */
+function findGroup(design: Design, uid: number): (IdItem & { items: Item[] }) | undefined {
+  const g = design.items.find((i) => (i as IdItem)._uid === uid);
+  return g && g.type === "group" ? (g as any) : undefined;
+}
+
+/** Recursively find an item + its containing group (if any) by uid. */
+function locate(
+  design: Design,
+  uid: number
+): { item: IdItem; group: IdItem | null } | undefined {
+  for (const it of design.items) {
+    if ((it as IdItem)._uid === uid) return { item: it as IdItem, group: null };
+    if (it.type === "group") {
+      for (const c of it.items) {
+        if ((c as IdItem)._uid === uid) return { item: c as IdItem, group: it as IdItem };
+      }
+    }
+  }
+  return undefined;
+}
+
+/** Canvas-space selection box for any uid (handles group children). */
+function canvasBoxOf(design: Design, uid: number): SelBox | undefined {
+  const loc = locate(design, uid);
+  if (!loc) return undefined;
+  const local = itemBox(loc.item as any);
+  return loc.group ? childBoxInCanvas(loc.group as any, local) : local;
 }
 
 export function CanvasStage() {
   const design = useEditor((s) => s.design);
   const zoom = useEditor((s) => s.zoom);
-  const selectedUid = useEditor((s) => s.selectedUid);
+  const selectedUids = useEditor((s) => s.selectedUids);
+  const drillGroupUid = useEditor((s) => s.drillGroupUid);
   const editingUid = useEditor((s) => s.editingUid);
   const select = useEditor((s) => s.select);
+  const toggleSelect = useEditor((s) => s.toggleSelect);
+  const setSelection = useEditor((s) => s.setSelection);
+  const drillInto = useEditor((s) => s.drillInto);
   const setEditing = useEditor((s) => s.setEditing);
   const beginHistory = useEditor((s) => s.beginHistory);
   const livePatch = useEditor((s) => s.livePatchByUid);
+  const livePatchMany = useEditor((s) => s.livePatchMany);
   const endGesture = useEditor((s) => s.endGesture);
   const setContentByUid = useEditor((s) => s.setContentByUid);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
+  const marqueeRef = useRef<{ x0: number; y0: number } | null>(null);
+  const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [, force] = useState(0);
 
   const w = design.canvasWidth * zoom;
@@ -54,8 +106,17 @@ export function CanvasStage() {
     return { x: (clientX - r.left) / zoom, y: (clientY - r.top) / zoom };
   };
 
+  const single = selectedUids.length === 1 ? selectedUids[0] : null;
+  const selectedIsTopLevel = single !== null && drillGroupUid === null;
+
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
+      // marquee
+      if (marqueeRef.current) {
+        const p = toCanvas(e.clientX, e.clientY);
+        setMarquee({ x0: marqueeRef.current.x0, y0: marqueeRef.current.y0, x1: p.x, y1: p.y });
+        return;
+      }
       const d = dragRef.current;
       if (!d) return;
       const p = toCanvas(e.clientX, e.clientY);
@@ -65,14 +126,20 @@ export function CanvasStage() {
       if (d.mode === "move") {
         const dx = p.x - d.startCanvas.x;
         const dy = p.y - d.startCanvas.y;
-        livePatch(d.uid, { xpos: b.cx + dx, ypos: b.cy + dy });
+        if (d.moveStarts && d.moveStarts.length) {
+          livePatchMany(
+            d.moveStarts.map((s) => ({
+              uid: s.uid,
+              patch: { xpos: s.xpos + dx, ypos: s.ypos + dy },
+            }))
+          );
+        }
       } else if (d.mode === "rotate") {
         const ang = (Math.atan2(p.y - b.cy, p.x - b.cx) * 180) / Math.PI + 90;
         const snapped = shift ? Math.round(ang / 15) * 15 : ang;
         livePatch(d.uid, { rotation: snapped });
       } else if (d.mode === "resize" && d.corner) {
         const [sx, sy] = CORNER_SIGN[d.corner];
-        // Fixed (opposite) corner in canvas space.
         const oppLocal = { x: (-sx * b.w) / 2, y: (-sy * b.h) / 2 };
         const oppWorldOff = rot(oppLocal.x, oppLocal.y, b.rotation);
         const fixed = { x: b.cx + oppWorldOff.x, y: b.cy + oppWorldOff.y };
@@ -85,7 +152,6 @@ export function CanvasStage() {
           if (nw / nh > ratio) nh = nw / ratio;
           else nw = nh * ratio;
         }
-        // Recompute center so the fixed corner truly stays put.
         const newOppOff = rot((-sx * nw) / 2, (-sy * nh) / 2, b.rotation);
         const cx = fixed.x - newOppOff.x;
         const cy = fixed.y - newOppOff.y;
@@ -93,6 +159,30 @@ export function CanvasStage() {
       }
     };
     const onUp = () => {
+      if (marqueeRef.current) {
+        const m = marquee;
+        marqueeRef.current = null;
+        if (m) {
+          const rx = Math.min(m.x0, m.x1);
+          const ry = Math.min(m.y0, m.y1);
+          const rw = Math.abs(m.x1 - m.x0);
+          const rh = Math.abs(m.y1 - m.y0);
+          if (rw > 3 || rh > 3) {
+            const rect = { x: rx, y: ry, w: rw, h: rh };
+            const hits = (design.items as IdItem[])
+              .filter((it) => it.type !== "filter")
+              .filter((it) => boxIntersectsRect(itemBox(it as any), rect))
+              .map((it) => it._uid!)
+              .filter((u) => u !== undefined);
+            setSelection(hits);
+          } else {
+            select(null);
+          }
+        }
+        setMarquee(null);
+        force((n) => n + 1);
+        return;
+      }
       if (dragRef.current) {
         dragRef.current = null;
         endGesture();
@@ -106,30 +196,116 @@ export function CanvasStage() {
       window.removeEventListener("pointerup", onUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoom]);
+  }, [zoom, marquee, design]);
 
-  const startDrag = (
+  const startMove = (e: RPointerEvent, uids: number[]) => {
+    e.stopPropagation();
+    beginHistory();
+    const moveStarts = uids
+      .map((uid) => {
+        const loc = locate(design, uid);
+        if (!loc || !("xpos" in loc.item)) return null;
+        return { uid, xpos: (loc.item as any).xpos, ypos: (loc.item as any).ypos };
+      })
+      .filter(Boolean) as { uid: number; xpos: number; ypos: number }[];
+    dragRef.current = {
+      mode: "move",
+      startBox: { cx: 0, cy: 0, w: 0, h: 0, rotation: 0 },
+      startCanvas: toCanvas(e.clientX, e.clientY),
+      uid: uids[0],
+      moveStarts,
+    };
+  };
+
+  const startTransform = (
     e: RPointerEvent,
     uid: number,
-    mode: Drag["mode"],
+    mode: "resize" | "rotate",
     corner?: Corner
   ) => {
     e.stopPropagation();
-    const item = design.items.find((i) => (i as IdItem)._uid === uid) as IdItem | undefined;
-    if (!item) return;
+    const box = canvasBoxOf(design, uid);
+    if (!box) return;
     beginHistory();
     dragRef.current = {
       mode,
       corner,
-      startBox: itemBox(item as any),
+      startBox: box,
       startCanvas: toCanvas(e.clientX, e.clientY),
       uid,
     };
   };
 
+  const onItemPointerDown = (e: RPointerEvent, uid: number) => {
+    if (e.shiftKey) {
+      e.stopPropagation();
+      toggleSelect(uid);
+      return;
+    }
+    // If drilled into a group and this top-level item isn't the group, pop up.
+    if (selectedUids.includes(uid)) {
+      // keep current (possibly multi) selection and move it as a group
+      startMove(e, selectedUids);
+    } else {
+      select(uid);
+      startMove(e, [uid]);
+    }
+  };
+
+  const onItemDoubleClick = (e: RMouseEvent, item: IdItem) => {
+    e.stopPropagation();
+    const uid = item._uid!;
+    if (item.type === "text" || item.type === "text-curved") {
+      select(uid);
+      setEditing(uid);
+      return;
+    }
+    if (item.type === "group") {
+      // Drill into the topmost child under the cursor.
+      const group = findGroup(design, uid);
+      if (!group) return;
+      const p = toCanvas(e.clientX, e.clientY);
+      const children = [...group.items].sort(
+        (a, b) => ((b as any).index ?? 0) - ((a as any).index ?? 0)
+      );
+      for (const c of children) {
+        const cb = childBoxInCanvas(group as any, itemBox(c as any));
+        if (
+          p.x >= cb.cx - cb.w / 2 &&
+          p.x <= cb.cx + cb.w / 2 &&
+          p.y >= cb.cy - cb.h / 2 &&
+          p.y <= cb.cy + cb.h / 2
+        ) {
+          drillInto((c as IdItem)._uid!, uid);
+          return;
+        }
+      }
+      // Fallback: drill into first child.
+      if (group.items.length) drillInto((group.items[0] as IdItem)._uid!, uid);
+    }
+  };
+
   const items = design.items as IdItem[];
-  const selected = items.find((i) => i._uid === selectedUid);
-  const isText = selected && (selected.type === "text" || selected.type === "text-curved");
+
+  // Combined selection box (canvas space).
+  const selBoxes = selectedUids
+    .map((u) => canvasBoxOf(design, u))
+    .filter(Boolean) as SelBox[];
+  const comboBox = combinedBox(selBoxes);
+  const singleBox = single !== null ? canvasBoxOf(design, single) : null;
+  const singleItem = single !== null ? locate(design, single)?.item : undefined;
+  const isText =
+    singleItem && (singleItem.type === "text" || singleItem.type === "text-curved");
+
+  const boxToStyle = (box: SelBox): CSSProperties => ({
+    position: "absolute",
+    left: (box.cx - box.w / 2) * zoom,
+    top: (box.cy - box.h / 2) * zoom,
+    width: box.w * zoom,
+    height: box.h * zoom,
+    transform: `rotate(${box.rotation}deg)`,
+    transformOrigin: "center center",
+  });
 
   return (
     <div className="flex h-full w-full items-center justify-center overflow-auto bg-[#1b1b1f] p-10">
@@ -144,58 +320,55 @@ export function CanvasStage() {
           ref={overlayRef}
           className="absolute inset-0"
           style={{ width: w, height: h }}
-          onPointerDown={() => select(null)}
+          onPointerDown={(e) => {
+            // marquee start on empty canvas
+            const p = toCanvas(e.clientX, e.clientY);
+            marqueeRef.current = { x0: p.x, y0: p.y };
+            setMarquee({ x0: p.x, y0: p.y, x1: p.x, y1: p.y });
+          }}
         >
           {/* per-item hit areas (topmost index wins via DOM order) */}
           {[...items]
+            .filter((it) => it.type !== "filter")
             .sort((a, b) => ((a as any).index ?? 0) - ((b as any).index ?? 0))
             .map((item) => {
               const box = itemBox(item as any);
               const uid = item._uid!;
-              const boxStyle: CSSProperties = {
-                position: "absolute",
-                left: (box.cx - box.w / 2) * zoom,
-                top: (box.cy - box.h / 2) * zoom,
-                width: box.w * zoom,
-                height: box.h * zoom,
-                transform: `rotate(${box.rotation}deg)`,
-                transformOrigin: "center center",
-                cursor: "move",
-              };
               return (
                 <div
                   key={uid}
-                  style={boxStyle}
-                  onPointerDown={(e) => {
-                    select(uid);
-                    startDrag(e, uid, "move");
-                  }}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    if (item.type === "text" || item.type === "text-curved") {
-                      select(uid);
-                      setEditing(uid);
-                    }
-                  }}
+                  style={{ ...boxToStyle(box), cursor: "move" }}
+                  onPointerDown={(e) => onItemPointerDown(e, uid)}
+                  onDoubleClick={(e) => onItemDoubleClick(e, item)}
                 />
               );
             })}
 
-          {/* selection chrome */}
-          {selected &&
-            editingUid !== selectedUid &&
+          {/* multi-select combined box (no handles) */}
+          {selectedUids.length > 1 && comboBox && (
+            <div style={{ ...boxToStyle(comboBox), pointerEvents: "none" }}>
+              <div
+                className="absolute inset-0"
+                style={{ outline: "1.5px dashed #4f8cff", outlineOffset: 0 }}
+              />
+              {/* thin outline per member */}
+            </div>
+          )}
+          {selectedUids.length > 1 &&
+            selBoxes.map((b, i) => (
+              <div key={i} style={{ ...boxToStyle(b), pointerEvents: "none" }}>
+                <div
+                  className="absolute inset-0"
+                  style={{ outline: "1px solid rgba(79,140,255,0.6)" }}
+                />
+              </div>
+            ))}
+
+          {/* single-select chrome */}
+          {single !== null &&
+            singleBox &&
+            editingUid !== single &&
             (() => {
-              const box = itemBox(selected as any);
-              const chrome: CSSProperties = {
-                position: "absolute",
-                left: (box.cx - box.w / 2) * zoom,
-                top: (box.cy - box.h / 2) * zoom,
-                width: box.w * zoom,
-                height: box.h * zoom,
-                transform: `rotate(${box.rotation}deg)`,
-                transformOrigin: "center center",
-                pointerEvents: "none",
-              };
               const handle: CSSProperties = {
                 position: "absolute",
                 width: 11,
@@ -213,48 +386,70 @@ export function CanvasStage() {
                 se: { left: "100%", top: "100%", cursor: "nwse-resize" },
                 sw: { left: 0, top: "100%", cursor: "nesw-resize" },
               };
+              // Resize/rotate handles only for a single TOP-LEVEL, non-text item.
+              const showHandles = selectedIsTopLevel && !isText;
+              const showRotate = selectedIsTopLevel;
               return (
-                <div style={chrome}>
+                <div style={{ ...boxToStyle(singleBox), pointerEvents: "none" }}>
                   <div
                     className="absolute inset-0"
                     style={{ outline: "1.5px solid #4f8cff", outlineOffset: 0 }}
                   />
-                  {/* rotation handle */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: "50%",
-                      top: -26,
-                      width: 13,
-                      height: 13,
-                      marginLeft: -7,
-                      background: "#4f8cff",
-                      border: "2px solid #fff",
-                      borderRadius: "50%",
-                      cursor: "grab",
-                      pointerEvents: "auto",
-                    }}
-                    onPointerDown={(e) => startDrag(e, selectedUid!, "rotate")}
-                  />
-                  {!isText &&
+                  {showRotate && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: "50%",
+                        top: -26,
+                        width: 13,
+                        height: 13,
+                        marginLeft: -7,
+                        background: "#4f8cff",
+                        border: "2px solid #fff",
+                        borderRadius: "50%",
+                        cursor: "grab",
+                        pointerEvents: "auto",
+                      }}
+                      onPointerDown={(e) => startTransform(e, single, "rotate")}
+                    />
+                  )}
+                  {showHandles &&
                     (Object.keys(corners) as Corner[]).map((c) => (
                       <div
                         key={c}
                         style={{ ...handle, ...corners[c] }}
-                        onPointerDown={(e) => startDrag(e, selectedUid!, "resize", c)}
+                        onPointerDown={(e) => startTransform(e, single, "resize", c)}
                       />
                     ))}
                 </div>
               );
             })()}
 
+          {/* marquee rectangle */}
+          {marquee &&
+            (Math.abs(marquee.x1 - marquee.x0) > 2 ||
+              Math.abs(marquee.y1 - marquee.y0) > 2) && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: Math.min(marquee.x0, marquee.x1) * zoom,
+                  top: Math.min(marquee.y0, marquee.y1) * zoom,
+                  width: Math.abs(marquee.x1 - marquee.x0) * zoom,
+                  height: Math.abs(marquee.y1 - marquee.y0) * zoom,
+                  background: "rgba(79,140,255,0.12)",
+                  border: "1px solid #4f8cff",
+                  pointerEvents: "none",
+                }}
+              />
+            )}
+
           {/* inline text editing */}
-          {selected && editingUid === selectedUid && isText && (
+          {single !== null && editingUid === single && isText && singleItem && (
             <InlineTextEditor
-              item={selected as any}
+              item={singleItem as any}
               zoom={zoom}
               onCommit={(text) => {
-                setContentByUid(selectedUid!, text);
+                setContentByUid(single, text);
                 setEditing(null);
               }}
             />

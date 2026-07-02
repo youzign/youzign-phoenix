@@ -21,6 +21,7 @@ export function App() {
   const redo = useEditor((s) => s.redo);
   const del = useEditor((s) => s.deleteSelected);
   const nudge = useEditor((s) => s.nudgeSelected);
+  const escapeSelection = useEditor((s) => s.escapeSelection);
   const editing = useEditor((s) => s.editingUid);
 
   // Load the selected fixture.
@@ -51,6 +52,9 @@ export function App() {
       } else if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         del();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        escapeSelection();
       } else if (e.key.startsWith("Arrow")) {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
@@ -66,7 +70,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, del, nudge, editing]);
+  }, [undo, redo, del, nudge, escapeSelection, editing]);
 
   return (
     <div className="flex h-full flex-col bg-[#0e0e11] text-neutral-200">
