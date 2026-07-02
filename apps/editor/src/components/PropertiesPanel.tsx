@@ -16,6 +16,8 @@ import {
 } from "@youzign/editor-core";
 import { signedIntToHex, hexToSignedInt } from "@youzign/designstring";
 import { useEditor } from "../store.js";
+import { getKey } from "../library/settings.js";
+import { FAL_KEY_URL } from "../library/generate.js";
 import { ensureGoogleFonts } from "../fonts.js";
 import {
   Icon,
@@ -701,6 +703,115 @@ function CanvasPanel() {
   }
 }
 
+/** Magic suite: fal-powered eraser + grab, and a fully-local background blur. */
+function MagicSection({ uid }: { uid: number }) {
+  const beginErase = useEditor((s) => s.beginMagicErase);
+  const beginGrab = useEditor((s) => s.beginMagicGrab);
+  const applyBlur = useEditor((s) => s.applyMagicBlur);
+  const magicBusy = useEditor((s) => s.magicBusy);
+  const magicMode = useEditor((s) => s.magicMode);
+  const magicStage = useEditor((s) => s.magicStage);
+  const magicError = useEditor((s) => s.magicError);
+  const magicUid = useEditor((s) => s.magicUid);
+
+  const [blurOpen, setBlurOpen] = useState(false);
+  const [blurAmount, setBlurAmount] = useState(14);
+  const hasFal = !!getKey("fal");
+  const busy = magicBusy;
+  const stageLabel =
+    magicStage === "segment" ? "Finding subject…" :
+    magicStage === "extract" ? "Lifting subject…" :
+    magicStage === "erasing" ? "Erasing…" :
+    magicStage === "blur" ? "Blurring…" :
+    magicStage === "cutout" || magicStage === "load" || magicStage === "model" || magicStage === "infer" ? "Analysing…" :
+    "Working…";
+
+  const btn =
+    "inline-flex flex-col items-center justify-center gap-1 rounded-md bg-white/[0.05] px-2 py-2.5 text-[11px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.1] hover:text-white disabled:opacity-40 disabled:hover:bg-white/[0.05]";
+  const activeBtn = "ring-1 ring-[var(--accent)] bg-[var(--accent)]/15 text-white";
+
+  return (
+    <section className="flex flex-col gap-1.5">
+      <Divider />
+      <SectionLabel>
+        <span className="inline-flex items-center gap-1.5">
+          <Icon name="sparkles" size={13} /> Magic
+        </span>
+      </SectionLabel>
+      <div className="grid grid-cols-3 gap-1.5">
+        <button
+          className={`${btn} ${magicMode === "erase" && magicUid === uid ? activeBtn : ""}`}
+          onClick={() => beginErase(uid)}
+          disabled={busy || !hasFal}
+          title="Brush over an object to remove it"
+        >
+          <Icon name="wand" size={16} /> Eraser
+        </button>
+        <button
+          className={`${btn} ${magicMode === "grab" && magicUid === uid ? activeBtn : ""}`}
+          onClick={() => beginGrab(uid)}
+          disabled={busy || !hasFal}
+          title="Click a subject to lift it onto its own layer"
+        >
+          <Icon name="sparkles" size={16} /> Grab
+        </button>
+        <button
+          className={`${btn} ${blurOpen ? activeBtn : ""}`}
+          onClick={() => setBlurOpen((v) => !v)}
+          disabled={busy}
+          title="Blur the background, keep the subject sharp (runs on your device)"
+        >
+          <Icon name="droplet" size={16} /> Blur
+        </button>
+      </div>
+
+      {blurOpen && (
+        <div className="mt-1 flex flex-col gap-2 rounded-md bg-white/[0.03] p-2.5">
+          <SectionLabel right={<span className="text-[12px] tabular-nums text-neutral-300">{blurAmount}px</span>}>
+            Background blur
+          </SectionLabel>
+          <input
+            type="range"
+            min={2}
+            max={40}
+            step={1}
+            value={blurAmount}
+            onChange={(e) => setBlurAmount(Number(e.target.value))}
+            className="yz-range"
+            disabled={busy}
+          />
+          <button
+            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--accent)] px-2 py-2 text-[12.5px] font-semibold text-white transition-colors duration-150 hover:brightness-110 disabled:cursor-progress disabled:opacity-70"
+            onClick={async () => { await applyBlur(uid, blurAmount); setBlurOpen(false); }}
+            disabled={busy}
+          >
+            {busy ? (<><Spinner /> {stageLabel}</>) : "Apply blur"}
+          </button>
+        </div>
+      )}
+
+      {busy && !blurOpen && (
+        <p className="inline-flex items-center gap-1.5 text-[10px] text-neutral-400"><Spinner /> {stageLabel}</p>
+      )}
+      {magicError && magicError.uid === uid ? (
+        <p className="text-[10px] leading-relaxed text-rose-400">{magicError.message}</p>
+      ) : !hasFal ? (
+        <p className="text-[10px] leading-relaxed text-neutral-500">
+          Eraser &amp; Grab need fal.ai —{" "}
+          <a href={FAL_KEY_URL} target="_blank" rel="noreferrer" className="text-[var(--accent)] hover:underline">
+            Connect fal.ai
+          </a>{" "}
+          to use them. Blur runs free on your device.
+        </p>
+      ) : (
+        <p className="text-[10px] leading-relaxed text-neutral-500">
+          Eraser &amp; Grab use fal.ai · Blur runs on your device.
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function PropertiesPanel() {
   const item = useEditor((s) => s.selectedItem());
   const selectedCount = useEditor((s) => s.selectedUids.length);
@@ -898,6 +1009,9 @@ export function PropertiesPanel() {
           )}
         </section>
       )}
+
+      {/* magic suite (fal eraser/grab + local blur) */}
+      {item.type === "image" && <MagicSection uid={any._uid} />}
 
       {/* fill */}
       {showFill && (

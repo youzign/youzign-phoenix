@@ -26,6 +26,8 @@ import {
 import type { Design, ImageItem, Item } from "@youzign/designstring";
 import { useEditor } from "../store.js";
 import { ingestFiles } from "../library/uploads.js";
+import { Icon } from "./ui.js";
+import { loadImage, strokesToMaskDataUri, hasStrokes, type Stroke } from "../magic/raster.js";
 
 type IdItem = Item & { _uid?: number };
 
@@ -108,6 +110,12 @@ export function CanvasStage() {
   const endGesture = useEditor((s) => s.endGesture);
   const setContentByUid = useEditor((s) => s.setContentByUid);
   const croppingUid = useEditor((s) => s.croppingUid);
+  const magicMode = useEditor((s) => s.magicMode);
+  const magicUid = useEditor((s) => s.magicUid);
+  const magicBusy = useEditor((s) => s.magicBusy);
+  const cancelMagic = useEditor((s) => s.cancelMagic);
+  const applyMagicErase = useEditor((s) => s.applyMagicErase);
+  const applyMagicGrab = useEditor((s) => s.applyMagicGrab);
   const bgProcessingUids = useEditor((s) => s.bgProcessingUids);
   const beginCrop = useEditor((s) => s.beginCrop);
   const cancelCrop = useEditor((s) => s.cancelCrop);
@@ -498,7 +506,7 @@ export function CanvasStage() {
           className="absolute inset-0"
           style={{ width: w, height: h }}
           onPointerDown={(e) => {
-            if (croppingUid !== null) return; // crop mode owns interaction
+            if (croppingUid !== null || magicMode !== null) return; // crop/magic own interaction
             // marquee start on empty canvas
             const p = toCanvas(e.clientX, e.clientY);
             marqueeRef.current = { x0: p.x, y0: p.y };
@@ -506,7 +514,7 @@ export function CanvasStage() {
           }}
         >
           {/* per-item hit areas (topmost index wins via DOM order) */}
-          {croppingUid === null && [...items]
+          {croppingUid === null && magicMode === null && [...items]
             .filter((it) => it.type !== "filter")
             .sort((a, b) => ((a as any).index ?? 0) - ((b as any).index ?? 0))
             .map((item) => {
@@ -544,6 +552,7 @@ export function CanvasStage() {
 
           {/* single-select chrome */}
           {croppingUid === null &&
+            magicMode === null &&
             single !== null &&
             singleBox &&
             editingUid !== single &&
@@ -793,6 +802,35 @@ export function CanvasStage() {
               );
             })()}
 
+          {/* magic mode (eraser / grab) */}
+          {magicMode !== null && magicUid !== null &&
+            (() => {
+              const loc = locate(design, magicUid);
+              if (!loc || loc.item.type !== "image") return null;
+              const img = loc.item as unknown as ImageItem;
+              if (magicMode === "erase")
+                return (
+                  <MagicEraseOverlay
+                    item={img}
+                    zoom={zoom}
+                    busy={magicBusy}
+                    toCanvas={toCanvas}
+                    onCancel={cancelMagic}
+                    onApply={(mask) => applyMagicErase(magicUid, mask)}
+                  />
+                );
+              return (
+                <MagicGrabOverlay
+                  item={img}
+                  zoom={zoom}
+                  busy={magicBusy}
+                  toCanvas={toCanvas}
+                  onCancel={cancelMagic}
+                  onPick={(x, y) => applyMagicGrab(magicUid, x, y)}
+                />
+              );
+            })()}
+
           {/* inline text editing */}
           {single !== null && editingUid === single && isText && singleItem && (
             <InlineTextEditor
@@ -1038,6 +1076,251 @@ function CropOverlay({
         >
           Cancel ⎋
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Magic Eraser mask-paint overlay. The user brushes over the object; strokes are
+ * kept in canvas units and rasterised to a mask at the source's native
+ * resolution on apply. The translucent accent smear previews the mask.
+ */
+function MagicEraseOverlay({
+  item,
+  zoom,
+  busy,
+  toCanvas,
+  onCancel,
+  onApply,
+}: {
+  item: ImageItem;
+  zoom: number;
+  busy: boolean;
+  toCanvas: (cx: number, cy: number) => { x: number; y: number };
+  onCancel: () => void;
+  onApply: (maskDataUri: string) => void;
+}) {
+  const boxLeft = item.xpos - item.width / 2;
+  const boxTop = item.ypos - item.height / 2;
+  const px = (v: number) => v * zoom;
+
+  const [brushPx, setBrushPx] = useState(28);
+  const strokesRef = useRef<Stroke[]>([]);
+  const drawingRef = useRef(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [, tick] = useState(0);
+  const brushCanvasR = brushPx / zoom; // radius in canvas units
+
+  const redraw = () => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.strokeStyle = "rgba(99,102,241,0.5)";
+    ctx.fillStyle = "rgba(99,102,241,0.5)";
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    for (const s of strokesRef.current) {
+      if (s.points.length === 0) continue;
+      ctx.lineWidth = s.radius * 2 * zoom;
+      if (s.points.length === 1) {
+        ctx.beginPath();
+        ctx.arc(s.points[0].x * zoom, s.points[0].y * zoom, s.radius * zoom, 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+      ctx.beginPath();
+      ctx.moveTo(s.points[0].x * zoom, s.points[0].y * zoom);
+      for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x * zoom, s.points[i].y * zoom);
+      ctx.stroke();
+    }
+  };
+
+  useEffect(() => {
+    const onUp = () => { drawingRef.current = false; };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+      if (e.key === "Enter") { e.preventDefault(); apply(); }
+    };
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("keydown", onKey, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const addPoint = (clientX: number, clientY: number) => {
+    const p = toCanvas(clientX, clientY);
+    const local = { x: p.x - boxLeft, y: p.y - boxTop };
+    const cur = strokesRef.current[strokesRef.current.length - 1];
+    if (cur) cur.points.push(local);
+    redraw();
+  };
+
+  const apply = async () => {
+    if (busy || !hasStrokes(strokesRef.current)) return;
+    try {
+      const img = await loadImage(item.source);
+      const nW = img.naturalWidth || item.width;
+      const nH = img.naturalHeight || item.height;
+      const scale = nW / item.width;
+      const scaled: Stroke[] = strokesRef.current.map((s) => ({
+        radius: s.radius * scale,
+        points: s.points.map((pt) => ({ x: pt.x * scale, y: pt.y * scale })),
+      }));
+      const mask = strokesToMaskDataUri(scaled, Math.round(nW), Math.round(nH));
+      onApply(mask);
+    } catch {
+      onCancel();
+    }
+  };
+
+  const dispW = px(item.width);
+  const dispH = px(item.height);
+
+  return (
+    <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => e.stopPropagation()}>
+      {/* dim outside the image */}
+      <div
+        data-testid="magic-paint"
+        style={{
+          position: "absolute",
+          left: px(boxLeft),
+          top: px(boxTop),
+          width: dispW,
+          height: dispH,
+          boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)",
+          outline: "1.5px solid #6366f1",
+          cursor: "crosshair",
+          touchAction: "none",
+        }}
+        onPointerDown={(e) => {
+          if (busy) return;
+          e.stopPropagation();
+          drawingRef.current = true;
+          strokesRef.current.push({ radius: brushCanvasR, points: [] });
+          addPoint(e.clientX, e.clientY);
+        }}
+        onPointerMove={(e) => {
+          if (!drawingRef.current || busy) return;
+          addPoint(e.clientX, e.clientY);
+        }}
+      >
+        <canvas
+          ref={canvasRef}
+          width={Math.max(1, Math.round(dispW))}
+          height={Math.max(1, Math.round(dispH))}
+          style={{ position: "absolute", inset: 0, width: dispW, height: dispH, pointerEvents: "none" }}
+        />
+      </div>
+      {/* toolbar */}
+      <div
+        style={{ position: "absolute", left: px(boxLeft), top: px(boxTop + item.height) + 8, width: dispW }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 rounded-lg bg-neutral-900/95 px-3 py-2 shadow-lg ring-1 ring-white/10">
+          <span className="text-[11px] text-neutral-400">Brush</span>
+          <input
+            type="range"
+            min={8}
+            max={90}
+            value={brushPx}
+            onChange={(e) => { setBrushPx(Number(e.target.value)); tick((n) => n + 1); }}
+            className="yz-range w-24"
+            disabled={busy}
+          />
+          <button
+            className="rounded bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-60"
+            onClick={apply}
+            disabled={busy}
+          >
+            {busy ? "Erasing…" : "Erase ⏎"}
+          </button>
+          <button
+            className="rounded bg-white/10 px-3 py-1 text-xs text-neutral-100 hover:bg-white/20"
+            onClick={onCancel}
+          >
+            Cancel ⎋
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Magic Grab picker: click a subject in the image to segment + lift it. The
+ * click point is mapped to the source image's native pixel space.
+ */
+function MagicGrabOverlay({
+  item,
+  zoom,
+  busy,
+  toCanvas,
+  onCancel,
+  onPick,
+}: {
+  item: ImageItem;
+  zoom: number;
+  busy: boolean;
+  toCanvas: (cx: number, cy: number) => { x: number; y: number };
+  onCancel: () => void;
+  onPick: (imgX: number, imgY: number) => void;
+}) {
+  const boxLeft = item.xpos - item.width / 2;
+  const boxTop = item.ypos - item.height / 2;
+  const px = (v: number) => v * zoom;
+  const natRef = useRef<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    loadImage(item.source)
+      .then((img) => { if (alive) natRef.current = { w: img.naturalWidth || item.width, h: img.naturalHeight || item.height }; })
+      .catch(() => {});
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); onCancel(); } };
+    window.addEventListener("keydown", onKey, true);
+    return () => { alive = false; window.removeEventListener("keydown", onKey, true); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => e.stopPropagation()}>
+      <div
+        data-testid="magic-grab"
+        style={{
+          position: "absolute",
+          left: px(boxLeft),
+          top: px(boxTop),
+          width: px(item.width),
+          height: px(item.height),
+          boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)",
+          outline: "1.5px solid #6366f1",
+          cursor: busy ? "progress" : "crosshair",
+        }}
+        onPointerDown={(e) => {
+          if (busy) return;
+          e.stopPropagation();
+          const nat = natRef.current;
+          if (!nat) return;
+          const p = toCanvas(e.clientX, e.clientY);
+          const fx = (p.x - boxLeft) / item.width;
+          const fy = (p.y - boxTop) / item.height;
+          onPick(fx * nat.w, fy * nat.h);
+        }}
+      >
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="rounded-md bg-neutral-900/85 px-3 py-1.5 text-[11px] font-medium text-neutral-100 ring-1 ring-white/10">
+            {busy ? (
+              <span className="inline-flex items-center gap-1.5"><Icon name="sparkles" size={13} /> Lifting subject…</span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5"><Icon name="sparkles" size={13} /> Click the subject to grab it · Esc to cancel</span>
+            )}
+          </span>
+        </div>
       </div>
     </div>
   );

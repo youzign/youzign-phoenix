@@ -4,6 +4,7 @@ export * from "./mutations.js";
 export * from "./arrange.js";
 export * from "./background.js";
 export * from "./bg-removal.js";
+export * from "./magic.js";
 export * from "./geometry.js";
 export * from "./selection.js";
 export * from "./resize.js";
