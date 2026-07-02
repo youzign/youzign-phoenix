@@ -2,16 +2,29 @@ import { useEffect, useState } from "react";
 import inputXml from "./fixtures/mountains-input.xml?raw";
 import outputXml from "./fixtures/mountains-output.xml?raw";
 import clipartLocalXml from "./fixtures/clipart-local.xml?raw";
+import cropCurveXml from "./fixtures/crop-curve.xml?raw";
 import { useEditor } from "./store.js";
 import { TopBar } from "./components/TopBar.js";
 import { LeftSidebar } from "./components/LeftSidebar.js";
 import { CanvasStage } from "./components/CanvasStage.js";
 import { PropertiesPanel } from "./components/PropertiesPanel.js";
+import { ensureGoogleFonts } from "./fonts.js";
+import type { Item } from "@youzign/designstring";
+
+function collectFonts(items: Item[], out: Set<string>): void {
+  for (const it of items) {
+    if ((it.type === "text" || it.type === "text-curved") && (it as any).font) {
+      out.add((it as any).font);
+    }
+    if (it.type === "group") collectFonts(it.items, out);
+  }
+}
 
 const FIXTURES: Record<string, string> = {
   "mountains-input.xml": inputXml,
   "mountains-output.xml": outputXml,
   "clipart-local.xml": clipartLocalXml,
+  "crop-curve.xml": cropCurveXml,
 };
 
 export function App() {
@@ -21,7 +34,17 @@ export function App() {
   const redo = useEditor((s) => s.redo);
   const del = useEditor((s) => s.deleteSelected);
   const nudge = useEditor((s) => s.nudgeSelected);
+  const escapeSelection = useEditor((s) => s.escapeSelection);
   const editing = useEditor((s) => s.editingUid);
+  const design = useEditor((s) => s.design);
+
+  // Load webfonts for every family used in the current design (so the canvas
+  // renders them live). ensureGoogleFonts dedupes, so this is cheap to re-run.
+  useEffect(() => {
+    const fonts = new Set<string>();
+    collectFonts(design.items, fonts);
+    ensureGoogleFonts([...fonts]);
+  }, [design]);
 
   // Load the selected fixture.
   useEffect(() => {
@@ -51,6 +74,9 @@ export function App() {
       } else if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         del();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        escapeSelection();
       } else if (e.key.startsWith("Arrow")) {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
@@ -66,7 +92,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, del, nudge, editing]);
+  }, [undo, redo, del, nudge, escapeSelection, editing]);
 
   return (
     <div className="flex h-full flex-col bg-[#0e0e11] text-neutral-200">

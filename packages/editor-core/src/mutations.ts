@@ -9,8 +9,10 @@ import {
   signedIntToHex,
   type ClipartItem,
   type Design,
+  type ImageItem,
   type Item,
   type RawCarrier,
+  type TextCurvedItem,
   type TextItem,
 } from "@youzign/designstring";
 import {
@@ -46,6 +48,18 @@ const NUM_FIELDS: Record<string, string> = {
   size: "size",
   scaleX: "scaleX",
   scaleY: "scaleY",
+  // effect fields (legacy per-item attributes)
+  shadowDistance: "shadow_distance",
+  shadowAngle: "shadow_angle",
+  shadowColor: "shadow_color",
+  shadowOpacity: "shadow_opacity",
+  borderSize: "border_size",
+  borderColor: "border_color",
+  blurSize: "blur_size",
+  // curved-text arc attributes (legacy names)
+  startAngle: "start_angle",
+  endAngle: "end_angle",
+  radius: "radius",
 };
 const BOOL_FIELDS: Record<string, string> = {
   hFlip: "hFlip",
@@ -54,10 +68,18 @@ const BOOL_FIELDS: Record<string, string> = {
   italic: "italic",
   underline: "underline",
   strikethrough: "strikethrough",
+  isShadow: "is_shadow",
+  isBorder: "is_border",
+  isBlur: "is_blur",
+  topDirection: "top_direction",
+  useLetterAngle: "use_letter_angle",
+  cropped: "cropped",
 };
 const STR_FIELDS: Record<string, string> = {
   alignment: "alignment",
   font: "font",
+  fontType: "fontType",
+  source: "source",
 };
 
 export interface ItemPatch {
@@ -79,7 +101,28 @@ export interface ItemPatch {
   strikethrough?: boolean;
   alignment?: string;
   font?: string;
+  fontType?: string;
   content?: string;
+  // effects (color fields are legacy signed-int values, matching the model)
+  isShadow?: boolean;
+  shadowDistance?: number;
+  shadowAngle?: number;
+  shadowColor?: number;
+  shadowOpacity?: number;
+  isBorder?: boolean;
+  borderSize?: number;
+  borderColor?: number;
+  isBlur?: boolean;
+  blurSize?: number;
+  // curved text
+  startAngle?: number;
+  endAngle?: number;
+  radius?: number;
+  topDirection?: boolean;
+  useLetterAngle?: boolean;
+  // image
+  source?: string;
+  cropped?: boolean;
 }
 
 /** Apply a typed patch to an item, mutating in place and syncing rawAttrs. */
@@ -138,6 +181,122 @@ export function isShape(item: Item): boolean {
 
 export function shapeFillHex(item: ClipartItem): string {
   return item.rawAttrs["shape_fill"] || "#3b82f6";
+}
+
+// ---- curved text ------------------------------------------------------------
+//
+// The legacy `text-curved` item stores `radius`, `start_angle`, `end_angle`,
+// `top_direction`. We expose a single calm "curve amount" in [-100, 100]:
+//   0        → straight (radius 0)
+//   +N       → arcs up   (top_direction true),  larger N = tighter curve
+//   -N       → arcs down (top_direction false)
+// The angular span is derived from the text's own width so glyphs are not
+// stretched: span = (|amount|/100) · 180°, and radius is chosen so that
+// arcLength = radius · span(rad) ≈ text width. start/end angle are symmetric
+// about the apex (±span/2) so the arc round-trips with real legacy values.
+
+/** Rough rendered text width in px (matches the renderer's font metrics well
+ *  enough for arc sizing; exact metrics aren't needed since span is stored). */
+function estimateTextWidth(content: string, size: number): number {
+  return Math.max(size, Array.from(content).length * size * 0.55);
+}
+
+const RAD = Math.PI / 180;
+
+/** Read the current curve amount [-100,100] back from stored attributes. */
+export function curveAmount(item: TextCurvedItem): number {
+  const spanDeg = Math.abs(item.endAngle - item.startAngle);
+  if (!(item.radius > 0) || spanDeg <= 0) return 0;
+  const mag = Math.min(100, Math.round((spanDeg / 180) * 100));
+  return item.topDirection ? mag : -mag;
+}
+
+/** Apply a curve amount, writing radius/start_angle/end_angle/top_direction. */
+export function setCurve(item: TextCurvedItem, amount: number): void {
+  const a = Math.max(-100, Math.min(100, amount));
+  if (a === 0) {
+    patchItem(item as any, { radius: 0, startAngle: 0, endAngle: 0 });
+    return;
+  }
+  const topDirection = a > 0;
+  const spanDeg = (Math.abs(a) / 100) * 180;
+  const w = estimateTextWidth(item.content, item.size);
+  const radius = Math.max(1, w / (spanDeg * RAD));
+  patchItem(item as any, {
+    radius: Math.round(radius),
+    startAngle: -spanDeg / 2,
+    endAngle: spanDeg / 2,
+    topDirection,
+  });
+}
+
+// ---- image crop -------------------------------------------------------------
+//
+// Youzign never stored a crop sub-region in the designstring (only the
+// `cropped` boolean). Legacy "crop" produced a NEW baked image and updated the
+// item's source + geometry. We reproduce that destructive model exactly: the
+// caller bakes the selected sub-region to a new image (data-URI) and we update
+// source / width / height / xpos / ypos and set cropped=true. No new attribute
+// is invented, so untouched items stay byte-stable.
+
+export interface CropRect {
+  /** crop rectangle in canvas space (axis-aligned, within the image box) */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface CropResult {
+  /** source pixel region to copy from the natural-size image */
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+  /** new item geometry (canvas space) */
+  xpos: number;
+  ypos: number;
+  width: number;
+  height: number;
+}
+
+/** Pure crop math: map a canvas-space crop rect to source pixels + new box. */
+export function computeCrop(
+  item: ImageItem,
+  crop: CropRect,
+  naturalW: number,
+  naturalH: number
+): CropResult {
+  const boxLeft = item.xpos - item.width / 2;
+  const boxTop = item.ypos - item.height / 2;
+  const fx = naturalW / item.width;
+  const fy = naturalH / item.height;
+  return {
+    sx: (crop.x - boxLeft) * fx,
+    sy: (crop.y - boxTop) * fy,
+    sw: crop.w * fx,
+    sh: crop.h * fy,
+    xpos: crop.x + crop.w / 2,
+    ypos: crop.y + crop.h / 2,
+    width: crop.w,
+    height: crop.h,
+  };
+}
+
+/** Commit a crop: swap in the baked image + new geometry, mark cropped. */
+export function applyCrop(
+  item: ImageItem,
+  bakedSource: string,
+  geom: Pick<CropResult, "xpos" | "ypos" | "width" | "height">
+): void {
+  patchItem(item as any, {
+    source: bakedSource,
+    xpos: geom.xpos,
+    ypos: geom.ypos,
+    width: geom.width,
+    height: geom.height,
+    cropped: true,
+  });
 }
 
 // ---- item construction ------------------------------------------------------

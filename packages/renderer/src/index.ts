@@ -4,4 +4,5 @@ export { ItemView } from "./items.js";
 export { backgroundCss, gradientCssDeg } from "./background.js";
 export * from "./geometry.js";
 export { inlineClipartSvg, isSvgSource } from "./clipart.js";
+export { effectFilter, textBorderShadow } from "./effects.js";
 export type { InlinedSvg } from "./clipart.js";

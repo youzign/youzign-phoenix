@@ -94,6 +94,52 @@ describe("new items serialize to valid designstring", () => {
   });
 });
 
+describe("effects: shadow / border / blur attribute mapping", () => {
+  it("patching effect fields writes the exact legacy attributes", () => {
+    const d = parse(XML);
+    const it = d.items[1] as any;
+    patchItem(it, {
+      isShadow: true,
+      shadowDistance: 8,
+      shadowAngle: 30,
+      shadowColor: -16777216,
+      shadowOpacity: 0.5,
+      isBorder: true,
+      borderSize: 4,
+      borderColor: -1,
+      isBlur: true,
+      blurSize: 6,
+    });
+    expect(it.rawAttrs.is_shadow).toBe("true");
+    expect(it.rawAttrs.shadow_distance).toBe("8");
+    expect(it.rawAttrs.shadow_angle).toBe("30");
+    expect(it.rawAttrs.shadow_color).toBe("-16777216");
+    expect(it.rawAttrs.shadow_opacity).toBe("0.5");
+    expect(it.rawAttrs.is_border).toBe("true");
+    expect(it.rawAttrs.border_size).toBe("4");
+    expect(it.rawAttrs.border_color).toBe("-1");
+    expect(it.rawAttrs.is_blur).toBe("true");
+    expect(it.rawAttrs.blur_size).toBe("6");
+    // typed view stays in sync
+    expect(it.isShadow).toBe(true);
+    expect(it.borderColor).toBe(-1);
+  });
+
+  it("effect edits round-trip and touch only the edited item's line", () => {
+    const before = parse(XML);
+    const after = parse(XML);
+    patchItem(after.items[1] as any, { isShadow: true, shadowDistance: 12 });
+    const bLines = serialize(before).split("\n");
+    const aLines = serialize(after).split("\n");
+    expect(aLines.length).toBe(bLines.length);
+    expect(aLines.filter((l, i) => l !== bLines[i]).length).toBe(1);
+    // and parse(serialize()) preserves the new values
+    const round = parse(serialize(after)).items[1] as any;
+    expect(round.isShadow).toBe(true);
+    expect(round.shadowDistance).toBe(12);
+  });
+});
+
 describe("itemBox", () => {
   it("returns a center-based box for an image item", () => {
     const d = parse(XML);

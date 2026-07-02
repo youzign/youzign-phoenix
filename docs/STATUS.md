@@ -1,8 +1,9 @@
 # Youzign OSS — Status & Working Agreements
-*Updated 2026-07-02 midday. This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
+*Updated 2026-07-02 evening. This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
 
 ## State
-- **M1 ✅** parser + renderer (2017 designs render; byte-stable round-trip). **M2 ✅** clipart SVG recoloring (legacy Layer-band semantics). **M3 ✅** editor v0 on branch `feat/editor-milestone-3` — Figma-style shell, select/drag/resize/rotate, inline text edit, shapes tab, undo/redo, autosave, XML/PNG export. 25/25 tests. `pnpm dev` → :5191.
+- **M1 ✅** parser + renderer (2017 designs render; byte-stable round-trip). **M2 ✅** clipart SVG recoloring (legacy Layer-band semantics). **M3 ✅** editor v0 (merged to main) — Figma-style shell, select/drag/resize/rotate, inline text edit, shapes tab, undo/redo, autosave, XML/PNG export. **v0.2 ✅** on branch `feat/editor-v0.2` — X/Y inputs removed (directive #2 done), multi-select (shift-click/marquee/combined bbox), group-child drill selection (dbl-click/Escape), searchable Google-Fonts picker (legacy font/fontType fields), legacy-faithful shadow/blur/border effects + panel controls, curved text (SVG textPath on legacy arc attrs), destructive image crop (legacy stores no crop rect — bakes new image, cropped=true). 62/62 tests. `pnpm dev` → :5191. Shots in docs/shots/editor-v0.2-*.png.
+- Fidelity notes: legacy TS editor never rendered text-curved (Flash did) — our render reconstructs the attribute semantics; legacy non-text border math has a typo, we render the intended symmetric 8-direction outline.
 - Legacy repos cloned for reference at the session scratchpad (re-clone: github.com/youzign/{youzign-local,editor,theme}).
 
 ## Bertrand's UI directives (hard rules)
@@ -16,7 +17,7 @@
 - Before any server decommission: dump WP `wp_terms`/`wp_term_taxonomy` + `save_editor_design` (the designs!) from the 31GB prod DB.
 
 ## Milestone ladder (next)
-4. Editor v0.2: fix the X/Y directive above; multi-select; group-child selection; font picker; fidelity items (shadows, blur, borders, crop, curved text).
+4. ~~Editor v0.2~~ ✅ done (see State).
 5. Golden-image pixel-diff harness (needs a ~1,000-row designstring export from prod DB when accessible).
 6. Library sidebar v1 (per §4b) → Generate panel (fal BYOK first).
 7. Tauri wrap + local files + archive importer.

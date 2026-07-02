@@ -7,9 +7,17 @@ import {
   type ImageItem,
   type Item,
   type TextItem,
+  type TextCurvedItem,
 } from "@youzign/designstring";
-import { boxTopLeft, flipTransform, matrixToCss, textPlacement } from "./geometry.js";
+import {
+  boxTopLeft,
+  flipTransform,
+  matrixToCss,
+  textPlacement,
+  curvedTextArc,
+} from "./geometry.js";
 import { inlineClipartSvg, isSvgSource } from "./clipart.js";
+import { effectFilter, textBorderShadow } from "./effects.js";
 
 /** Render an item by type. */
 export function ItemView({ item }: { item: Item }) {
@@ -17,8 +25,9 @@ export function ItemView({ item }: { item: Item }) {
     case "image":
       return <ImageItemView item={item} />;
     case "text":
-    case "text-curved":
       return <TextItemView item={item as TextItem} />;
+    case "text-curved":
+      return <TextCurvedItemView item={item as TextCurvedItem} />;
     case "clipart":
       return <ClipartItemView item={item} />;
     case "group":
@@ -40,6 +49,7 @@ function ImageItemView({ item }: { item: ImageItem }) {
     width: item.width,
     height: item.height,
     opacity: item.opacity,
+    filter: effectFilter(item),
     transformOrigin: "center center",
     transform: `rotate(${item.rotation}deg) ${flipTransform(item.hFlip, item.vFlip)}`.trim(),
   };
@@ -123,19 +133,80 @@ function TextItemView({ item }: { item: TextItem }) {
     textAlign: (item.alignment as CSSProperties["textAlign"]) || "left",
     whiteSpace: "pre",
     opacity: item.opacity,
+    filter: effectFilter(item),
+    textShadow: textBorderShadow(item),
     transform: matrixToCss(matrix),
     transformOrigin: "0 0",
     overflow: "visible",
   };
 
+  // Legacy: with a border of size > 1 and "no fill", the glyph fill goes
+  // transparent so only the outline (textShadow) shows.
+  const noFill = item.isNoFill && item.isBorder && item.borderSize > 1;
+
   return (
     <div style={style}>
       {runs.map((r, i) => (
-        <span key={i} style={{ color: r.color }}>
+        <span key={i} style={{ color: noFill ? "transparent" : r.color }}>
           {r.text}
         </span>
       ))}
     </div>
+  );
+}
+
+let curvedSeq = 0;
+
+function TextCurvedItemView({ item }: { item: TextCurvedItem }) {
+  const arc = curvedTextArc(
+    item.radius,
+    item.startAngle,
+    item.endAngle,
+    item.topDirection
+  );
+
+  // Not actually curved (radius 0 / zero span): fall back to straight text so a
+  // freshly-created or de-curved item still renders sensibly.
+  if (!arc.curved) return <TextItemView item={item as unknown as TextItem} />;
+
+  const [pathId] = useState(() => `yz-curve-${item.index}-${curvedSeq++}`);
+  const color = signedIntToHex(item.colors.length ? item.colors[0] : 0);
+
+  // Legacy places curved text via createGroupMatrix: (xpos,ypos) is the origin
+  // and rotation pivots there. We align the arc apex (text centre) to that
+  // origin and rotate about it.
+  const style: CSSProperties = {
+    position: "absolute",
+    left: item.xpos - arc.apexX,
+    top: item.ypos - arc.apexY,
+    width: arc.width,
+    height: arc.height,
+    overflow: "visible",
+    opacity: item.opacity,
+    filter: effectFilter(item),
+    transformOrigin: `${arc.apexX}px ${arc.apexY}px`,
+    transform: `rotate(${item.rotation}deg) ${flipTransform(item.hFlip, item.vFlip)}`.trim(),
+  };
+
+  return (
+    <svg style={style} width={arc.width} height={arc.height} viewBox={`0 0 ${arc.width} ${arc.height}`}>
+      <defs>
+        <path id={pathId} d={arc.path} fill="none" />
+      </defs>
+      <text
+        style={{
+          fontSize: item.size,
+          fontFamily: `"${item.font}", sans-serif`,
+          fontWeight: item.bold ? 700 : 400,
+          fontStyle: item.italic ? "italic" : "normal",
+          fill: color,
+        }}
+      >
+        <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
+          {item.content}
+        </textPath>
+      </text>
+    </svg>
   );
 }
 
@@ -179,6 +250,7 @@ function ClipartItemView({ item }: { item: ClipartItem }) {
     width: item.width,
     height: item.height,
     opacity: item.opacity,
+    filter: effectFilter(item),
     transformOrigin: "center center",
     transform: `rotate(${item.rotation}deg) ${flipTransform(item.hFlip, item.vFlip)}`.trim(),
   };
@@ -230,6 +302,7 @@ function GroupItemView({ item }: { item: GroupItem }) {
     width: 0,
     height: 0,
     opacity: item.opacity,
+    filter: effectFilter(item),
     transformOrigin: "0 0",
     transform: `rotate(${item.rotation}deg) scale(${item.scaleX}, ${item.scaleY}) ${flipTransform(
       item.hFlip,
