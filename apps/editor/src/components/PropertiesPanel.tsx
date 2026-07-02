@@ -11,6 +11,23 @@ import {
 import { signedIntToHex, hexToSignedInt } from "@youzign/designstring";
 import { useEditor } from "../store.js";
 import { ensureGoogleFonts } from "../fonts.js";
+import {
+  Icon,
+  IconButton,
+  Switch,
+  NumberField,
+  ColorSwatch,
+  SectionLabel,
+  type IconName,
+} from "./ui.js";
+
+const TYPE_LABELS: Record<string, string> = {
+  text: "Text",
+  "text-curved": "Curved text",
+  image: "Image",
+  clipart: "Graphic",
+  group: "Group",
+};
 
 function FontPicker({
   value,
@@ -23,20 +40,17 @@ function FontPicker({
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Selected family may be a legacy face not in the curated list — show it too.
   const families =
     value && !GOOGLE_FONTS.includes(value) ? [value, ...GOOGLE_FONTS] : GOOGLE_FONTS;
   const filtered = families.filter((f) =>
     f.toLowerCase().includes(query.trim().toLowerCase())
   );
 
-  // Load faces for every visible option so each renders in its own font.
   useEffect(() => {
     if (open) ensureGoogleFonts(filtered);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, query]);
 
-  // Close on outside click.
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
@@ -49,7 +63,7 @@ function FontPicker({
   return (
     <div ref={rootRef} className="relative">
       <button
-        className="flex w-full items-center justify-between rounded bg-neutral-800 px-2 py-1.5 text-xs text-neutral-100 hover:bg-neutral-700"
+        className="flex w-full items-center justify-between rounded-md bg-white/[0.05] px-2.5 py-2 text-[13px] text-neutral-100 transition-colors duration-150 hover:bg-white/[0.09]"
         style={{ fontFamily: `"${value}", sans-serif` }}
         onClick={() => {
           setOpen((o) => !o);
@@ -57,36 +71,43 @@ function FontPicker({
         }}
       >
         <span className="truncate">{value || "Select font"}</span>
-        <span className="ml-2 text-neutral-500">▾</span>
+        <Icon name="chevron-down" size={15} className="ml-2 shrink-0 text-neutral-500" />
       </button>
       {open && (
-        <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded border border-neutral-700 bg-neutral-900 shadow-xl">
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search fonts…"
-            className="w-full rounded-t bg-neutral-800 px-2 py-1.5 text-xs text-neutral-100 outline-none"
-          />
+        <div className="absolute left-0 right-0 top-full z-30 mt-1.5 overflow-hidden rounded-xl border border-white/10 bg-neutral-800/95 shadow-2xl backdrop-blur">
+          <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2.5 py-2">
+            <Icon name="search" size={15} className="shrink-0 text-neutral-500" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search fonts…"
+              className="w-full bg-transparent text-[13px] text-neutral-100 outline-none placeholder:text-neutral-500"
+            />
+          </div>
           <ul className="max-h-64 overflow-y-auto py-1">
-            {filtered.map((f) => (
-              <li key={f}>
-                <button
-                  className={`flex w-full items-center px-2 py-1.5 text-left text-sm hover:bg-neutral-800 ${
-                    f === value ? "text-blue-400" : "text-neutral-200"
-                  }`}
-                  style={{ fontFamily: `"${f}", sans-serif` }}
-                  onClick={() => {
-                    onChange(f);
-                    setOpen(false);
-                  }}
-                >
-                  {f}
-                </button>
-              </li>
-            ))}
+            {filtered.map((f) => {
+              const cur = f === value;
+              return (
+                <li key={f}>
+                  <button
+                    className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-[14px] transition-colors duration-100 ${
+                      cur ? "bg-[var(--accent-soft)] text-white" : "text-neutral-200 hover:bg-white/[0.06]"
+                    }`}
+                    style={{ fontFamily: `"${f}", sans-serif` }}
+                    onClick={() => {
+                      onChange(f);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="truncate">{f}</span>
+                    {cur && <Icon name="check" size={15} className="ml-2 shrink-0 text-[var(--accent)]" />}
+                  </button>
+                </li>
+              );
+            })}
             {filtered.length === 0 && (
-              <li className="px-2 py-2 text-xs text-neutral-500">No matches</li>
+              <li className="px-2.5 py-2.5 text-[12px] text-neutral-500">No matches</li>
             )}
           </ul>
         </div>
@@ -95,17 +116,18 @@ function FontPicker({
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Divider() {
+  return <div className="h-px w-full bg-white/[0.06]" />;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex items-center justify-between gap-2 text-xs">
+    <label className="flex items-center justify-between gap-2 text-[12px]">
       <span className="text-neutral-400">{label}</span>
-      <span className="flex items-center gap-1">{children}</span>
+      {children}
     </label>
   );
 }
-
-const numInput =
-  "w-20 rounded bg-neutral-800 px-2 py-1 text-right text-neutral-100 outline-none focus:ring-1 focus:ring-blue-500";
 
 function OpsSection() {
   const dup = useEditor((s) => s.duplicateSelected);
@@ -113,175 +135,150 @@ function OpsSection() {
   const front = useEditor((s) => s.bringToFront);
   const back = useEditor((s) => s.sendToBack);
   return (
-    <section className="flex flex-col gap-2 border-t border-neutral-800 pt-3">
-      <div className="flex gap-1">
-        <button
-          className="flex-1 rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-200 hover:bg-neutral-700"
-          onClick={front}
-        >
-          Bring to front
-        </button>
-        <button
-          className="flex-1 rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-200 hover:bg-neutral-700"
-          onClick={back}
-        >
-          Send to back
-        </button>
-      </div>
-      <div className="flex gap-1">
-        <button
-          className="flex-1 rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-200 hover:bg-neutral-700"
-          onClick={dup}
-        >
-          Duplicate
-        </button>
-        <button
-          className="flex-1 rounded bg-red-900/60 px-2 py-1 text-xs text-red-200 hover:bg-red-800"
-          onClick={del}
-        >
-          Delete
-        </button>
+    <section className="flex flex-col gap-2">
+      <Divider />
+      <div className="flex items-center gap-1">
+        <IconButton icon="bring-front" label="Bring to front" onClick={front} />
+        <IconButton icon="send-back" label="Send to back" onClick={back} />
+        <IconButton icon="copy" label="Duplicate" onClick={dup} />
+        <div className="ml-auto">
+          <IconButton icon="trash" label="Delete" onClick={del} danger />
+        </div>
       </div>
     </section>
   );
 }
 
-const toggleBtn = (on: boolean) =>
-  `rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-    on ? "bg-blue-600 text-white" : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
-  }`;
-
-const colorInput = "h-6 w-8 cursor-pointer rounded bg-neutral-800";
-const smallNum =
-  "w-14 rounded bg-neutral-800 px-2 py-1 text-right text-neutral-100 outline-none focus:ring-1 focus:ring-blue-500";
-
-/** Shadow / Border / Blur — writes the exact legacy attributes via patch. */
-function EffectsSection({
-  any,
-  patch,
+/** A shadow / border / blur block: header (label + switch) then controls. */
+function EffectBlock({
+  label,
+  on,
+  onToggle,
+  children,
 }: {
-  any: any;
-  patch: (p: ItemPatch) => void;
+  label: string;
+  on: boolean;
+  onToggle: () => void;
+  children?: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-3 border-t border-neutral-800 pt-3">
-      {/* Shadow */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-            Shadow
-          </span>
-          <button
-            className={toggleBtn(!!any.isShadow)}
-            onClick={() => patch({ isShadow: !any.isShadow })}
-          >
-            {any.isShadow ? "On" : "Off"}
-          </button>
-        </div>
-        {any.isShadow && (
-          <div className="grid grid-cols-2 gap-2">
-            <Row label="Color">
-              <input
-                type="color"
-                className={colorInput}
-                value={signedIntToHex(any.shadowColor ?? 0)}
-                onChange={(e) => patch({ shadowColor: hexToSignedInt(e.target.value) })}
-              />
-            </Row>
-            <Row label="Opacity">
-              <input
-                type="number"
-                min={0}
-                max={1}
-                step={0.05}
-                className={smallNum}
-                value={Number(any.shadowOpacity ?? 0)}
-                onChange={(e) => patch({ shadowOpacity: Number(e.target.value) })}
-              />
-            </Row>
-            <Row label="Distance">
-              <input
-                type="number"
-                min={0}
-                className={smallNum}
-                value={Math.round(any.shadowDistance ?? 0)}
-                onChange={(e) => patch({ shadowDistance: Number(e.target.value) })}
-              />
-            </Row>
-            <Row label="Angle">
-              <input
-                type="number"
-                className={smallNum}
-                value={Math.round(any.shadowAngle ?? 0)}
-                onChange={(e) => patch({ shadowAngle: Number(e.target.value) })}
-              />
-            </Row>
-          </div>
-        )}
-      </div>
+    <div className="flex flex-col gap-2.5">
+      <SectionLabel right={<Switch on={on} onChange={onToggle} />}>{label}</SectionLabel>
+      {on && children}
+    </div>
+  );
+}
 
-      {/* Border */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-            Border
-          </span>
-          <button
-            className={toggleBtn(!!any.isBorder)}
-            onClick={() => patch({ isBorder: !any.isBorder })}
-          >
-            {any.isBorder ? "On" : "Off"}
-          </button>
-        </div>
-        {any.isBorder && (
-          <div className="grid grid-cols-2 gap-2">
-            <Row label="Color">
-              <input
-                type="color"
-                className={colorInput}
-                value={signedIntToHex(any.borderColor ?? 0)}
-                onChange={(e) => patch({ borderColor: hexToSignedInt(e.target.value) })}
-              />
-            </Row>
-            <Row label="Width">
-              <input
-                type="number"
-                min={0}
-                className={smallNum}
-                value={Math.round(any.borderSize ?? 0)}
-                onChange={(e) => patch({ borderSize: Number(e.target.value) })}
-              />
-            </Row>
-          </div>
-        )}
-      </div>
-
-      {/* Blur */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-            Blur
-          </span>
-          <button
-            className={toggleBtn(!!any.isBlur)}
-            onClick={() => patch({ isBlur: !any.isBlur })}
-          >
-            {any.isBlur ? "On" : "Off"}
-          </button>
-        </div>
-        {any.isBlur && (
-          <Row label="Amount">
-            <input
-              type="number"
-              min={0}
-              className={smallNum}
-              value={Math.round(any.blurSize ?? 0)}
-              onChange={(e) => patch({ blurSize: Number(e.target.value) })}
+function EffectsSection({ any, patch }: { any: any; patch: (p: ItemPatch) => void }) {
+  return (
+    <section className="flex flex-col gap-4">
+      <Divider />
+      <EffectBlock
+        label="Shadow"
+        on={!!any.isShadow}
+        onToggle={() => patch({ isShadow: !any.isShadow })}
+      >
+        <div className="flex flex-col gap-2.5">
+          <Field label="Color">
+            <ColorSwatch
+              value={signedIntToHex(any.shadowColor ?? 0)}
+              onChange={(hex) => patch({ shadowColor: hexToSignedInt(hex) })}
             />
-          </Row>
-        )}
-      </div>
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField
+              label="Opacity"
+              value={Number(any.shadowOpacity ?? 0)}
+              onChange={(v) => patch({ shadowOpacity: v })}
+              min={0}
+              max={1}
+              step={0.05}
+              precision={2}
+            />
+            <NumberField
+              label="Dist"
+              value={Math.round(any.shadowDistance ?? 0)}
+              onChange={(v) => patch({ shadowDistance: v })}
+              min={0}
+            />
+            <NumberField
+              label="Angle"
+              value={Math.round(any.shadowAngle ?? 0)}
+              onChange={(v) => patch({ shadowAngle: v })}
+              unit="°"
+            />
+          </div>
+        </div>
+      </EffectBlock>
+
+      <EffectBlock
+        label="Border"
+        on={!!any.isBorder}
+        onToggle={() => patch({ isBorder: !any.isBorder })}
+      >
+        <div className="flex flex-col gap-2.5">
+          <Field label="Color">
+            <ColorSwatch
+              value={signedIntToHex(any.borderColor ?? 0)}
+              onChange={(hex) => patch({ borderColor: hexToSignedInt(hex) })}
+            />
+          </Field>
+          <NumberField
+            label="Width"
+            value={Math.round(any.borderSize ?? 0)}
+            onChange={(v) => patch({ borderSize: v })}
+            min={0}
+            unit="px"
+          />
+        </div>
+      </EffectBlock>
+
+      <EffectBlock
+        label="Blur"
+        on={!!any.isBlur}
+        onToggle={() => patch({ isBlur: !any.isBlur })}
+      >
+        <NumberField
+          label="Amount"
+          value={Math.round(any.blurSize ?? 0)}
+          onChange={(v) => patch({ blurSize: v })}
+          min={0}
+          unit="px"
+        />
+      </EffectBlock>
     </section>
+  );
+}
+
+/** Segmented toggle group of icon buttons. */
+function ToggleGroup<T extends string>({
+  options,
+  value,
+  onSelect,
+}: {
+  options: { key: T; icon: IconName; label: string }[];
+  value: T | null;
+  onSelect: (k: T) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5 rounded-lg bg-white/[0.04] p-0.5">
+      {options.map((o) => {
+        const active = value === o.key;
+        return (
+          <button
+            key={o.key}
+            title={o.label}
+            aria-label={o.label}
+            onClick={() => onSelect(o.key)}
+            className={`inline-flex h-7 flex-1 items-center justify-center rounded-md transition-colors duration-150 ${
+              active ? "bg-[var(--accent)] text-white shadow-sm" : "text-neutral-400 hover:bg-white/[0.08] hover:text-white"
+            }`}
+          >
+            <Icon name={o.icon} size={16} />
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -295,17 +292,21 @@ export function PropertiesPanel() {
 
   if (selectedCount === 0) {
     return (
-      <div className="p-4 text-xs text-neutral-500">
-        Nothing selected. Click an item on the canvas.
+      <div className="flex flex-col items-center gap-3 px-5 pt-16 text-center">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/[0.05] text-neutral-500">
+          <Icon name="shapes" size={20} />
+        </div>
+        <p className="text-[12px] leading-relaxed text-neutral-500">
+          Nothing selected.<br />Click an item on the canvas to edit it.
+        </p>
       </div>
     );
   }
 
-  // Multi-select: minimal panel, ops only, never coordinate fields.
   if (selectedCount > 1 || !item) {
     return (
       <div className="flex flex-col gap-4 p-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+        <div className="text-[12px] font-medium text-neutral-300">
           {selectedCount} items selected
         </div>
         <OpsSection />
@@ -324,60 +325,49 @@ export function PropertiesPanel() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-        {item.type}
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+        {TYPE_LABELS[item.type] ?? item.type}
       </div>
 
       {/* geometry */}
       {"xpos" in any && (
-        <section className="flex flex-col gap-2">
-          <div className="grid grid-cols-2 gap-2">
-            {!isTextItem && (
-              <>
-                <Row label="W">
-                  <input
-                    type="number"
-                    className={numInput}
-                    value={Math.round(any.width)}
-                    onChange={(e) => patch({ width: Number(e.target.value) })}
-                  />
-                </Row>
-                <Row label="H">
-                  <input
-                    type="number"
-                    className={numInput}
-                    value={Math.round(any.height)}
-                    onChange={(e) => patch({ height: Number(e.target.value) })}
-                  />
-                </Row>
-              </>
-            )}
-            <Row label="Angle">
-              <input
-                type="number"
-                className={numInput}
-                value={Math.round(any.rotation)}
-                onChange={(e) => patch({ rotation: Number(e.target.value) })}
+        <section className="grid grid-cols-2 gap-2">
+          {!isTextItem && (
+            <>
+              <NumberField
+                label="W"
+                value={Math.round(any.width)}
+                onChange={(v) => patch({ width: v })}
               />
-            </Row>
-            <Row label="Opacity">
-              <input
-                type="number"
-                min={0}
-                max={1}
-                step={0.1}
-                className={numInput}
-                value={Number(any.opacity)}
-                onChange={(e) => patch({ opacity: Number(e.target.value) })}
+              <NumberField
+                label="H"
+                value={Math.round(any.height)}
+                onChange={(v) => patch({ height: v })}
               />
-            </Row>
-          </div>
+            </>
+          )}
+          <NumberField
+            label="Angle"
+            value={Math.round(any.rotation)}
+            onChange={(v) => patch({ rotation: v })}
+            unit="°"
+          />
+          <NumberField
+            label="Opacity"
+            value={Number(any.opacity)}
+            onChange={(v) => patch({ opacity: v })}
+            min={0}
+            max={1}
+            step={0.05}
+            precision={2}
+          />
         </section>
       )}
 
       {/* text properties */}
       {isTextItem && (
-        <section className="flex flex-col gap-2 border-t border-neutral-800 pt-3">
+        <section className="flex flex-col gap-3">
+          <Divider />
           <FontPicker
             value={any.font}
             onChange={(family) => {
@@ -385,67 +375,54 @@ export function PropertiesPanel() {
               patch(fontPatch(family));
             }}
           />
-          <Row label="Font size">
-            <input
-              type="number"
-              className={numInput}
+          <div className="flex items-center gap-2">
+            <NumberField
+              label="Size"
               value={Math.round(any.size)}
-              onChange={(e) => patch({ size: Number(e.target.value) })}
+              onChange={(v) => patch({ size: v })}
+              min={1}
+              unit="px"
             />
-          </Row>
-          <div className="flex gap-1">
-            <button
-              className={`flex-1 rounded px-2 py-1 text-xs font-bold ${
-                any.bold ? "bg-blue-600 text-white" : "bg-neutral-800 text-neutral-300"
-              }`}
-              onClick={() => patch({ bold: !any.bold })}
-            >
-              B
-            </button>
-            <button
-              className={`flex-1 rounded px-2 py-1 text-xs italic ${
-                any.italic ? "bg-blue-600 text-white" : "bg-neutral-800 text-neutral-300"
-              }`}
-              onClick={() => patch({ italic: !any.italic })}
-            >
-              I
-            </button>
-            <button
-              className={`flex-1 rounded px-2 py-1 text-xs underline ${
-                any.underline ? "bg-blue-600 text-white" : "bg-neutral-800 text-neutral-300"
-              }`}
-              onClick={() => patch({ underline: !any.underline })}
-            >
-              U
-            </button>
           </div>
-          <div className="flex gap-1">
-            {(["left", "center", "right"] as const).map((a) => (
+          {/* style toggles are independent, not exclusive — render manually */}
+          <div className="flex items-center gap-0.5 rounded-lg bg-white/[0.04] p-0.5">
+            {([
+              { key: "bold", icon: "bold" as IconName, label: "Bold", on: !!any.bold },
+              { key: "italic", icon: "italic" as IconName, label: "Italic", on: !!any.italic },
+              { key: "underline", icon: "underline" as IconName, label: "Underline", on: !!any.underline },
+            ]).map((o) => (
               <button
-                key={a}
-                className={`flex-1 rounded px-2 py-1 text-xs ${
-                  any.alignment === a
-                    ? "bg-blue-600 text-white"
-                    : "bg-neutral-800 text-neutral-300"
+                key={o.key}
+                title={o.label}
+                aria-label={o.label}
+                onClick={() => patch({ [o.key]: !o.on } as ItemPatch)}
+                className={`inline-flex h-7 flex-1 items-center justify-center rounded-md transition-colors duration-150 ${
+                  o.on ? "bg-[var(--accent)] text-white shadow-sm" : "text-neutral-400 hover:bg-white/[0.08] hover:text-white"
                 }`}
-                onClick={() => patch({ alignment: a })}
               >
-                {a[0].toUpperCase()}
+                <Icon name={o.icon} size={16} />
               </button>
             ))}
           </div>
+          <ToggleGroup
+            options={[
+              { key: "left", icon: "align-left", label: "Align left" },
+              { key: "center", icon: "align-center", label: "Align center" },
+              { key: "right", icon: "align-right", label: "Align right" },
+            ]}
+            value={any.alignment ?? "left"}
+            onSelect={(a) => patch({ alignment: a })}
+          />
         </section>
       )}
 
-      {/* curved text: arc control (legacy radius / angle / direction) */}
+      {/* curved text arc */}
       {item.type === "text-curved" && (
-        <section className="flex flex-col gap-2 border-t border-neutral-800 pt-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-              Curve
-            </span>
-            <span className="text-xs text-neutral-400">{curveAmount(any)}</span>
-          </div>
+        <section className="flex flex-col gap-2">
+          <Divider />
+          <SectionLabel right={<span className="text-[12px] tabular-nums text-neutral-300">{curveAmount(any)}</span>}>
+            Curve
+          </SectionLabel>
           <input
             type="range"
             min={-100}
@@ -453,7 +430,7 @@ export function PropertiesPanel() {
             step={1}
             value={curveAmount(any)}
             onChange={(e) => setCurveByUid(any._uid, Number(e.target.value))}
-            className="w-full accent-blue-500"
+            className="yz-range"
           />
           <div className="flex justify-between text-[10px] text-neutral-600">
             <span>▽ down</span>
@@ -463,36 +440,33 @@ export function PropertiesPanel() {
         </section>
       )}
 
-      {/* image: crop */}
+      {/* image crop */}
       {item.type === "image" && (
-        <section className="border-t border-neutral-800 pt-3">
+        <section className="flex flex-col gap-1.5">
+          <Divider />
           <button
-            className="w-full rounded bg-neutral-800 px-2 py-1.5 text-xs text-neutral-200 hover:bg-neutral-700"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-2 text-[12.5px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.1] hover:text-white"
             onClick={() => beginCrop(any._uid)}
           >
-            Crop image
+            <Icon name="crop" size={15} /> Crop image
           </button>
           {any.cropped && (
-            <p className="mt-1 text-[10px] text-neutral-500">Cropped · double-click to re-crop</p>
+            <p className="text-[10px] text-neutral-500">Cropped · double-click to re-crop</p>
           )}
         </section>
       )}
 
       {/* fill */}
       {showFill && (
-        <section className="border-t border-neutral-800 pt-3">
-          <Row label="Fill">
-            <input
-              type="color"
-              value={fillHex}
-              onChange={(e) => recolor(e.target.value)}
-              className="h-7 w-10 cursor-pointer rounded bg-neutral-800"
-            />
-          </Row>
+        <section className="flex flex-col gap-2.5">
+          <Divider />
+          <Field label="Fill">
+            <ColorSwatch value={fillHex} onChange={(hex) => recolor(hex)} />
+          </Field>
         </section>
       )}
 
-      {/* effects: shadow / border / blur */}
+      {/* effects */}
       {"xpos" in any && <EffectsSection any={any} patch={patch} />}
 
       {/* z-order + ops */}

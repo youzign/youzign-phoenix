@@ -318,9 +318,9 @@ export function CanvasStage() {
   });
 
   return (
-    <div className="flex h-full w-full items-center justify-center overflow-auto bg-[#1b1b1f] p-10">
+    <div className="flex h-full w-full items-center justify-center overflow-auto bg-[#141417] p-10">
       <div
-        className="relative shadow-2xl ring-1 ring-black/40"
+        className="relative shadow-2xl ring-1 ring-white/[0.06]"
         style={{ width: w, height: h }}
       >
         <DesignCanvas design={design} zoom={zoom} />
@@ -360,7 +360,7 @@ export function CanvasStage() {
             <div style={{ ...boxToStyle(comboBox), pointerEvents: "none" }}>
               <div
                 className="absolute inset-0"
-                style={{ outline: "1.5px dashed #4f8cff", outlineOffset: 0 }}
+                style={{ outline: "1.5px dashed #6366f1", outlineOffset: 0 }}
               />
               {/* thin outline per member */}
             </div>
@@ -370,7 +370,7 @@ export function CanvasStage() {
               <div key={i} style={{ ...boxToStyle(b), pointerEvents: "none" }}>
                 <div
                   className="absolute inset-0"
-                  style={{ outline: "1px solid rgba(79,140,255,0.6)" }}
+                  style={{ outline: "1px solid rgba(99,102,241,0.55)" }}
                 />
               </div>
             ))}
@@ -388,7 +388,7 @@ export function CanvasStage() {
                 marginLeft: -6,
                 marginTop: -6,
                 background: "#fff",
-                border: "1.5px solid #4f8cff",
+                border: "1.5px solid #6366f1",
                 borderRadius: 2,
                 pointerEvents: "auto",
               };
@@ -405,7 +405,7 @@ export function CanvasStage() {
                 <div style={{ ...boxToStyle(singleBox), pointerEvents: "none" }}>
                   <div
                     className="absolute inset-0"
-                    style={{ outline: "1.5px solid #4f8cff", outlineOffset: 0 }}
+                    style={{ outline: "1.5px solid #6366f1", outlineOffset: 0 }}
                   />
                   {showRotate && (
                     <div
@@ -416,7 +416,7 @@ export function CanvasStage() {
                         width: 13,
                         height: 13,
                         marginLeft: -7,
-                        background: "#4f8cff",
+                        background: "#6366f1",
                         border: "2px solid #fff",
                         borderRadius: "50%",
                         cursor: "grab",
@@ -448,8 +448,8 @@ export function CanvasStage() {
                   top: Math.min(marquee.y0, marquee.y1) * zoom,
                   width: Math.abs(marquee.x1 - marquee.x0) * zoom,
                   height: Math.abs(marquee.y1 - marquee.y0) * zoom,
-                  background: "rgba(79,140,255,0.12)",
-                  border: "1px solid #4f8cff",
+                  background: "rgba(99,102,241,0.10)",
+                  border: "1px solid #6366f1",
                   pointerEvents: "none",
                 }}
               />
@@ -601,7 +601,7 @@ function CropOverlay({
     width: px(crop.w),
     height: px(crop.h),
     boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
-    outline: "1.5px solid #4f8cff",
+    outline: "1.5px solid #6366f1",
     cursor: "move",
   };
   const handleBase: CSSProperties = {
@@ -611,7 +611,7 @@ function CropOverlay({
     marginLeft: -6,
     marginTop: -6,
     background: "#fff",
-    border: "1.5px solid #4f8cff",
+    border: "1.5px solid #6366f1",
     borderRadius: 2,
   };
   const handlePos: Record<Exclude<CropHandle, "move">, CSSProperties> = {
@@ -726,7 +726,7 @@ function InlineTextEditor({
     textAlign: item.alignment,
     color: "#111",
     background: "rgba(255,255,255,0.92)",
-    outline: "2px solid #4f8cff",
+    outline: "2px solid #6366f1",
     whiteSpace: "pre",
     overflow: "hidden",
     boxSizing: "border-box",

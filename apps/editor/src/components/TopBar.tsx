@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { toPng } from "html-to-image";
 import { serialize } from "@youzign/designstring";
 import { useEditor } from "../store.js";
+import { Icon, IconButton, ghostBtn, accentBtn } from "./ui.js";
 
 const FIXTURE_LABELS: Record<string, string> = {
   "mountains-input.xml": "Mountains (input)",
@@ -62,74 +63,82 @@ export function TopBar({
     reader.readAsText(file);
   };
 
-  const btn =
-    "rounded px-2.5 py-1.5 text-xs font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-30 disabled:hover:bg-transparent";
-
   return (
-    <header className="flex items-center gap-3 border-b border-neutral-800 bg-neutral-950 px-4 py-2">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-bold tracking-tight text-white">Youzign</span>
-        <span className="text-neutral-700">/</span>
+    <header className="flex items-center gap-3 border-b border-white/[0.06] bg-[#1c1c1f] px-3 py-2">
+      {/* brand + doc name */}
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-[13px] font-bold text-white shadow-sm">
+          Y
+        </span>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-44 rounded bg-transparent px-1.5 py-1 text-sm text-neutral-200 outline-none hover:bg-neutral-900 focus:bg-neutral-900"
+          spellCheck={false}
+          className="w-48 rounded-md bg-transparent px-2 py-1 text-[13px] font-medium text-neutral-100 outline-none transition-colors hover:bg-white/[0.06] focus:bg-white/[0.08] focus:ring-1 focus:ring-[var(--accent)]/60"
         />
       </div>
 
-      <div className="ml-2 flex items-center gap-0.5">
-        <button className={btn} onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">
-          ↶
-        </button>
-        <button className={btn} onClick={redo} disabled={!canRedo} title="Redo (⇧⌘Z)">
-          ↷
-        </button>
+      <div className="mx-1 h-5 w-px bg-white/10" />
+
+      {/* undo / redo */}
+      <div className="flex items-center gap-0.5">
+        <IconButton icon="undo" label="Undo  ⌘Z" onClick={undo} disabled={!canUndo} />
+        <IconButton icon="redo" label="Redo  ⇧⌘Z" onClick={redo} disabled={!canRedo} />
       </div>
 
-      <div className="flex items-center gap-1 text-xs text-neutral-400">
-        <button className={btn} onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}>
-          −
-        </button>
-        <span className="w-10 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-        <button className={btn} onClick={() => setZoom(Math.min(2, zoom + 0.1))}>
-          +
-        </button>
-      </div>
-
-      <label className="flex items-center gap-1.5 text-xs text-neutral-500">
-        Template
-        <select
-          className="rounded bg-neutral-800 px-2 py-1 text-neutral-100"
-          value={fixture}
-          onChange={(e) => onFixture(e.target.value)}
-        >
-          {Object.keys(fixtures).map((k) => (
-            <option key={k} value={k}>
-              {FIXTURE_LABELS[k] ?? k}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="ml-auto flex items-center gap-1.5">
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".xml"
-          className="hidden"
-          onChange={importXml}
-        />
-        <button className={btn} onClick={() => fileRef.current?.click()}>
-          Import XML
-        </button>
-        <button className={btn} onClick={exportXml}>
-          Export XML
-        </button>
+      {/* center: zoom segmented control */}
+      <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/[0.05] p-0.5">
         <button
-          className="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500"
-          onClick={exportPng}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-300 transition-colors hover:bg-white/10 hover:text-white"
+          onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
+          aria-label="Zoom out"
         >
-          Export PNG
+          <Icon name="minus" size={16} />
+        </button>
+        <span className="w-11 text-center text-[12px] font-medium tabular-nums text-neutral-200">
+          {Math.round(zoom * 100)}%
+        </span>
+        <button
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-300 transition-colors hover:bg-white/10 hover:text-white"
+          onClick={() => setZoom(Math.min(2, zoom + 0.1))}
+          aria-label="Zoom in"
+        >
+          <Icon name="plus" size={16} />
+        </button>
+      </div>
+
+      {/* right: template + import/export */}
+      <div className="ml-auto flex items-center gap-2">
+        <div className="relative">
+          <select
+            className="appearance-none rounded-md bg-white/[0.05] py-1.5 pl-2.5 pr-7 text-[12px] font-medium text-neutral-200 outline-none transition-colors hover:bg-white/[0.09] focus:ring-1 focus:ring-[var(--accent)]/60"
+            value={fixture}
+            onChange={(e) => onFixture(e.target.value)}
+          >
+            {Object.keys(fixtures).map((k) => (
+              <option key={k} value={k} className="bg-neutral-800">
+                {FIXTURE_LABELS[k] ?? k}
+              </option>
+            ))}
+          </select>
+          <Icon
+            name="chevron-down"
+            size={14}
+            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500"
+          />
+        </div>
+
+        <div className="mx-0.5 h-5 w-px bg-white/10" />
+
+        <input ref={fileRef} type="file" accept=".xml" className="hidden" onChange={importXml} />
+        <button className={ghostBtn} onClick={() => fileRef.current?.click()}>
+          <Icon name="upload" size={16} /> Import
+        </button>
+        <button className={ghostBtn} onClick={exportXml}>
+          <Icon name="download" size={16} /> XML
+        </button>
+        <button className={accentBtn} onClick={exportPng}>
+          <Icon name="download" size={16} /> Export PNG
         </button>
       </div>
     </header>
