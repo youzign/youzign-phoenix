@@ -1,8 +1,8 @@
 import { useRef } from "react";
-import { toPng } from "html-to-image";
 import { serialize } from "@youzign/designstring";
 import { useEditor } from "../store.js";
-import { Icon, IconButton, ghostBtn, accentBtn } from "./ui.js";
+import { Icon, IconButton, ghostBtn } from "./ui.js";
+import { ExportMenu } from "./ExportMenu.js";
 
 const FIXTURE_LABELS: Record<string, string> = {
   "mountains-input.xml": "Mountains (input)",
@@ -38,21 +38,6 @@ export function TopBar({
     a.download = `${name || "design"}.xml`;
     a.click();
     URL.revokeObjectURL(a.href);
-  };
-
-  const exportPng = async () => {
-    const node = document.querySelector<HTMLElement>(".yz-canvas");
-    if (!node) return;
-    const dataUrl = await toPng(node, {
-      width: design.canvasWidth,
-      height: design.canvasHeight,
-      pixelRatio: 1,
-      style: { transform: "none" },
-    });
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = `${name || "design"}.png`;
-    a.click();
   };
 
   const importXml = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,9 +122,11 @@ export function TopBar({
         <button className={ghostBtn} onClick={exportXml}>
           <Icon name="download" size={16} /> XML
         </button>
-        <button className={accentBtn} onClick={exportPng}>
-          <Icon name="download" size={16} /> Export PNG
-        </button>
+        <ExportMenu
+          designName={name}
+          canvasWidth={design.canvasWidth}
+          canvasHeight={design.canvasHeight}
+        />
       </div>
     </header>
   );
