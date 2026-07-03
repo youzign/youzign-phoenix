@@ -23,5 +23,9 @@
 6. Library sidebar v1 (per §4b) → Generate panel (fal BYOK first).
 7. Tauri wrap + local files + archive importer.
 
+## Working agreements (additions)
+- **Help tab is a living manual**: every user-facing change must update the in-app Help content (apps/editor Help tab) + regenerate its screenshots (scripts/help-shots.mjs).
+- No user accounts in the OSS app — local-first (IndexedDB), Backup tab handles portability. Bertrand: avoid hosting liability.
+
 ## Delegation policy
 Codex 5.5 (`codex exec` via Bash, or the codex plugin subagents once installed) for mechanical build work; Sonnet for research; keep Claude judgment for fidelity semantics and product calls. Commit in logical chunks on feature branches; tests must stay green; update README fidelity table each milestone.
