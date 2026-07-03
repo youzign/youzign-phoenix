@@ -3,9 +3,14 @@ import { dashboardHash, editorHash, parseHashRoute } from "../src/router.js";
 
 describe("hash route parsing", () => {
   it("routes blank and dashboard hashes to the dashboard", () => {
-    expect(parseHashRoute("")).toEqual({ view: "dashboard" });
-    expect(parseHashRoute("#/")).toEqual({ view: "dashboard" });
-    expect(parseHashRoute("#/something")).toEqual({ view: "dashboard" });
+    expect(parseHashRoute("")).toEqual({ view: "dashboard", tab: "designs" });
+    expect(parseHashRoute("#/")).toEqual({ view: "dashboard", tab: "designs" });
+    expect(parseHashRoute("#/something")).toEqual({ view: "dashboard", tab: "designs" });
+  });
+
+  it("routes dashboard tabs", () => {
+    expect(parseHashRoute("#/help")).toEqual({ view: "dashboard", tab: "help" });
+    expect(parseHashRoute("#/backup")).toEqual({ view: "dashboard", tab: "backup" });
   });
 
   it("routes document hashes to the editor", () => {

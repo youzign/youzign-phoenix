@@ -242,7 +242,7 @@ export function App() {
     };
   }, [route, loadDocument]);
 
-  if (route.view === "dashboard") return <Dashboard />;
+  if (route.view === "dashboard") return <Dashboard tab={route.tab} />;
   if (loadingDoc) return <div className="flex h-full items-center justify-center bg-[#17171a] text-[13px] text-neutral-400">Loading design...</div>;
   return <EditorView />;
 }

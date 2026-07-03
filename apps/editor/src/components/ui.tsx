@@ -46,9 +46,11 @@ export type IconName =
   | "layer-backward"
   | "grip"
   | "layers"
+  | "cloud"
   | "droplet";
 
 const PATHS: Record<IconName, ReactNode> = {
+  cloud: <path d="M17.5 19H8a5 5 0 1 1 .9-9.9A6.5 6.5 0 0 1 21 12.5 3.5 3.5 0 0 1 17.5 19Z" />,
   droplet: <path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3Z" />,
   undo: <path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-1" />,
   redo: <path d="m15 14 5-5-5-5M20 9H9a5 5 0 0 0 0 10h1" />,

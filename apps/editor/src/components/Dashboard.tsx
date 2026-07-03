@@ -24,14 +24,18 @@ import {
   type DocumentSortOrder,
   type DocumentRecord,
 } from "../library/documents.js";
+import { buildBackupBundle, parseBackupBundle } from "../library/backup.js";
 import { fileToUploadRecord, isAcceptedFile } from "../library/uploads.js";
-import { openExternal } from "../native.js";
+import { pickLocalFile } from "../filePicker.js";
+import { saveBlob, openExternal } from "../native.js";
 import { blankDocument, imageDocument, startImageDims, START_IMAGE_MAX_DIM } from "../newDesign.js";
-import { editorHash } from "../router.js";
+import { backupHash, dashboardHash, editorHash, helpHash } from "../router.js";
+import { documentFromXml, normalizeDocument } from "../document.js";
 import { APP_VERSION, fetchUpdateInfo, type VersionInfo } from "../version.js";
 import { Icon, accentBtn, ghostBtn, segItem } from "./ui.js";
 
 const QUICK_PRESETS = ["ig-post-square", "ig-story", "yt-thumbnail", "print-a4", "print-business-card"];
+type DashboardTab = "designs" | "help" | "backup";
 
 function checkerStyle() {
   return {
@@ -215,6 +219,23 @@ function NewDesignModal({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const importXmlDesign = async () => {
+    const file = await pickLocalFile({ accept: ".xml,application/xml,text/xml" });
+    if (!file) return;
+    setBusy(true);
+    try {
+      const doc = documentFromXml(await file.text());
+      const rec = shapeDocumentRecord({
+        name: file.name.replace(/\.xml$/i, "") || "Imported design",
+        doc,
+      });
+      await putDocument(rec);
+      window.location.hash = editorHash(rec.id);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-6" onMouseDown={onClose}>
       <div
@@ -326,13 +347,168 @@ function NewDesignModal({ onClose }: { onClose: () => void }) {
               data-testid="image-file-input"
             />
           </div>
+          <div>
+            <div className="text-[12px] font-medium text-neutral-300">Import design</div>
+            <button
+              className="mt-2 flex h-20 w-full items-center justify-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 text-[12px] font-medium text-neutral-300 transition-colors duration-150 hover:border-white/15 hover:bg-white/[0.06] hover:text-neutral-100"
+              onClick={() => void importXmlDesign()}
+              data-testid="import-xml-design"
+            >
+              <Icon name="upload" size={18} />
+              Import a .xml design
+            </button>
+          </div>
         </aside>
       </div>
     </div>
   );
 }
 
-export function Dashboard() {
+function DashboardTabs({ active }: { active: DashboardTab }) {
+  const tabs: { id: DashboardTab; label: string; hash: string }[] = [
+    { id: "designs", label: "Designs", hash: dashboardHash() },
+    { id: "help", label: "Help", hash: helpHash() },
+    { id: "backup", label: "Backup", hash: backupHash() },
+  ];
+  return (
+    <nav className="sticky top-[49px] z-[9] border-b border-white/[0.06] bg-[#1c1c1f]" aria-label="Dashboard tabs">
+      <div className="mx-auto flex h-11 max-w-7xl items-end gap-5 px-6">
+        {tabs.map((tab) => (
+          <a
+            key={tab.id}
+            href={tab.hash}
+            className={`flex h-full items-center border-b-2 px-0.5 text-[13px] font-medium transition-colors duration-150 ${
+              active === tab.id
+                ? "border-[var(--accent)] text-neutral-100"
+                : "border-transparent text-neutral-500 hover:text-neutral-200"
+            }`}
+            aria-current={active === tab.id ? "page" : undefined}
+          >
+            {tab.label}
+          </a>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+function HelpPlaceholder() {
+  return (
+    <section className="mx-auto flex min-h-[360px] max-w-xl flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-[#202024] px-8 py-12 text-center">
+      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.06] text-neutral-300">
+        <Icon name="sparkles" size={21} />
+      </div>
+      <h1 className="mt-4 text-[16px] font-semibold text-neutral-100">Manual coming here</h1>
+      <p className="mt-2 max-w-sm text-[13px] leading-6 text-neutral-500">
+        The Help tab is reserved for the Youzign manual.
+      </p>
+    </section>
+  );
+}
+
+function BackupPanel({ docs, onRefresh }: { docs: DocumentRecord[]; onRefresh: () => void }) {
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const exportAll = async () => {
+    setBusy(true);
+    setStatus("");
+    try {
+      const bundle = buildBackupBundle(await allDocuments());
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+      await saveBlob(blob, "youzign-backup.json");
+      setStatus(`Exported ${bundle.docs.length} ${bundle.docs.length === 1 ? "design" : "designs"}`);
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const importFile = async () => {
+    const file = await pickLocalFile({ accept: ".json,.xml,application/json,application/xml,text/xml" });
+    if (!file) return;
+    setBusy(true);
+    setStatus("");
+    try {
+      const text = await file.text();
+      let imported = 0;
+      if (file.name.toLowerCase().endsWith(".xml")) {
+        const rec = shapeDocumentRecord({
+          name: file.name.replace(/\.xml$/i, "") || "Imported design",
+          doc: documentFromXml(text),
+        });
+        await putDocument(rec);
+        imported = 1;
+      } else {
+        const bundle = parseBackupBundle(text);
+        for (const doc of bundle.docs) {
+          const rec = shapeDocumentRecord({
+            name: doc.name,
+            doc: normalizeDocument({
+              pages: doc.pages.map((xml, i) => ({ design: documentFromXml(xml).pages[0].design, title: doc.titles[i] || undefined })),
+              activePage: doc.activePage,
+            }),
+          });
+          await putDocument(rec);
+          imported++;
+        }
+      }
+      onRefresh();
+      setStatus(`Imported ${imported} ${imported === 1 ? "design" : "designs"}`);
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+      <div className="rounded-xl border border-white/[0.06] bg-[#202024] p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[15px] font-semibold text-neutral-100">Backup designs</h1>
+            <p className="mt-1 text-[13px] leading-6 text-neutral-500">
+              Export your local design library or import a backup file.
+            </p>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.06] text-neutral-300">
+            <Icon name="download" size={20} />
+          </div>
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button className={accentBtn} onClick={() => void exportAll()} disabled={busy || docs.length === 0}>
+            <Icon name="download" size={15} /> Export all designs
+          </button>
+          <button className={ghostBtn} onClick={() => void importFile()} disabled={busy}>
+            <Icon name="upload" size={15} /> Import backup
+          </button>
+        </div>
+        <div className="mt-3 min-h-5 text-[12px] text-neutral-500" role="status">
+          {status || `${docs.length} ${docs.length === 1 ? "design" : "designs"} available`}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-white/[0.06] bg-[#202024] p-5">
+        <div className="flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)]/12 text-[var(--accent)]">
+            <Icon name="cloud" size={23} />
+          </div>
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-neutral-500">Soon</div>
+            <h2 className="mt-1 text-[15px] font-semibold text-neutral-100">Import from youzign.com</h2>
+            <p className="mt-1 text-[13px] leading-6 text-neutral-500">
+              Your legacy designs return when the archive is restored.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function Dashboard({ tab = "designs" }: { tab?: DashboardTab }) {
   const [docs, setDocs] = useState<DocumentRecord[]>([]);
   const [modal, setModal] = useState(false);
   const [sortOrder, setSortOrder] = useState<DocumentSortOrder>("newest");
@@ -410,8 +586,14 @@ export function Dashboard() {
         </button>
       </header>
 
+      <DashboardTabs active={tab} />
+
       <main className="mx-auto max-w-7xl px-6 py-6">
-        {docs.length > 0 ? (
+        {tab === "help" ? (
+          <HelpPlaceholder />
+        ) : tab === "backup" ? (
+          <BackupPanel docs={docs} onRefresh={() => void refresh()} />
+        ) : docs.length > 0 ? (
           <>
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="text-[12px] font-medium tabular-nums text-neutral-400">{docCountLabel}</div>
