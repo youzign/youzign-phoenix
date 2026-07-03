@@ -1,11 +1,5 @@
 import { useEffect, useState } from "react";
 import { toJpeg } from "html-to-image";
-import inputXml from "./fixtures/mountains-input.xml?raw";
-import outputXml from "./fixtures/mountains-output.xml?raw";
-import clipartLocalXml from "./fixtures/clipart-local.xml?raw";
-import cropCurveXml from "./fixtures/crop-curve.xml?raw";
-import fidelityEffectsXml from "./fixtures/fidelity-effects.xml?raw";
-import fidelityFilterXml from "./fixtures/fidelity-filter.xml?raw";
 import { useEditor } from "./store.js";
 import { TopBar } from "./components/TopBar.js";
 import { LeftSidebar } from "./components/LeftSidebar.js";
@@ -34,15 +28,6 @@ function collectFonts(items: Item[], out: Set<string>): void {
   }
 }
 
-const FIXTURES: Record<string, string> = {
-  "mountains-input.xml": inputXml,
-  "mountains-output.xml": outputXml,
-  "clipart-local.xml": clipartLocalXml,
-  "crop-curve.xml": cropCurveXml,
-  "fidelity-effects.xml": fidelityEffectsXml,
-  "fidelity-filter.xml": fidelityFilterXml,
-};
-
 function currentRoute(): AppRoute {
   return parseHashRoute(typeof window === "undefined" ? "#/" : window.location.hash);
 }
@@ -66,7 +51,6 @@ async function captureDashboardThumb(previous?: DocumentRecord | null): Promise<
 }
 
 function EditorView() {
-  const [fixture, setFixture] = useState("mountains-input.xml");
   const undo = useEditor((s) => s.undo);
   const redo = useEditor((s) => s.redo);
   const del = useEditor((s) => s.deleteSelected);
@@ -184,7 +168,7 @@ function EditorView() {
 
   return (
     <div className="flex h-full flex-col bg-[#17171a] text-neutral-200">
-      <TopBar fixtures={FIXTURES} fixture={fixture} onFixture={setFixture} />
+      <TopBar />
       <div className="flex min-h-0 flex-1">
         <LeftSidebar />
         <main className="min-w-0 flex-1">
