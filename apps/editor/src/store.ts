@@ -8,7 +8,7 @@ import {
   toDataUri,
   RasterError,
 } from "./magic/raster.js";
-import { parse, serialize, type Design, type Item } from "@youzign/designstring";
+import { type Design, type Item } from "@youzign/designstring";
 import {
   patchItem,
   setTextColor,
@@ -54,6 +54,19 @@ import {
   type ShapeKind,
   type WithUid,
 } from "@youzign/editor-core";
+import {
+  addPage as addPageToDocument,
+  deletePage as deletePageFromDocument,
+  documentFromXml,
+  duplicatePage as duplicatePageInDocument,
+  movePage as movePageInDocument,
+  normalizeDocument,
+  parseAutosave,
+  serializeDocument,
+  snapshotDocument,
+  type EditorDocument,
+  type PageEntry,
+} from "./document.js";
 
 const LS_PREFIX = "youzign-next:design:";
 
@@ -92,6 +105,19 @@ function snapshot(design: Design): Design {
   return structuredClone(design);
 }
 
+function tagDocument(doc: EditorDocument): EditorDocument {
+  for (const page of doc.pages) tagUids(page.design);
+  return normalizeDocument(doc);
+}
+
+function activeDesign(doc: EditorDocument): Design {
+  return doc.pages[doc.activePage].design;
+}
+
+function snapshotEditorDocument(s: Pick<EditorState, "pages" | "activePage">): EditorDocument {
+  return snapshotDocument({ pages: s.pages, activePage: s.activePage });
+}
+
 interface FindEntry {
   item: IdItem;
   siblings: Item[];
@@ -120,6 +146,8 @@ function findByUid(design: Design, uid: number | null): IdItem | undefined {
 
 interface EditorState {
   design: Design;
+  pages: PageEntry[];
+  activePage: number;
   designName: string;
   selectedUids: number[];
   drillGroupUid: number | null; // the group we've drilled into (child selection)
@@ -144,10 +172,11 @@ interface EditorState {
   } | null;
   zoom: number;
   showGrid: boolean;
-  past: Design[];
-  future: Design[];
+  past: EditorDocument[];
+  future: EditorDocument[];
 
   load: (xml: string, name: string) => void;
+  loadSaved: (raw: string, name: string) => void;
   setName: (name: string) => void;
   setZoom: (z: number) => void;
   toggleGrid: () => void;
@@ -244,14 +273,22 @@ interface EditorState {
   undo: () => void;
   redo: () => void;
 
+  setActivePage: (index: number) => void;
+  nextPage: () => void;
+  previousPage: () => void;
+  addPage: () => void;
+  duplicatePage: (index?: number) => void;
+  deletePage: (index?: number) => void;
+  reorderPage: (from: number, to: number) => void;
+
   selectedItem: () => IdItem | undefined; // only when exactly one is selected
   selectedItems: () => IdItem[];
   findEntry: (uid: number) => FindEntry | undefined;
 }
 
-function persist(name: string, design: Design) {
+function persist(name: string, doc: EditorDocument) {
   try {
-    localStorage.setItem(LS_PREFIX + name, serialize(design));
+    localStorage.setItem(LS_PREFIX + name, serializeDocument(doc));
   } catch {
     /* ignore quota / SSR */
   }
@@ -261,15 +298,47 @@ export const useEditor = create<EditorState>((set, get) => {
   /** Run a mutation with undo history + persistence. */
   const commit = (mutate: (d: Design) => void) => {
     set((s) => {
-      const next = snapshot(s.design);
+      const before = snapshotEditorDocument(s);
+      const nextDoc = snapshotDocument(before);
+      const next = activeDesign(nextDoc);
       mutate(next);
-      persist(s.designName, next);
-      return { design: next, past: [...s.past, s.design], future: [] };
+      persist(s.designName, nextDoc);
+      return {
+        pages: nextDoc.pages,
+        activePage: nextDoc.activePage,
+        design: next,
+        past: [...s.past, before],
+        future: [],
+      };
     });
   };
 
+  const commitDocument = (mutate: (doc: EditorDocument) => EditorDocument) => {
+    set((s) => {
+      const before = snapshotEditorDocument(s);
+      const nextDoc = tagDocument(mutate(before));
+      persist(s.designName, nextDoc);
+      return {
+        pages: nextDoc.pages,
+        activePage: nextDoc.activePage,
+        design: activeDesign(nextDoc),
+        selectedUids: [],
+        drillGroupUid: null,
+        editingUid: null,
+        croppingUid: null,
+        blurPreview: null,
+        past: [...s.past, before],
+        future: [],
+      };
+    });
+  };
+
+  const initialDoc = tagDocument(documentFromXml('<data canvas_width="800" canvas_height="600" bg_color="-1" bg_type="color"></data>'));
+
   return {
-    design: tagUids(parse("<data canvas_width=\"800\" canvas_height=\"600\" bg_color=\"-1\" bg_type=\"color\"></data>")),
+    design: activeDesign(initialDoc),
+    pages: initialDoc.pages,
+    activePage: initialDoc.activePage,
     designName: "untitled",
     selectedUids: [],
     drillGroupUid: null,
@@ -291,8 +360,12 @@ export const useEditor = create<EditorState>((set, get) => {
     lockedUids: [],
 
     load: (xml, name) => {
-      const design = tagUids(parse(xml));
-      set({ design, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, blurPreview: null, past: [], future: [], lockedUids: [] });
+      const doc = tagDocument(documentFromXml(xml));
+      set({ pages: doc.pages, activePage: doc.activePage, design: activeDesign(doc), designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, blurPreview: null, past: [], future: [], lockedUids: [] });
+    },
+    loadSaved: (raw, name) => {
+      const doc = tagDocument(parseAutosave(raw));
+      set({ pages: doc.pages, activePage: doc.activePage, design: activeDesign(doc), designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, blurPreview: null, past: [], future: [], lockedUids: [] });
     },
 
     setName: (name) => set({ designName: name }),
@@ -329,29 +402,31 @@ export const useEditor = create<EditorState>((set, get) => {
 
     // Gesture (drag/resize/rotate) support: one undo step per gesture.
     beginHistory: () =>
-      set((s) => ({ past: [...s.past, s.design], future: [] })),
+      set((s) => ({ past: [...s.past, snapshotEditorDocument(s)], future: [] })),
 
     livePatchByUid: (uid, patch) =>
       set((s) => {
-        const next = snapshot(s.design);
+        const nextDoc = snapshotEditorDocument(s);
+        const next = activeDesign(nextDoc);
         const it = findByUid(next, uid);
         if (it) patchItem(it as any, patch);
-        return { design: next };
+        return { pages: nextDoc.pages, activePage: nextDoc.activePage, design: next };
       }),
 
     livePatchMany: (patches) =>
       set((s) => {
-        const next = snapshot(s.design);
+        const nextDoc = snapshotEditorDocument(s);
+        const next = activeDesign(nextDoc);
         for (const { uid, patch } of patches) {
           const it = findByUid(next, uid);
           if (it) patchItem(it as any, patch);
         }
-        return { design: next };
+        return { pages: nextDoc.pages, activePage: nextDoc.activePage, design: next };
       }),
 
     endGesture: () => {
       const s = get();
-      persist(s.designName, s.design);
+      persist(s.designName, snapshotEditorDocument(s));
     },
 
     recolorSelected: (hex) => {
@@ -827,9 +902,15 @@ export const useEditor = create<EditorState>((set, get) => {
         const previous = s.past[s.past.length - 1];
         persist(s.designName, previous);
         return {
-          design: previous,
+          pages: previous.pages,
+          activePage: previous.activePage,
+          design: activeDesign(previous),
+          selectedUids: [],
+          drillGroupUid: null,
+          editingUid: null,
+          croppingUid: null,
           past: s.past.slice(0, -1),
-          future: [s.design, ...s.future],
+          future: [snapshotEditorDocument(s), ...s.future],
         };
       }),
 
@@ -838,8 +919,48 @@ export const useEditor = create<EditorState>((set, get) => {
         if (s.future.length === 0) return s;
         const next = s.future[0];
         persist(s.designName, next);
-        return { design: next, past: [...s.past, s.design], future: s.future.slice(1) };
+        return {
+          pages: next.pages,
+          activePage: next.activePage,
+          design: activeDesign(next),
+          selectedUids: [],
+          drillGroupUid: null,
+          editingUid: null,
+          croppingUid: null,
+          past: [...s.past, snapshotEditorDocument(s)],
+          future: s.future.slice(1),
+        };
       }),
+
+    setActivePage: (index) =>
+      set((s) => {
+        const doc = normalizeDocument({ pages: s.pages, activePage: index });
+        persist(s.designName, doc);
+        return {
+          activePage: doc.activePage,
+          design: activeDesign(doc),
+          selectedUids: [],
+          drillGroupUid: null,
+          editingUid: null,
+          croppingUid: null,
+          blurPreview: null,
+        };
+      }),
+    nextPage: () => {
+      const s = get();
+      get().setActivePage(Math.min(s.activePage + 1, s.pages.length - 1));
+    },
+    previousPage: () => {
+      const s = get();
+      get().setActivePage(Math.max(s.activePage - 1, 0));
+    },
+    addPage: () => commitDocument((doc) => addPageToDocument(doc)),
+    duplicatePage: (index) =>
+      commitDocument((doc) => duplicatePageInDocument(doc, index ?? doc.activePage)),
+    deletePage: (index) =>
+      commitDocument((doc) => deletePageFromDocument(doc, index ?? doc.activePage)),
+    reorderPage: (from, to) =>
+      commitDocument((doc) => movePageInDocument(doc, from, to)),
 
     selectedItem: () => {
       const uids = get().selectedUids;

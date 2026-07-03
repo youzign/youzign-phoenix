@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   exportFilename,
+  exportPageFilename,
   extensionFor,
+  parsePageRange,
   scaledDimensions,
   pdfLayout,
   JPG_QUALITY,
@@ -31,6 +33,25 @@ describe("exportFilename", () => {
   });
   it("trims surrounding whitespace", () => {
     expect(exportFilename("  Flyer  ", "png")).toBe("Flyer.png");
+  });
+});
+
+describe("exportPageFilename", () => {
+  it("adds a one-based page number before the extension", () => {
+    expect(exportPageFilename("Deck", "png", 3)).toBe("Deck-3.png");
+    expect(exportPageFilename("", "pdf", 2)).toBe("design-2.pdf");
+  });
+});
+
+describe("parsePageRange", () => {
+  it("parses comma-separated pages and ranges as zero-based indices", () => {
+    expect(parsePageRange("1-3,5", 6)).toEqual([0, 1, 2, 4]);
+  });
+  it("clamps out-of-bounds pages and removes duplicates", () => {
+    expect(parsePageRange("0,2,2,4-9", 5)).toEqual([0, 1, 3, 4]);
+  });
+  it("accepts reversed ranges and ignores invalid tokens", () => {
+    expect(parsePageRange("4-2, nope, 6", 4)).toEqual([1, 2, 3]);
   });
 });
 

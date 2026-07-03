@@ -34,6 +34,7 @@ import { useEditor } from "../store.js";
 import { ingestFiles } from "../library/uploads.js";
 import { Icon } from "./ui.js";
 import { loadImage, strokesToMaskDataUri, hasStrokes, type Stroke } from "../magic/raster.js";
+import { PageStrip } from "./PageStrip.js";
 
 type IdItem = Item & { _uid?: number };
 
@@ -503,22 +504,23 @@ export function CanvasStage() {
   };
 
   return (
-    <div
-      className="flex h-full w-full items-center justify-center overflow-auto bg-[#141417] p-10"
-      onDragEnter={(e) => {
-        if (isFileDrag(e)) {
-          e.preventDefault();
-          setFileOver(true);
-        }
-      }}
-      onDragOver={(e) => {
-        if (isFileDrag(e)) e.preventDefault();
-      }}
-      onDragLeave={(e) => {
-        if (e.currentTarget === e.target) setFileOver(false);
-      }}
-      onDrop={(e) => void onCanvasDrop(e)}
-    >
+    <div className="flex h-full w-full flex-col bg-[#141417]">
+      <div
+        className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-10"
+        onDragEnter={(e) => {
+          if (isFileDrag(e)) {
+            e.preventDefault();
+            setFileOver(true);
+          }
+        }}
+        onDragOver={(e) => {
+          if (isFileDrag(e)) e.preventDefault();
+        }}
+        onDragLeave={(e) => {
+          if (e.currentTarget === e.target) setFileOver(false);
+        }}
+        onDrop={(e) => void onCanvasDrop(e)}
+      >
       <div
         className="relative shadow-2xl ring-1 ring-white/[0.06]"
         style={{
@@ -965,6 +967,8 @@ export function CanvasStage() {
           )}
         </div>
       </div>
+      </div>
+      <PageStrip />
     </div>
   );
 }

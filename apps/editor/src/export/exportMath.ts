@@ -22,6 +22,36 @@ export function exportFilename(name: string, format: ExportFormat): string {
   return `${base}.${extensionFor(format)}`;
 }
 
+export function exportPageFilename(name: string, format: ExportFormat, pageNumber: number): string {
+  const base = (name ?? "").trim() || "design";
+  return `${base}-${pageNumber}.${extensionFor(format)}`;
+}
+
+export function parsePageRange(input: string, pageCount: number): number[] {
+  const max = Math.max(0, pageCount);
+  if (max === 0) return [];
+  const out: number[] = [];
+  const seen = new Set<number>();
+  for (const token of input.split(",")) {
+    const part = token.trim();
+    if (!part) continue;
+    const m = part.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+    if (!m) continue;
+    const a = Math.max(1, Math.min(Number(m[1]), max));
+    const b = Math.max(1, Math.min(Number(m[2] ?? m[1]), max));
+    const start = Math.min(a, b);
+    const end = Math.max(a, b);
+    for (let n = start; n <= end; n++) {
+      const index = n - 1;
+      if (!seen.has(index)) {
+        seen.add(index);
+        out.push(index);
+      }
+    }
+  }
+  return out;
+}
+
 /** Output pixel dimensions after applying an integer pixelRatio scale. */
 export function scaledDimensions(
   width: number,
