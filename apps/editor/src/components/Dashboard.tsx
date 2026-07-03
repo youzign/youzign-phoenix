@@ -25,8 +25,10 @@ import {
   type DocumentRecord,
 } from "../library/documents.js";
 import { fileToUploadRecord, isAcceptedFile } from "../library/uploads.js";
+import { openExternal } from "../native.js";
 import { blankDocument, imageDocument, startImageDims, START_IMAGE_MAX_DIM } from "../newDesign.js";
 import { editorHash } from "../router.js";
+import { APP_VERSION, fetchUpdateInfo, type VersionInfo } from "../version.js";
 import { Icon, accentBtn, ghostBtn, segItem } from "./ui.js";
 
 const QUICK_PRESETS = ["ig-post-square", "ig-story", "yt-thumbnail", "print-a4", "print-business-card"];
@@ -335,12 +337,18 @@ export function Dashboard() {
   const [modal, setModal] = useState(false);
   const [sortOrder, setSortOrder] = useState<DocumentSortOrder>("newest");
   const [page, setPage] = useState(1);
+  const [updateInfo, setUpdateInfo] = useState<VersionInfo | null>(null);
+  const [updateOpen, setUpdateOpen] = useState(false);
 
   const refresh = async () => setDocs(await allDocuments());
 
   useEffect(() => {
     void migrateLocalStorageAutosaves().then(refresh);
     return onDocumentsChanged(() => void refresh());
+  }, []);
+
+  useEffect(() => {
+    void fetchUpdateInfo().then(setUpdateInfo);
   }, []);
 
   const quick = QUICK_PRESETS.map((id) => CANVAS_PRESETS.find((p) => p.id === id)).filter(Boolean) as CanvasPreset[];
@@ -366,9 +374,36 @@ export function Dashboard() {
       {/* Same paddings/logo size as the editor TopBar so the header reads as
           static when switching between dashboard and editor. */}
       <header className="sticky top-0 z-10 flex h-[49px] items-center justify-between border-b border-white/[0.06] bg-[#1c1c1f] px-3">
-        <div className="flex items-center gap-2.5">
-          <img src="/brand/youzign-logo.png" alt="Youzign" className="h-7 w-7" />
+        <div className="relative flex items-center gap-2.5">
+          <button
+            type="button"
+            className="relative flex h-7 w-7 items-center justify-center rounded-lg outline-none transition-transform duration-150 hover:scale-105 focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60"
+            onClick={() => updateInfo && setUpdateOpen((v) => !v)}
+            aria-label={updateInfo ? "Youzign update available" : "Youzign"}
+            aria-expanded={updateInfo ? updateOpen : undefined}
+          >
+            <img src="/brand/youzign-logo.png" alt="Youzign" className="h-7 w-7" />
+            {updateInfo && (
+              <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--accent)] ring-2 ring-[#1c1c1f]" />
+            )}
+          </button>
           <span className="text-[14px] font-semibold text-neutral-100">youzign</span>
+          {updateInfo && updateOpen && (
+            <div className="absolute left-0 top-9 z-30 w-72 rounded-lg border border-white/10 bg-[#242428] p-3 shadow-2xl">
+              <div className="text-[13px] font-semibold text-neutral-100">What's new</div>
+              <div className="mt-1 text-[12px] leading-5 text-neutral-400">
+                Youzign {updateInfo.version} is available. You have {APP_VERSION}.
+                {updateInfo.notes ? ` ${updateInfo.notes}` : ""}
+              </div>
+              <button
+                type="button"
+                className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 text-[12px] font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+                onClick={() => void openExternal(updateInfo.url)}
+              >
+                <Icon name="download" size={14} /> Download update
+              </button>
+            </div>
+          )}
         </div>
         <button className={accentBtn} onClick={() => setModal(true)} data-testid="new-design">
           <Icon name="plus" size={16} /> New design

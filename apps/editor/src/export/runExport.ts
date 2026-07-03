@@ -8,6 +8,7 @@ import {
   type ExportFormat,
   type ExportScale,
 } from "./exportMath.js";
+import { saveBytes, saveDataUrl } from "../native.js";
 
 export interface ExportOptions {
   format: ExportFormat;
@@ -32,13 +33,6 @@ function captureStyle(transparent: boolean, format: ExportFormat) {
     style.backgroundImage = "none";
   }
   return style;
-}
-
-function triggerDownload(dataUrl: string, filename: string) {
-  const a = document.createElement("a");
-  a.href = dataUrl;
-  a.download = filename;
-  a.click();
 }
 
 function exportNode(index?: number): HTMLElement | null {
@@ -76,7 +70,7 @@ export async function runExport(opts: ExportOptions): Promise<string | null> {
       const url = await capture(index, "png");
       if (!url) continue;
       if (!first) first = url;
-      triggerDownload(
+      await saveDataUrl(
         url,
         index === undefined ? filename : exportPageFilename(opts.designName, format, index + 1)
       );
@@ -90,7 +84,7 @@ export async function runExport(opts: ExportOptions): Promise<string | null> {
       const url = await capture(index, "jpg");
       if (!url) continue;
       if (!first) first = url;
-      triggerDownload(
+      await saveDataUrl(
         url,
         index === undefined ? filename : exportPageFilename(opts.designName, format, index + 1)
       );
@@ -115,7 +109,8 @@ export async function runExport(opts: ExportOptions): Promise<string | null> {
     if (i > 0) pdf.addPage(layout.format, layout.orientation);
     pdf.addImage(url, "JPEG", 0, 0, layout.imageWidth, layout.imageHeight);
   }
-  pdf.save(filename);
-  (window as any).__lastPdfExport = pdf.output("arraybuffer");
+  const bytes = new Uint8Array(pdf.output("arraybuffer"));
+  await saveBytes(bytes, filename);
+  (window as any).__lastPdfExport = bytes.buffer;
   return firstUrl;
 }

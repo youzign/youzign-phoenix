@@ -41,6 +41,14 @@ const TYPE_LABELS: Record<string, string> = {
   group: "Group",
 };
 
+const EXPAND_RATIOS: { ratio: MagicExpandRatio; label: string; title: string }[] = [
+  { ratio: "1:1", label: "1:1", title: "Expand to a square" },
+  { ratio: "4:5", label: "4:5", title: "Expand to portrait 4:5" },
+  { ratio: "16:9", label: "16:9", title: "Expand to widescreen 16:9" },
+  { ratio: "9:16", label: "9:16", title: "Expand to vertical 9:16" },
+  { ratio: "free", label: "Canvas", title: "Use the current canvas ratio" },
+];
+
 function FontPicker({
   value,
   onChange,
@@ -776,6 +784,7 @@ function MagicSection({ uid }: { uid: number }) {
 
   const [blurAmount, setBlurAmount] = useState(14);
   const [expandRatio, setExpandRatio] = useState<MagicExpandRatio>("free");
+  const [expandPending, setExpandPending] = useState(false);
   const blurActive = blurPreview !== null && blurPreview.uid === uid;
   // Debounce live recompute of the preview as the slider drags.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -801,6 +810,24 @@ function MagicSection({ uid }: { uid: number }) {
   const btn =
     "inline-flex flex-col items-center justify-center gap-1 rounded-md bg-white/[0.05] px-2 py-2.5 text-[11px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.1] hover:text-white disabled:opacity-40 disabled:hover:bg-white/[0.05]";
   const activeBtn = "ring-1 ring-[var(--accent)] bg-[var(--accent)]/15 text-white";
+
+  useEffect(() => {
+    if (!expandPending) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpandPending(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expandPending]);
+
+  useEffect(() => {
+    setExpandPending(false);
+  }, [uid]);
+
+  async function applyPendingExpand() {
+    await applyExpand(uid, expandRatio);
+    setExpandPending(false);
+  }
 
   return (
     <section className="flex flex-col gap-1.5">
@@ -836,8 +863,8 @@ function MagicSection({ uid }: { uid: number }) {
           <Icon name="sparkles" size={16} /> Grab
         </button>
         <button
-          className={btn}
-          onClick={() => void applyExpand(uid, expandRatio)}
+          className={`${btn} ${expandPending ? activeBtn : ""}`}
+          onClick={() => setExpandPending((v) => !v)}
           disabled={busy || !hasFal}
           title="Outpaint this image into a larger canvas"
         >
@@ -861,23 +888,46 @@ function MagicSection({ uid }: { uid: number }) {
         </button>
       </div>
 
-      <div className="mt-1 flex flex-wrap gap-1">
-        {(["1:1", "4:5", "16:9", "9:16", "free"] as MagicExpandRatio[]).map((r) => (
-          <button
-            key={r}
-            className={`rounded px-2 py-1 text-[10.5px] font-medium transition-colors ${
-              expandRatio === r
-                ? "bg-[var(--accent)] text-white"
-                : "bg-white/[0.06] text-neutral-300 hover:bg-white/[0.11]"
-            }`}
-            onClick={() => setExpandRatio(r)}
-            disabled={busy}
-            title={r === "free" ? "Use the current canvas ratio" : `Expand to ${r}`}
-          >
-            {r === "free" ? "Free" : r}
-          </button>
-        ))}
-      </div>
+      {expandPending && (
+        <div className="mt-1 flex flex-col gap-2 rounded-md bg-white/[0.03] p-2.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-0.5 text-[10.5px] font-medium text-neutral-500">
+              Expand to:
+            </span>
+            {EXPAND_RATIOS.map((r) => (
+              <button
+                key={r.ratio}
+                className={`rounded px-2 py-1 text-[10.5px] font-medium transition-colors ${
+                  expandRatio === r.ratio
+                    ? "bg-[var(--accent)] text-white"
+                    : "bg-white/[0.06] text-neutral-300 hover:bg-white/[0.11]"
+                }`}
+                onClick={() => setExpandRatio(r.ratio)}
+                disabled={busy}
+                title={r.title}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1.5">
+            <button
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-[var(--accent)] px-2 py-2 text-[12.5px] font-semibold text-white transition-colors duration-150 hover:brightness-110 disabled:opacity-50"
+              onClick={() => void applyPendingExpand()}
+              disabled={busy}
+            >
+              Apply
+            </button>
+            <button
+              className="inline-flex flex-1 items-center justify-center rounded-md bg-white/10 px-2 py-2 text-[12.5px] text-neutral-100 hover:bg-white/20 disabled:opacity-50"
+              onClick={() => setExpandPending(false)}
+              disabled={busy}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {blurActive && (
         <div className="mt-1 flex flex-col gap-2 rounded-md bg-white/[0.03] p-2.5">

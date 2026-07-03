@@ -1098,7 +1098,8 @@ export function localStorageKey(name: string) {
   return LS_PREFIX + name;
 }
 
-// Dev-only affordance: expose the store for screenshot/E2E scripts.
-if (import.meta.env.DEV && typeof window !== "undefined") {
+// Dev affordance: expose the store for screenshot/E2E scripts.
+// Also available in prod builds behind ?e2e so release bundles stay testable.
+if (typeof window !== "undefined" && (import.meta.env.DEV || window.location.search.includes("e2e"))) {
   (window as any).__editor = useEditor;
 }

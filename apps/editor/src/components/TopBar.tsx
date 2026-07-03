@@ -5,6 +5,7 @@ import { Icon, IconButton, ghostBtn } from "./ui.js";
 import { ExportMenu } from "./ExportMenu.js";
 import { ResizeMenu } from "./ResizeMenu.js";
 import { dashboardHash } from "../router.js";
+import { saveBlob } from "../native.js";
 
 const FIXTURE_LABELS: Record<string, string> = {
   "mountains-input.xml": "Mountains (input)",
@@ -37,13 +38,9 @@ export function TopBar({
   const load = useEditor((s) => s.load);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const exportXml = () => {
+  const exportXml = async () => {
     const blob = new Blob([serialize(design)], { type: "application/xml" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${name || "design"}.xml`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    await saveBlob(blob, `${name || "design"}.xml`);
   };
 
   const importXml = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,7 +140,7 @@ export function TopBar({
         <button className={ghostBtn} onClick={() => fileRef.current?.click()}>
           <Icon name="upload" size={16} /> Import
         </button>
-        <button className={ghostBtn} onClick={exportXml}>
+        <button className={ghostBtn} onClick={() => void exportXml()}>
           <Icon name="download" size={16} /> XML
         </button>
         <ExportMenu

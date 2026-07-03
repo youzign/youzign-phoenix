@@ -1,0 +1,22 @@
+[package]
+name = "youzign"
+version = "1.0.0"
+description = "Youzign desktop editor"
+authors = ["Youzign"]
+license = "MIT"
+repository = "https://github.com/youzign/youzign-phoenix"
+edition = "2021"
+
+[lib]
+name = "youzign_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-localhost = "2"
+tauri-plugin-opener = "2"

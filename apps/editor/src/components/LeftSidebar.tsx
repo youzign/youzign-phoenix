@@ -896,6 +896,11 @@ function ComboGlyph({ id }: { id: string }) {
 }
 
 function ShapeButton({ kind, onAdd }: { kind: ShapeKind; onAdd: () => void }) {
+  const previewSvg = shapeSvg(kind, "currentColor").replace(
+    'preserveAspectRatio="none"',
+    'preserveAspectRatio="xMidYMid meet"'
+  );
+
   return (
     <button
       onClick={onAdd}
@@ -903,8 +908,8 @@ function ShapeButton({ kind, onAdd }: { kind: ShapeKind; onAdd: () => void }) {
       className="group flex aspect-square items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--accent)]/50 hover:bg-white/[0.07] hover:shadow-md"
     >
       <span
-        className="h-full w-full text-neutral-300 transition-colors group-hover:text-white [&>svg]:h-full [&>svg]:w-full"
-        dangerouslySetInnerHTML={{ __html: shapeSvg(kind, "currentColor") }}
+        className="flex h-full w-full items-center justify-center text-neutral-300 transition-colors group-hover:text-white [&>svg]:h-full [&>svg]:w-full [&>svg]:max-w-full"
+        dangerouslySetInnerHTML={{ __html: previewSvg }}
       />
     </button>
   );
