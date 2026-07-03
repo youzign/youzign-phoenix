@@ -8,9 +8,13 @@ import {
   boxIntersectsRect,
   boxAABB,
   computeCrop,
+  canvasRectToFullSourceRect,
+  currentCropCanvasRect,
   resizeCorner,
   resizeEdge,
   edgeCropRect,
+  fullSourceCanvasBounds,
+  fullSourceRectToCanvasGeom,
   snapRotation,
   resolveSnap,
   canvasTargets,
@@ -23,6 +27,7 @@ import {
   type Corner,
   type Edge,
   type CropRect,
+  type ImageCropMemory,
 } from "@youzign/editor-core";
 import type { Design, ImageItem, Item } from "@youzign/designstring";
 import { useEditor } from "../store.js";
@@ -54,6 +59,7 @@ interface Drag {
   engaged?: SnapState;
   // image edge-crop
   imageItem?: ImageItem;
+  fullNatural?: { w: number; h: number };
 }
 
 interface Marquee {
@@ -215,7 +221,12 @@ export function CanvasStage() {
           });
         }
       } else if (d.mode === "cropEdge" && d.handle && d.imageItem) {
-        setLiveCrop(edgeCropRect(d.imageItem, d.handle as Edge, p));
+        const mem = d.imageItem as ImageCropMemory;
+        const bounds =
+          mem._fullSource && mem._cropRect && d.fullNatural
+            ? fullSourceCanvasBounds(d.imageItem, mem._cropRect, d.fullNatural.w, d.fullNatural.h)
+            : undefined;
+        setLiveCrop(edgeCropRect(d.imageItem, d.handle as Edge, p, 8, bounds));
       } else if (d.mode === "resize" && d.handle) {
         // Corner: proportional BY DEFAULT, Shift unlocks free resize (Canva).
         // Edge: single-axis stretch.
@@ -261,8 +272,8 @@ export function CanvasStage() {
           const rect = liveCrop;
           setLiveCrop(null);
           if (d.imageItem && rect) {
-            bakeImageCrop(d.imageItem, rect, (src, geom) =>
-              commitCrop(d.uid, src, geom)
+            bakeImageCrop(d.imageItem, rect, (src, geom, memory) =>
+              commitCrop(d.uid, src, geom, memory)
             );
           }
           // No endGesture(): commitCrop owns the history step.
@@ -360,15 +371,28 @@ export function CanvasStage() {
     const isImage = loc?.item.type === "image";
     const isEdge = handle !== undefined && handle.length === 1;
     if (mode === "resize" && isEdge && isImage) {
+      const imageItem = loc!.item as unknown as ImageItem;
       dragRef.current = {
         mode: "cropEdge",
         handle,
         startBox: box,
         startCanvas: toCanvas(e.clientX, e.clientY),
         uid,
-        imageItem: loc!.item as unknown as ImageItem,
+        imageItem,
       };
       setLiveCrop(null);
+      const mem = imageItem as ImageCropMemory;
+      if (mem._fullSource && mem._cropRect) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          const d = dragRef.current;
+          if (d?.mode === "cropEdge" && d.imageItem === imageItem) {
+            d.fullNatural = { w: img.naturalWidth || imageItem.width, h: img.naturalHeight || imageItem.height };
+          }
+        };
+        img.src = mem._fullSource;
+      }
       return;
     }
     beginHistory();
@@ -814,20 +838,24 @@ export function CanvasStage() {
             dragRef.current?.mode === "cropEdge" &&
             (() => {
               const im = dragRef.current!.imageItem!;
-              const bl = (im.xpos - im.width / 2) * zoom;
-              const bt = (im.ypos - im.height / 2) * zoom;
+              const mem = im as ImageCropMemory;
+              const full = dragRef.current!.fullNatural;
+              const hasFull = !!(mem._fullSource && mem._cropRect && full);
+              const imgRect = hasFull
+                ? fullSourceCanvasBounds(im, mem._cropRect!, full!.w, full!.h)
+                : currentCropCanvasRect(im);
               return (
                 <>
                   <img
-                    src={im.source}
+                    src={hasFull ? mem._fullSource : im.source}
                     alt=""
                     draggable={false}
                     style={{
                       position: "absolute",
-                      left: bl,
-                      top: bt,
-                      width: im.width * zoom,
-                      height: im.height * zoom,
+                      left: imgRect.x * zoom,
+                      top: imgRect.y * zoom,
+                      width: imgRect.w * zoom,
+                      height: imgRect.h * zoom,
                       objectFit: "fill",
                       opacity: 0.35,
                       pointerEvents: "none",
@@ -860,7 +888,7 @@ export function CanvasStage() {
                   zoom={zoom}
                   toCanvas={toCanvas}
                   onCancel={cancelCrop}
-                  onCommit={(src, geom) => commitCrop(croppingUid, src, geom)}
+                  onCommit={(src, geom, memory) => commitCrop(croppingUid, src, geom, memory)}
                 />
               );
             })()}
@@ -951,30 +979,45 @@ function bakeImageCrop(
   rect: CropRect,
   onCommit: (
     src: string,
-    geom: { xpos: number; ypos: number; width: number; height: number }
+    geom: { xpos: number; ypos: number; width: number; height: number },
+    memory: Required<Pick<ImageCropMemory, "_fullSource" | "_cropRect">>
   ) => void
 ) {
+  const mem = item as ImageCropMemory;
+  const source = mem._fullSource && mem._cropRect ? mem._fullSource : item.source;
   const img = new Image();
   img.crossOrigin = "anonymous";
   img.onload = () => {
     const nW = img.naturalWidth || item.width;
     const nH = img.naturalHeight || item.height;
-    const r = computeCrop(item, rect, nW, nH);
+    const hasMemory = !!(mem._fullSource && mem._cropRect);
+    const fullRect = hasMemory
+      ? canvasRectToFullSourceRect(item, mem._cropRect!, rect, nW, nH)
+      : (() => {
+          const r0 = computeCrop(item, rect, nW, nH);
+          return { x: r0.sx, y: r0.sy, width: r0.sw, height: r0.sh };
+        })();
+    const geom = hasMemory
+      ? fullSourceRectToCanvasGeom(item, mem._cropRect!, fullRect)
+      : { xpos: rect.x + rect.w / 2, ypos: rect.y + rect.h / 2, width: rect.w, height: rect.h };
     const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(r.sw));
-    canvas.height = Math.max(1, Math.round(r.sh));
+    canvas.width = Math.max(1, Math.round(fullRect.width));
+    canvas.height = Math.max(1, Math.round(fullRect.height));
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, fullRect.x, fullRect.y, fullRect.width, fullRect.height, 0, 0, canvas.width, canvas.height);
     let dataUri: string;
     try {
       dataUri = canvas.toDataURL("image/png");
     } catch {
       return; // tainted canvas
     }
-    onCommit(dataUri, { xpos: r.xpos, ypos: r.ypos, width: r.width, height: r.height });
+    onCommit(dataUri, geom, {
+      _fullSource: hasMemory ? mem._fullSource! : item.source,
+      _cropRect: fullRect,
+    });
   };
-  img.src = item.source;
+  img.src = source;
 }
 
 type CropHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "move";
@@ -992,16 +1035,23 @@ function CropOverlay({
   onCancel: () => void;
   onCommit: (
     src: string,
-    geom: { xpos: number; ypos: number; width: number; height: number }
+    geom: { xpos: number; ypos: number; width: number; height: number },
+    memory: Required<Pick<ImageCropMemory, "_fullSource" | "_cropRect">>
   ) => void;
 }) {
   const boxLeft = item.xpos - item.width / 2;
   const boxTop = item.ypos - item.height / 2;
+  const mem = item as ImageCropMemory;
+  const [fullNatural, setFullNatural] = useState<{ w: number; h: number } | null>(null);
+  const fullBounds =
+    mem._fullSource && mem._cropRect && fullNatural
+      ? fullSourceCanvasBounds(item, mem._cropRect, fullNatural.w, fullNatural.h)
+      : { x: boxLeft, y: boxTop, w: item.width, h: item.height };
   const clampRect = (r: CropRect): CropRect => {
-    const w = Math.max(8, Math.min(r.w, item.width));
-    const h = Math.max(8, Math.min(r.h, item.height));
-    const x = Math.max(boxLeft, Math.min(r.x, boxLeft + item.width - w));
-    const y = Math.max(boxTop, Math.min(r.y, boxTop + item.height - h));
+    const w = Math.max(8, Math.min(r.w, fullBounds.w));
+    const h = Math.max(8, Math.min(r.h, fullBounds.h));
+    const x = Math.max(fullBounds.x, Math.min(r.x, fullBounds.x + fullBounds.w - w));
+    const y = Math.max(fullBounds.y, Math.min(r.y, fullBounds.y + fullBounds.h - h));
     return { x, y, w, h };
   };
 
@@ -1020,29 +1070,21 @@ function CropOverlay({
   cropRef.current = crop;
 
   const bake = () => {
+    bakeImageCrop(item, cropRef.current, onCommit);
+  };
+
+  useEffect(() => {
+    const src = mem._fullSource || item.source;
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const nW = img.naturalWidth || item.width;
-      const nH = img.naturalHeight || item.height;
-      const r = computeCrop(item, cropRef.current, nW, nH);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(r.sw));
-      canvas.height = Math.max(1, Math.round(r.sh));
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return onCancel();
-      ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, 0, 0, canvas.width, canvas.height);
-      let dataUri: string;
-      try {
-        dataUri = canvas.toDataURL("image/png");
-      } catch {
-        return onCancel(); // tainted canvas (cross-origin) — cannot bake
-      }
-      onCommit(dataUri, { xpos: r.xpos, ypos: r.ypos, width: r.width, height: r.height });
-    };
-    img.onerror = () => onCancel();
-    img.src = item.source;
-  };
+    img.onload = () => setFullNatural({ w: img.naturalWidth || item.width, h: img.naturalHeight || item.height });
+    img.src = src;
+  }, [item, mem._fullSource]);
+
+  useEffect(() => {
+    setCrop((r) => clampRect(r));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullNatural]);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -1082,7 +1124,7 @@ function CropOverlay({
       window.removeEventListener("keydown", onKey, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fullBounds.x, fullBounds.y, fullBounds.w, fullBounds.h]);
 
   const px = (v: number) => v * zoom;
   const rectStyle: CSSProperties = {
@@ -1125,16 +1167,17 @@ function CropOverlay({
     <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => e.stopPropagation()}>
       {/* full (uncropped) image beneath the mask */}
       <img
-        src={item.source}
+        src={mem._fullSource || item.source}
         alt=""
         draggable={false}
         style={{
           position: "absolute",
-          left: px(boxLeft),
-          top: px(boxTop),
-          width: px(item.width),
-          height: px(item.height),
+          left: px(fullBounds.x),
+          top: px(fullBounds.y),
+          width: px(fullBounds.w),
+          height: px(fullBounds.h),
           objectFit: "fill",
+          opacity: mem._fullSource ? 0.55 : 1,
           pointerEvents: "none",
         }}
       />

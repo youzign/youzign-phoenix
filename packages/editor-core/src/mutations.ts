@@ -325,6 +325,24 @@ export interface CropResult {
   height: number;
 }
 
+/** Session-only crop memory. These underscore fields are never serialized. */
+export interface FullSourceCropRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type ImageCropMemory = ImageItem & {
+  _fullSource?: string;
+  _cropRect?: FullSourceCropRect;
+};
+
+export function clearCropMemory(item: ImageCropMemory): void {
+  delete item._fullSource;
+  delete item._cropRect;
+}
+
 /** Pure crop math: map a canvas-space crop rect to source pixels + new box. */
 export function computeCrop(
   item: ImageItem,
@@ -348,6 +366,104 @@ export function computeCrop(
   };
 }
 
+export function composeCropRect(
+  current: FullSourceCropRect,
+  crop: Pick<CropResult, "sx" | "sy" | "sw" | "sh">,
+  currentNaturalW: number,
+  currentNaturalH: number
+): FullSourceCropRect {
+  const fx = current.width / currentNaturalW;
+  const fy = current.height / currentNaturalH;
+  return {
+    x: current.x + crop.sx * fx,
+    y: current.y + crop.sy * fy,
+    width: crop.sw * fx,
+    height: crop.sh * fy,
+  };
+}
+
+export function initialCropMemory(
+  source: string,
+  naturalW: number,
+  naturalH: number
+): Required<Pick<ImageCropMemory, "_fullSource" | "_cropRect">> {
+  return {
+    _fullSource: source,
+    _cropRect: { x: 0, y: 0, width: naturalW, height: naturalH },
+  };
+}
+
+export function cropScale(item: ImageItem, cropRect: FullSourceCropRect): { sx: number; sy: number } {
+  return {
+    sx: item.width / cropRect.width,
+    sy: item.height / cropRect.height,
+  };
+}
+
+export function canvasRectToFullSourceRect(
+  item: ImageItem,
+  cropRect: FullSourceCropRect,
+  rect: CropRect,
+  fullNaturalW: number,
+  fullNaturalH: number
+): FullSourceCropRect {
+  const left = item.xpos - item.width / 2;
+  const top = item.ypos - item.height / 2;
+  const s = cropScale(item, cropRect);
+  const x = cropRect.x + (rect.x - left) / s.sx;
+  const y = cropRect.y + (rect.y - top) / s.sy;
+  const width = rect.w / s.sx;
+  const height = rect.h / s.sy;
+  const nx = Math.max(0, Math.min(fullNaturalW, x));
+  const ny = Math.max(0, Math.min(fullNaturalH, y));
+  const nr = Math.max(nx + 1, Math.min(fullNaturalW, x + width));
+  const nb = Math.max(ny + 1, Math.min(fullNaturalH, y + height));
+  return { x: nx, y: ny, width: nr - nx, height: nb - ny };
+}
+
+export function fullSourceRectToCanvasGeom(
+  item: ImageItem,
+  currentCropRect: FullSourceCropRect,
+  nextCropRect: FullSourceCropRect
+): Pick<CropResult, "xpos" | "ypos" | "width" | "height"> {
+  const left = item.xpos - item.width / 2;
+  const top = item.ypos - item.height / 2;
+  const s = cropScale(item, currentCropRect);
+  const nextLeft = left + (nextCropRect.x - currentCropRect.x) * s.sx;
+  const nextTop = top + (nextCropRect.y - currentCropRect.y) * s.sy;
+  const width = nextCropRect.width * s.sx;
+  const height = nextCropRect.height * s.sy;
+  return {
+    xpos: nextLeft + width / 2,
+    ypos: nextTop + height / 2,
+    width,
+    height,
+  };
+}
+
+export function fullSourceCanvasBounds(
+  item: ImageItem,
+  cropRect: FullSourceCropRect,
+  fullNaturalW: number,
+  fullNaturalH: number
+): CropRect {
+  const left = item.xpos - item.width / 2;
+  const top = item.ypos - item.height / 2;
+  const s = cropScale(item, cropRect);
+  const x = left - cropRect.x * s.sx;
+  const y = top - cropRect.y * s.sy;
+  return { x, y, w: fullNaturalW * s.sx, h: fullNaturalH * s.sy };
+}
+
+export function currentCropCanvasRect(item: ImageItem): CropRect {
+  return {
+    x: item.xpos - item.width / 2,
+    y: item.ypos - item.height / 2,
+    w: item.width,
+    h: item.height,
+  };
+}
+
 /**
  * Swap only an image item's source (same destructive bake pattern as crop, but
  * geometry is unchanged). Used by background removal, which replaces the pixels
@@ -355,13 +471,15 @@ export function computeCrop(
  */
 export function applySource(item: ImageItem, source: string): void {
   patchItem(item as any, { source });
+  clearCropMemory(item as ImageCropMemory);
 }
 
 /** Commit a crop: swap in the baked image + new geometry, mark cropped. */
 export function applyCrop(
   item: ImageItem,
   bakedSource: string,
-  geom: Pick<CropResult, "xpos" | "ypos" | "width" | "height">
+  geom: Pick<CropResult, "xpos" | "ypos" | "width" | "height">,
+  memory?: Required<Pick<ImageCropMemory, "_fullSource" | "_cropRect">>
 ): void {
   patchItem(item as any, {
     source: bakedSource,
@@ -371,6 +489,11 @@ export function applyCrop(
     height: geom.height,
     cropped: true,
   });
+  if (memory) {
+    const mem = item as ImageCropMemory;
+    mem._fullSource = memory._fullSource;
+    mem._cropRect = memory._cropRect;
+  }
 }
 
 // ---- item construction ------------------------------------------------------

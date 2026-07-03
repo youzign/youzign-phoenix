@@ -159,15 +159,21 @@ export function edgeCropRect(
   box: { xpos: number; ypos: number; width: number; height: number },
   edge: Edge,
   p: { x: number; y: number },
-  minSize = MIN_SIZE
+  minSize = MIN_SIZE,
+  bounds?: { x: number; y: number; w: number; h: number }
 ): { x: number; y: number; w: number; h: number } {
   let left = box.xpos - box.width / 2;
   let top = box.ypos - box.height / 2;
   let right = box.xpos + box.width / 2;
   let bottom = box.ypos + box.height / 2;
-  if (edge === "w") left = Math.min(right - minSize, Math.max(left, p.x));
-  if (edge === "e") right = Math.max(left + minSize, Math.min(right, p.x));
-  if (edge === "n") top = Math.min(bottom - minSize, Math.max(top, p.y));
-  if (edge === "s") bottom = Math.max(top + minSize, Math.min(bottom, p.y));
+  const limit = bounds ?? { x: left, y: top, w: right - left, h: bottom - top };
+  const minLeft = limit.x;
+  const minTop = limit.y;
+  const maxRight = limit.x + limit.w;
+  const maxBottom = limit.y + limit.h;
+  if (edge === "w") left = Math.min(right - minSize, Math.max(minLeft, p.x));
+  if (edge === "e") right = Math.max(left + minSize, Math.min(maxRight, p.x));
+  if (edge === "n") top = Math.min(bottom - minSize, Math.max(minTop, p.y));
+  if (edge === "s") bottom = Math.max(top + minSize, Math.min(maxBottom, p.y));
   return { x: left, y: top, w: right - left, h: bottom - top };
 }

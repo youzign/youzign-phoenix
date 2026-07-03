@@ -23,6 +23,7 @@ import {
   applyCrop,
   applySource,
   type CropResult,
+  type ImageCropMemory,
   createTextItem,
   createShapeItem,
   createClipartItem,
@@ -172,7 +173,12 @@ interface EditorState {
   // image crop mode
   beginCrop: (uid: number) => void;
   cancelCrop: () => void;
-  commitCrop: (uid: number, bakedSource: string, geom: Pick<CropResult, "xpos" | "ypos" | "width" | "height">) => void;
+  commitCrop: (
+    uid: number,
+    bakedSource: string,
+    geom: Pick<CropResult, "xpos" | "ypos" | "width" | "height">,
+    memory?: Required<Pick<ImageCropMemory, "_fullSource" | "_cropRect">>
+  ) => void;
 
   // background removal (local, in-worker)
   removeBg: (uid: number) => Promise<void>;
@@ -377,10 +383,10 @@ export const useEditor = create<EditorState>((set, get) => {
 
     beginCrop: (uid) => set({ croppingUid: uid, selectedUids: [uid], drillGroupUid: null, editingUid: null }),
     cancelCrop: () => set({ croppingUid: null }),
-    commitCrop: (uid, bakedSource, geom) => {
+    commitCrop: (uid, bakedSource, geom, memory) => {
       commit((d) => {
         const it = findByUid(d, uid);
-        if (it && it.type === "image") applyCrop(it as any, bakedSource, geom);
+        if (it && it.type === "image") applyCrop(it as any, bakedSource, geom, memory);
       });
       set({ croppingUid: null });
     },
