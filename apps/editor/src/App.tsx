@@ -13,6 +13,7 @@ import { PropertiesPanel } from "./components/PropertiesPanel.js";
 import { LayersPanel } from "./components/LayersPanel.js";
 import { ensureGoogleFonts } from "./fonts.js";
 import type { Item } from "@youzign/designstring";
+import { DesignCanvas } from "@youzign/renderer";
 
 function collectFonts(items: Item[], out: Set<string>): void {
   for (const it of items) {
@@ -43,8 +44,11 @@ export function App() {
   const nudge = useEditor((s) => s.nudgeSelected);
   const escapeSelection = useEditor((s) => s.escapeSelection);
   const toggleGrid = useEditor((s) => s.toggleGrid);
+  const nextPage = useEditor((s) => s.nextPage);
+  const previousPage = useEditor((s) => s.previousPage);
   const editing = useEditor((s) => s.editingUid);
   const design = useEditor((s) => s.design);
+  const pages = useEditor((s) => s.pages);
 
   // Load webfonts for every family used in the current design (so the canvas
   // renders them live). ensureGoogleFonts dedupes, so this is cheap to re-run.
@@ -100,6 +104,12 @@ export function App() {
       } else if (e.key.toLowerCase() === "g" && !mod) {
         e.preventDefault();
         toggleGrid();
+      } else if (e.key === "PageDown") {
+        e.preventDefault();
+        nextPage();
+      } else if (e.key === "PageUp") {
+        e.preventDefault();
+        previousPage();
       } else if (e.key.startsWith("Arrow")) {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
@@ -115,7 +125,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, del, dup, toggleTextStyle, nudge, escapeSelection, toggleGrid, editing]);
+  }, [undo, redo, del, dup, toggleTextStyle, nudge, escapeSelection, toggleGrid, nextPage, previousPage, editing]);
 
   return (
     <div className="flex h-full flex-col bg-[#17171a] text-neutral-200">
@@ -129,6 +139,17 @@ export function App() {
           <LayersPanel />
           <PropertiesPanel />
         </aside>
+      </div>
+      <div
+        aria-hidden
+        className="pointer-events-none fixed left-[-20000px] top-0"
+        data-testid="export-pages"
+      >
+        {pages.map((page, i) => (
+          <div key={i} data-export-page={i}>
+            <DesignCanvas design={page.design} zoom={1} />
+          </div>
+        ))}
       </div>
     </div>
   );

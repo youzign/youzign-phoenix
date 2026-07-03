@@ -4,6 +4,7 @@ import { runExport } from "../export/runExport.js";
 import {
   EXPORT_SCALES,
   JPG_QUALITY,
+  parsePageRange,
   scaledDimensions,
   type ExportFormat,
   type ExportScale,
@@ -43,14 +44,20 @@ export function ExportMenu({
   designName,
   canvasWidth,
   canvasHeight,
+  pages,
+  activePage,
 }: {
   designName: string;
   canvasWidth: number;
   canvasHeight: number;
+  pages: { canvasWidth: number; canvasHeight: number }[];
+  activePage: number;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
+  const [pageMode, setPageMode] = useState<"all" | "current" | "custom">("all");
+  const [range, setRange] = useState("1-3");
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,6 +84,17 @@ export function ExportMenu({
 
   const scalable = prefs.format !== "pdf";
   const dims = scaledDimensions(canvasWidth, canvasHeight, scalable ? prefs.scale : 1);
+  const hasPages = pages.length > 1;
+
+  const selectedPageIndices = () => {
+    if (!hasPages) return undefined;
+    if (pageMode === "current") return [activePage];
+    if (pageMode === "custom") {
+      const parsed = parsePageRange(range, pages.length);
+      return parsed.length ? parsed : [activePage];
+    }
+    return pages.map((_, i) => i);
+  };
 
   const doExport = async () => {
     if (busy) return;
@@ -89,6 +107,8 @@ export function ExportMenu({
         designName,
         canvasWidth,
         canvasHeight,
+        pages,
+        pageIndices: selectedPageIndices(),
       });
     } finally {
       setBusy(false);
@@ -165,13 +185,39 @@ export function ExportMenu({
             </label>
           )}
 
+          {hasPages && (
+            <div className="mt-3">
+              <div className="text-[11px] font-medium text-neutral-400">Pages</div>
+              <div className="mt-1.5 grid grid-cols-3 gap-1 rounded-lg bg-white/[0.05] p-0.5">
+                <button className={segItem(pageMode === "all")} onClick={() => setPageMode("all")}>
+                  All
+                </button>
+                <button className={segItem(pageMode === "current")} onClick={() => setPageMode("current")}>
+                  Current
+                </button>
+                <button className={segItem(pageMode === "custom")} onClick={() => setPageMode("custom")}>
+                  Range
+                </button>
+              </div>
+              {pageMode === "custom" && (
+                <input
+                  value={range}
+                  onChange={(e) => setRange(e.target.value)}
+                  className="mt-2 w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-[12.5px] text-neutral-100 outline-none transition-colors focus:border-indigo-400/70"
+                  placeholder="1-3,5"
+                  data-testid="export-page-range"
+                />
+              )}
+            </div>
+          )}
+
           {/* per-format note */}
           <p className="mt-3 text-[11px] leading-snug text-neutral-500">
             {prefs.format === "jpg" && `JPEG quality ${JPG_QUALITY} · flattened, no transparency.`}
             {prefs.format === "pdf" &&
-              `Single ${canvasWidth > canvasHeight ? "landscape" : "portrait"} page, full-bleed.`}
+              `${hasPages && pageMode !== "current" ? "Multi-page" : "Single page"}, full-bleed.`}
             {prefs.format === "png" &&
-              `Lossless${prefs.transparent ? " · no background layer" : ""}.`}
+              `Lossless${prefs.transparent ? " · no background layer" : ""}${hasPages && pageMode !== "current" ? " · sequential downloads" : ""}.`}
           </p>
 
           <div className="mt-2 flex items-center justify-between">

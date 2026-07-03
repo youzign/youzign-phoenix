@@ -61,10 +61,11 @@ future contributors. This is an implementation map, not product copy.
 | Backgrounds & pages | Transparent canvas | Canvas panel toggles `transparent`; stage shows checkerboard. | `apps/editor/src/components/PropertiesPanel.tsx`, `packages/editor-core/src/background.ts` |
 | Backgrounds & pages | Canvas border | Canvas panel edits border width and color. | `apps/editor/src/components/PropertiesPanel.tsx`, `packages/editor-core/src/background.ts`, `packages/renderer/src/DesignCanvas.tsx` |
 | Backgrounds & pages | Canvas filters | Legacy filter items render canvas-wide CSS/filter overlay recipes. | `packages/renderer/src/DesignCanvas.tsx`, `packages/renderer/src/filters.ts` |
+| Backgrounds & pages | Multi-page documents | App-level documents contain ordered single-canvas designs, with bottom thumbnails, duplicate/delete/add, drag reorder, PageUp/PageDown, whole-document undo, and document autosave. | `apps/editor/src/store.ts`, `apps/editor/src/document.ts`, `apps/editor/src/components/PageStrip.tsx` |
 | Import-export & persistence | Fixture loader | Top bar loads committed XML fixtures into editor state. | `apps/editor/src/App.tsx`, `apps/editor/src/components/TopBar.tsx` |
 | Import-export & persistence | XML import | Top bar imports local `.xml` designstrings. | `apps/editor/src/components/TopBar.tsx`, `packages/designstring` |
 | Import-export & persistence | XML export | Top bar serializes current designstring to XML. | `apps/editor/src/components/TopBar.tsx`, `packages/designstring` |
-| Import-export & persistence | PNG/JPG/PDF export | Export menu captures `.yz-canvas` as PNG, JPG, or single-page PDF. | `apps/editor/src/components/ExportMenu.tsx`, `apps/editor/src/export/runExport.ts` |
+| Import-export & persistence | PNG/JPG/PDF export | Export menu captures `.yz-canvas` as PNG/JPG, active-page XML remains unchanged, multi-page PNG/JPG download sequential files, and multi-page PDF exports one PDF page per canvas. | `apps/editor/src/components/ExportMenu.tsx`, `apps/editor/src/export/runExport.ts` |
 | Import-export & persistence | Export options | Export menu supports PNG transparency, PNG/JPG 1x-5x scale, JPG quality 0.95, and local export prefs. | `apps/editor/src/components/ExportMenu.tsx`, `apps/editor/src/export/exportMath.ts` |
 | Import-export & persistence | Autosave | Store persists serialized XML per design name in localStorage after commits. | `apps/editor/src/store.ts` |
 | Keyboard shortcuts | Global shortcuts | App-level shortcuts cover undo/redo, duplicate, text style, delete, escape, grid, and nudging. | `apps/editor/src/App.tsx` |
@@ -323,8 +324,7 @@ factor `min(newW/oldW, newH/oldH)`, scales item positions, sizes, text metrics,
 font size, shadow distance, border size, blur size, curved-text radius, and group
 scale, then recenters the content block. With it disabled, only canvas dimensions
 change.
-Known limitations: this is single-page only. Multi-page support is queued in
-`docs/CANVA-STEAL-LIST.md` but is not implemented.
+Canvas resize applies to the active page only in multi-page documents.
 ### Background editor
 When nothing is selected, the right panel edits the canvas. Solid background
 writes `bg_type="color"`, `bg_color`, and clears `transparent`. Transparent
@@ -344,6 +344,19 @@ Adventure, Ignite, Blonde, Sense, Turquoise, and Cool. The filter item itself
 does not render as a normal selectable item.
 Known limitations: the current editor has renderer support but no right-panel
 UI for adding/changing canvas filters.
+### Multi-page documents
+Multi-page is an editor-level document model: each page is still an unchanged
+single-canvas designstring. The store exposes the active page through the
+existing `design` API so selection, mutation, resize, and XML export continue to
+operate on one design at a time. History snapshots cover the whole document
+(`pages` plus `activePage`) so page add/delete/duplicate/reorder undo cleanly.
+Autosave stores JSON with per-page XML strings and migrates old single XML
+autosaves to a one-page document.
+
+The bottom page strip renders live mini canvases, highlights the active page,
+offers hover duplicate/delete controls, adds blank pages that inherit the
+current page canvas/background, supports drag reorder, and collapses to a slim
+add-page bar for one-page documents.
 ## Import-export & persistence
 ### XML import/export and fixtures
 TopBar fixture loading calls `load(xml, name)`, which parses XML, tags UIDs, and
@@ -353,17 +366,22 @@ design with `serialize(design)`.
 Known limitations: invalid XML handling is not surfaced as a designed error
 state in the current TopBar.
 ### Raster/PDF export
-Export captures the live `.yz-canvas` node with `html-to-image`. PNG and JPG use
-pixel ratios 1..5; PDF captures a high-quality JPEG and places it full-bleed on
-a single jsPDF page sized in px. JPG quality is 0.95. PNG transparent export
-blanks the cloned canvas background before capture.
+Export captures canvas nodes with `html-to-image`. PNG and JPG use pixel ratios
+1..5; PDF captures high-quality JPEGs and places them full-bleed on jsPDF pages
+sized in px. JPG quality is 0.95. PNG transparent export blanks the cloned
+canvas background before capture.
 Export preferences are localStorage under `youzign-next:export-prefs`. They are
 not designstring attrs.
-Known limitations: PDF is single-page; page ranges do not exist yet.
+For multi-page documents, the export popover offers all pages, current page, or
+a clamped custom range such as `1-3,5`. Multi-page PNG/JPG exports are sequential
+downloads (`name-1.png`, `name-2.png`). Multi-page PDF exports one PDF with one
+page per selected canvas.
 ### Autosave
-Every store commit persists serialized XML to
-`youzign-next:design:<designName>` in localStorage. Undo/redo also persist the
-restored XML. Uploads use IndexedDB separately; fal/Unsplash keys use
+Every store commit persists a document JSON payload to
+`youzign-next:design:<designName>` in localStorage. Each page inside the JSON is
+serialized with the existing designstring `serialize()` path, preserving
+per-page XML byte stability. Old single XML autosaves migrate to a one-page
+document. Undo/redo also persist the restored document. Uploads use IndexedDB separately; fal/Unsplash keys use
 localStorage settings separately.
 Known limitations: there is no My Designs gallery yet, no server save, and no
 archive importer while legacy AWS assets are unavailable.

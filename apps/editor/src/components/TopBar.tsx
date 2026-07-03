@@ -21,6 +21,8 @@ export function TopBar({
   onFixture: (name: string) => void;
 }) {
   const design = useEditor((s) => s.design);
+  const pages = useEditor((s) => s.pages);
+  const activePage = useEditor((s) => s.activePage);
   const name = useEditor((s) => s.designName);
   const setName = useEditor((s) => s.setName);
   const zoom = useEditor((s) => s.zoom);
@@ -138,6 +140,8 @@ export function TopBar({
           designName={name}
           canvasWidth={design.canvasWidth}
           canvasHeight={design.canvasHeight}
+          pages={pages.map((p) => ({ canvasWidth: p.design.canvasWidth, canvasHeight: p.design.canvasHeight }))}
+          activePage={activePage}
         />
       </div>
     </header>
