@@ -123,6 +123,7 @@ export function CanvasStage() {
   const magicBusy = useEditor((s) => s.magicBusy);
   const cancelMagic = useEditor((s) => s.cancelMagic);
   const applyMagicErase = useEditor((s) => s.applyMagicErase);
+  const applyMagicEdit = useEditor((s) => s.applyMagicEdit);
   const applyMagicGrab = useEditor((s) => s.applyMagicGrab);
   const blurPreview = useEditor((s) => s.blurPreview);
   const applyMagicBlur = useEditor((s) => s.applyMagicBlur);
@@ -895,21 +896,26 @@ export function CanvasStage() {
               );
             })()}
 
-          {/* magic mode (eraser / grab) */}
+          {/* magic mode (paint / grab) */}
           {magicMode !== null && magicUid !== null &&
             (() => {
               const loc = locate(design, magicUid);
               if (!loc || loc.item.type !== "image") return null;
               const img = loc.item as unknown as ImageItem;
-              if (magicMode === "erase")
+              if (magicMode === "erase" || magicMode === "edit")
                 return (
                   <MagicEraseOverlay
+                    mode={magicMode}
                     item={img}
                     zoom={zoom}
                     busy={magicBusy}
                     toCanvas={toCanvas}
                     onCancel={cancelMagic}
-                    onApply={(mask) => applyMagicErase(magicUid, mask)}
+                    onApply={(mask, prompt) =>
+                      magicMode === "edit"
+                        ? applyMagicEdit(magicUid, mask, prompt || "")
+                        : applyMagicErase(magicUid, mask)
+                    }
                   />
                 );
               return (
@@ -1229,6 +1235,7 @@ function CropOverlay({
  * resolution on apply. The translucent accent smear previews the mask.
  */
 function MagicEraseOverlay({
+  mode = "erase",
   item,
   zoom,
   busy,
@@ -1236,18 +1243,20 @@ function MagicEraseOverlay({
   onCancel,
   onApply,
 }: {
+  mode?: "erase" | "edit";
   item: ImageItem;
   zoom: number;
   busy: boolean;
   toCanvas: (cx: number, cy: number) => { x: number; y: number };
   onCancel: () => void;
-  onApply: (maskDataUri: string) => void;
+  onApply: (maskDataUri: string, prompt?: string) => void;
 }) {
   const boxLeft = item.xpos - item.width / 2;
   const boxTop = item.ypos - item.height / 2;
   const px = (v: number) => v * zoom;
 
   const [brushPx, setBrushPx] = useState(28);
+  const [prompt, setPrompt] = useState("");
   const strokesRef = useRef<Stroke[]>([]);
   const drawingRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1301,10 +1310,12 @@ function MagicEraseOverlay({
     const cur = strokesRef.current[strokesRef.current.length - 1];
     if (cur) cur.points.push(local);
     redraw();
+    tick((n) => n + 1);
   };
 
   const apply = async () => {
     if (busy || !hasStrokes(strokesRef.current)) return;
+    if (mode === "edit" && !prompt.trim()) return;
     try {
       const img = await loadImage(item.source);
       const nW = img.naturalWidth || item.width;
@@ -1315,7 +1326,7 @@ function MagicEraseOverlay({
         points: s.points.map((pt) => ({ x: pt.x * scale, y: pt.y * scale })),
       }));
       const mask = strokesToMaskDataUri(scaled, Math.round(nW), Math.round(nH));
-      onApply(mask);
+      onApply(mask, prompt);
     } catch {
       onCancel();
     }
@@ -1375,12 +1386,27 @@ function MagicEraseOverlay({
             className="yz-range w-24"
             disabled={busy}
           />
+          {mode === "edit" && (
+            <input
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Replace with…"
+              className="min-w-0 flex-1 rounded bg-white/10 px-2 py-1 text-xs text-neutral-100 outline-none placeholder:text-neutral-500 focus:ring-1 focus:ring-[var(--accent)]"
+              disabled={busy}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void apply();
+                }
+              }}
+            />
+          )}
           <button
             className="rounded bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-60"
             onClick={apply}
-            disabled={busy}
+            disabled={busy || !hasStrokes(strokesRef.current) || (mode === "edit" && !prompt.trim())}
           >
-            {busy ? "Erasing…" : "Erase ⏎"}
+            {busy ? (mode === "edit" ? "Editing…" : "Erasing…") : mode === "edit" ? "Apply ⏎" : "Erase ⏎"}
           </button>
           <button
             className="rounded bg-white/10 px-3 py-1 text-xs text-neutral-100 hover:bg-white/20"

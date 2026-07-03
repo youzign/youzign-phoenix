@@ -18,6 +18,88 @@ const FAL_BASE = "https://fal.run";
 
 export const MAGIC_ERASE_MODEL = "fal-ai/bria/eraser";
 export const MAGIC_SEGMENT_MODEL = "fal-ai/sam2/image";
+export const MAGIC_EDIT_MODEL = "fal-ai/flux-pro/v1/fill";
+export const MAGIC_EXPAND_MODEL = "fal-ai/bria/expand";
+export const MAGIC_UPSCALE_MODEL = "fal-ai/clarity-upscaler";
+
+export type MagicExpandRatio = "1:1" | "4:5" | "16:9" | "9:16" | "free";
+
+export interface ExpandPlan {
+  canvasWidth: number;
+  canvasHeight: number;
+  originalX: number;
+  originalY: number;
+  originalWidth: number;
+  originalHeight: number;
+}
+
+export function buildMagicEditRequest(image: string, mask: string, prompt: string) {
+  return {
+    image_url: image,
+    mask_url: mask,
+    prompt: prompt.trim(),
+    num_images: 1,
+    enable_safety_checker: true,
+  };
+}
+
+function ratioValue(ratio: MagicExpandRatio, fallback: number): number {
+  if (ratio === "1:1") return 1;
+  if (ratio === "4:5") return 4 / 5;
+  if (ratio === "16:9") return 16 / 9;
+  if (ratio === "9:16") return 9 / 16;
+  return fallback;
+}
+
+export function planExpand(
+  imageWidth: number,
+  imageHeight: number,
+  ratio: MagicExpandRatio,
+  fallbackRatio: number
+): ExpandPlan {
+  const targetRatio = ratioValue(ratio, fallbackRatio);
+  const baseW = Math.max(1, Math.round(imageWidth));
+  const baseH = Math.max(1, Math.round(imageHeight));
+  const twoXW = baseW * 2;
+  const twoXH = baseH * 2;
+  let canvasWidth = twoXW;
+  let canvasHeight = Math.round(canvasWidth / targetRatio);
+  if (canvasHeight < baseH) {
+    canvasHeight = twoXH;
+    canvasWidth = Math.round(canvasHeight * targetRatio);
+  }
+  canvasWidth = Math.max(baseW, canvasWidth);
+  canvasHeight = Math.max(baseH, canvasHeight);
+  return {
+    canvasWidth,
+    canvasHeight,
+    originalX: Math.round((canvasWidth - baseW) / 2),
+    originalY: Math.round((canvasHeight - baseH) / 2),
+    originalWidth: baseW,
+    originalHeight: baseH,
+  };
+}
+
+export function buildMagicExpandRequest(image: string, plan: ExpandPlan) {
+  return {
+    image_url: image,
+    // bria/expand wants [w,h] / [x,y] arrays, not objects (422 otherwise).
+    canvas_size: [plan.canvasWidth, plan.canvasHeight],
+    original_image_size: [plan.originalWidth, plan.originalHeight],
+    original_image_location: [plan.originalX, plan.originalY],
+  };
+}
+
+export function buildMagicUpscaleRequest(image: string) {
+  return {
+    image_url: image,
+    upscale_factor: 2,
+    creativity: 0.2,
+    resemblance: 0.75,
+    guidance_scale: 4,
+    num_inference_steps: 18,
+  };
+}
 
 export class MagicError extends Error {}
 
@@ -42,7 +124,14 @@ async function falPost(
   if (!res.ok) {
     if (res.status === 401 || res.status === 403)
       throw new MagicError("fal.ai rejected your key — check it in Connect fal.ai.");
-    throw new MagicError(`fal.ai request failed (${res.status}).`);
+    let detail = "";
+    try {
+      const body = await res.json();
+      detail = JSON.stringify(body.detail ?? body).slice(0, 300);
+    } catch {
+      /* body not json */
+    }
+    throw new MagicError(`fal.ai request failed (${res.status})${detail ? `: ${detail}` : "."}`);
   }
   return res.json();
 }
@@ -68,6 +157,54 @@ export async function eraseRegion(
   const json = await falPost(
     MAGIC_ERASE_MODEL,
     { image_url: image, mask_url: mask },
+    key,
+    signal
+  );
+  return resultUrl(json);
+}
+
+/** Replace the masked region using a prompt-guided inpaint model. */
+export async function editRegion(
+  image: string,
+  mask: string,
+  prompt: string,
+  key: string,
+  signal?: AbortSignal
+): Promise<string> {
+  const json = await falPost(
+    MAGIC_EDIT_MODEL,
+    buildMagicEditRequest(image, mask, prompt),
+    key,
+    signal
+  );
+  return resultUrl(json);
+}
+
+/** Outpaint an image into a larger canvas. */
+export async function expandImage(
+  image: string,
+  plan: ExpandPlan,
+  key: string,
+  signal?: AbortSignal
+): Promise<string> {
+  const json = await falPost(
+    MAGIC_EXPAND_MODEL,
+    buildMagicExpandRequest(image, plan),
+    key,
+    signal
+  );
+  return resultUrl(json);
+}
+
+/** Enhance/upscale a raster image. */
+export async function upscaleImage(
+  image: string,
+  key: string,
+  signal?: AbortSignal
+): Promise<string> {
+  const json = await falPost(
+    MAGIC_UPSCALE_MODEL,
+    buildMagicUpscaleRequest(image),
     key,
     signal
   );

@@ -21,6 +21,7 @@ import { signedIntToHex, hexToSignedInt } from "@youzign/designstring";
 import { useEditor } from "../store.js";
 import { getKey } from "../library/settings.js";
 import { FAL_KEY_URL } from "../library/generate.js";
+import type { MagicExpandRatio } from "../magic/endpoints.js";
 import { ensureGoogleFonts } from "../fonts.js";
 import {
   Icon,
@@ -740,8 +741,11 @@ function CanvasPanel() {
 /** Magic suite: fal-powered eraser + grab, and a fully-local background blur. */
 function MagicSection({ uid }: { uid: number }) {
   const beginErase = useEditor((s) => s.beginMagicErase);
+  const beginEdit = useEditor((s) => s.beginMagicEdit);
   const beginGrab = useEditor((s) => s.beginMagicGrab);
   const beginBlur = useEditor((s) => s.beginMagicBlur);
+  const applyExpand = useEditor((s) => s.applyMagicExpand);
+  const applyUpscale = useEditor((s) => s.applyMagicUpscale);
   const setBlurAmountLive = useEditor((s) => s.setMagicBlurAmount);
   const applyBlur = useEditor((s) => s.applyMagicBlur);
   const cancelBlur = useEditor((s) => s.cancelMagicBlur);
@@ -750,9 +754,11 @@ function MagicSection({ uid }: { uid: number }) {
   const magicMode = useEditor((s) => s.magicMode);
   const magicStage = useEditor((s) => s.magicStage);
   const magicError = useEditor((s) => s.magicError);
+  const magicNotice = useEditor((s) => s.magicNotice);
   const magicUid = useEditor((s) => s.magicUid);
 
   const [blurAmount, setBlurAmount] = useState(14);
+  const [expandRatio, setExpandRatio] = useState<MagicExpandRatio>("free");
   const blurActive = blurPreview !== null && blurPreview.uid === uid;
   // Debounce live recompute of the preview as the slider drags.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -768,6 +774,9 @@ function MagicSection({ uid }: { uid: number }) {
     magicStage === "segment" ? "Finding subject…" :
     magicStage === "extract" ? "Lifting subject…" :
     magicStage === "erasing" ? "Erasing…" :
+    magicStage === "editing" ? "Editing…" :
+    magicStage === "expanding" ? "Expanding…" :
+    magicStage === "enhancing" ? "Enhancing…" :
     magicStage === "blur" ? "Blurring…" :
     magicStage === "cutout" || magicStage === "load" || magicStage === "model" || magicStage === "infer" ? "Analysing…" :
     "Working…";
@@ -794,12 +803,36 @@ function MagicSection({ uid }: { uid: number }) {
           <Icon name="wand" size={16} /> Eraser
         </button>
         <button
+          className={`${btn} ${magicMode === "edit" && magicUid === uid ? activeBtn : ""}`}
+          onClick={() => beginEdit(uid)}
+          disabled={busy || !hasFal}
+          title="Brush a region and describe what should replace it"
+        >
+          <Icon name="sparkles" size={16} /> Edit
+        </button>
+        <button
           className={`${btn} ${magicMode === "grab" && magicUid === uid ? activeBtn : ""}`}
           onClick={() => beginGrab(uid)}
           disabled={busy || !hasFal}
           title="Click a subject to lift it onto its own layer"
         >
           <Icon name="sparkles" size={16} /> Grab
+        </button>
+        <button
+          className={btn}
+          onClick={() => void applyExpand(uid, expandRatio)}
+          disabled={busy || !hasFal}
+          title="Outpaint this image into a larger canvas"
+        >
+          <Icon name="image" size={16} /> Expand
+        </button>
+        <button
+          className={btn}
+          onClick={() => void applyUpscale(uid)}
+          disabled={busy || !hasFal}
+          title="Upscale and enhance the image source"
+        >
+          <Icon name="check" size={16} /> Enhance
         </button>
         <button
           className={`${btn} ${blurActive ? activeBtn : ""}`}
@@ -809,6 +842,24 @@ function MagicSection({ uid }: { uid: number }) {
         >
           <Icon name="droplet" size={16} /> Blur
         </button>
+      </div>
+
+      <div className="mt-1 flex flex-wrap gap-1">
+        {(["1:1", "4:5", "16:9", "9:16", "free"] as MagicExpandRatio[]).map((r) => (
+          <button
+            key={r}
+            className={`rounded px-2 py-1 text-[10.5px] font-medium transition-colors ${
+              expandRatio === r
+                ? "bg-[var(--accent)] text-white"
+                : "bg-white/[0.06] text-neutral-300 hover:bg-white/[0.11]"
+            }`}
+            onClick={() => setExpandRatio(r)}
+            disabled={busy}
+            title={r === "free" ? "Use the current canvas ratio" : `Expand to ${r}`}
+          >
+            {r === "free" ? "Free" : r}
+          </button>
+        ))}
       </div>
 
       {blurActive && (
@@ -852,11 +903,16 @@ function MagicSection({ uid }: { uid: number }) {
       {busy && !blurActive && (
         <p className="inline-flex items-center gap-1.5 text-[10px] text-neutral-400"><Spinner /> {stageLabel}</p>
       )}
+      {magicNotice && magicNotice.uid === uid && (
+        <p className="inline-flex items-center gap-1.5 text-[10px] font-medium text-emerald-300">
+          <Icon name="check" size={12} /> {magicNotice.message}
+        </p>
+      )}
       {magicError && magicError.uid === uid ? (
         <p className="text-[10px] leading-relaxed text-rose-400">{magicError.message}</p>
       ) : !hasFal ? (
         <p className="text-[10px] leading-relaxed text-neutral-500">
-          Eraser &amp; Grab need fal.ai —{" "}
+          Magic AI tools need fal.ai —{" "}
           <a href={FAL_KEY_URL} target="_blank" rel="noreferrer" className="text-[var(--accent)] hover:underline">
             Connect fal.ai
           </a>{" "}
@@ -864,7 +920,7 @@ function MagicSection({ uid }: { uid: number }) {
         </p>
       ) : (
         <p className="text-[10px] leading-relaxed text-neutral-500">
-          Eraser &amp; Grab use fal.ai · Blur runs on your device.
+          Eraser, Edit, Grab, Expand &amp; Enhance use fal.ai · Blur runs on your device.
         </p>
       )}
     </section>
