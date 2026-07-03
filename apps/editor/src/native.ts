@@ -12,6 +12,7 @@ type TauriGlobal = {
     readTextFile?: (path: string, options?: unknown) => Promise<string>;
     writeFile?: (path: string, data: Uint8Array, options?: unknown) => Promise<void>;
     writeTextFile?: (path: string, data: string, options?: unknown) => Promise<void>;
+    mkdir?: (path: string, options?: unknown) => Promise<void>;
   };
   opener?: {
     openUrl?: (url: string) => Promise<void>;
@@ -213,9 +214,26 @@ function debugOptions(api: TauriGlobal): unknown {
   return { baseDir };
 }
 
+// The fs plugin never creates the AppData base directory itself; on a fresh
+// install every write fails until it exists, silencing all diagnostics.
+let debugDirReady: Promise<void> | null = null;
+function ensureDebugDir(api: TauriGlobal): Promise<void> {
+  if (!debugDirReady) {
+    debugDirReady = (async () => {
+      try {
+        await api.fs?.mkdir?.("", { ...(debugOptions(api) as object), recursive: true });
+      } catch {
+        // Already exists, or mkdir unavailable — the write below will tell.
+      }
+    })();
+  }
+  return debugDirReady;
+}
+
 async function appendDebugLine(record: DebugRecord): Promise<void> {
   const api = tauri();
   if (!api?.fs) return;
+  await ensureDebugDir(api);
   const line = `${JSON.stringify({ at: new Date().toISOString(), ...record })}\n`;
   const options = debugOptions(api);
   if (api.fs.readTextFile && api.fs.writeTextFile) {

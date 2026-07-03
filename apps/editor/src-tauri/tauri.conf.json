@@ -15,7 +15,7 @@
       {
         "label": "main",
         "title": "Youzign",
-        "url": "http://localhost:1420",
+        "url": "http://localhost:1420/index.html",
         "width": 1440,
         "height": 900,
         "minWidth": 1100,
