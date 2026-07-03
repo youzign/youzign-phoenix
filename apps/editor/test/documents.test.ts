@@ -4,9 +4,12 @@ import {
   documentMetaLine,
   editorDocumentFromRecord,
   migrationRecordsFromStorage,
+  pageCount,
+  pageDocuments,
   recordFromAutosave,
   relativeEditedTime,
   shapeDocumentRecord,
+  sortDocuments,
 } from "../src/library/documents.js";
 import { LS_PREFIX } from "../src/store.js";
 
@@ -106,5 +109,39 @@ describe("dashboard time and meta formatting", () => {
       now: 0,
     });
     expect(documentMetaLine(rec, 2 * 60 * 60_000)).toBe("1200×1002 · 3 pages · edited 2h ago");
+  });
+});
+
+describe("dashboard sorting and pagination", () => {
+  it("sorts records by updatedAt newest or oldest without mutating input", () => {
+    const records = [
+      { id: "a", updatedAt: 200 },
+      { id: "b", updatedAt: 300 },
+      { id: "c", updatedAt: 100 },
+    ];
+
+    expect(sortDocuments(records, "newest").map((r) => r.id)).toEqual(["b", "a", "c"]);
+    expect(sortDocuments(records, "oldest").map((r) => r.id)).toEqual(["c", "a", "b"]);
+    expect(records.map((r) => r.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("slices dashboard pages and clamps out-of-range page numbers", () => {
+    const records = Array.from({ length: 7 }, (_, i) => `doc-${i + 1}`);
+
+    expect(pageDocuments(records, 1, 3)).toEqual(["doc-1", "doc-2", "doc-3"]);
+    expect(pageDocuments(records, 2, 3)).toEqual(["doc-4", "doc-5", "doc-6"]);
+    expect(pageDocuments(records, 3, 3)).toEqual(["doc-7"]);
+    expect(pageDocuments(records, 99, 3)).toEqual(["doc-7"]);
+    expect(pageDocuments(records, 0, 3)).toEqual(["doc-1", "doc-2", "doc-3"]);
+  });
+
+  it("counts pages across empty, partial, exact, and invalid page-size cases", () => {
+    expect(pageCount(0, 24)).toBe(0);
+    expect(pageCount(1, 24)).toBe(1);
+    expect(pageCount(24, 24)).toBe(1);
+    expect(pageCount(25, 24)).toBe(2);
+    expect(pageCount(48, 24)).toBe(2);
+    expect(pageCount(49, 24)).toBe(3);
+    expect(pageCount(12, 0)).toBe(0);
   });
 });

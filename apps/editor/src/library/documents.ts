@@ -25,6 +25,10 @@ export interface RecordDraft {
   now?: number;
 }
 
+export type DocumentSortOrder = "newest" | "oldest";
+
+export const DASHBOARD_PAGE_SIZE = 24;
+
 const DB_NAME = "youzign-docs";
 const DB_VERSION = 1;
 const STORE = "documents";
@@ -130,6 +134,30 @@ export function duplicateRecord(rec: DocumentRecord, now = Date.now()): Document
   };
 }
 
+export function sortDocuments<T extends Pick<DocumentRecord, "updatedAt">>(
+  records: readonly T[],
+  order: DocumentSortOrder = "newest"
+): T[] {
+  const dir = order === "newest" ? -1 : 1;
+  return [...records].sort((a, b) => (a.updatedAt - b.updatedAt) * dir);
+}
+
+export function pageCount(total: number, pageSize = DASHBOARD_PAGE_SIZE): number {
+  if (pageSize <= 0) return 0;
+  return Math.ceil(Math.max(0, total) / pageSize);
+}
+
+export function pageDocuments<T>(
+  records: readonly T[],
+  page: number,
+  pageSize = DASHBOARD_PAGE_SIZE
+): T[] {
+  if (pageSize <= 0) return [];
+  const current = Math.min(Math.max(1, page), Math.max(1, pageCount(records.length, pageSize)));
+  const start = (current - 1) * pageSize;
+  return records.slice(start, start + pageSize);
+}
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -171,7 +199,7 @@ export async function allDocuments(): Promise<DocumentRecord[]> {
   if (!hasIDB()) return [];
   try {
     const all = await tx<DocumentRecord[]>("readonly", (s) => s.getAll() as any);
-    return all.sort((a, b) => b.updatedAt - a.updatedAt);
+    return sortDocuments(all, "newest");
   } catch {
     return [];
   }

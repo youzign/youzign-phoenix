@@ -55,7 +55,7 @@ export function TopBar({
   };
 
   return (
-    <header className="flex items-center gap-3 border-b border-white/[0.06] bg-[#1c1c1f] px-3 py-2">
+    <header className="flex h-[49px] items-center gap-3 border-b border-white/[0.06] bg-[#1c1c1f] px-3">
       {/* brand + doc name */}
       <div className="flex items-center gap-2.5">
         <button

@@ -10,13 +10,18 @@ import {
 } from "@youzign/editor-core";
 import {
   allDocuments,
+  DASHBOARD_PAGE_SIZE,
   deleteDocument,
   documentMetaLine,
+  pageCount,
+  pageDocuments,
   duplicateRecord,
   migrateLocalStorageAutosaves,
   onDocumentsChanged,
   putDocument,
   shapeDocumentRecord,
+  sortDocuments,
+  type DocumentSortOrder,
   type DocumentRecord,
 } from "../library/documents.js";
 import { fileToUploadRecord, isAcceptedFile } from "../library/uploads.js";
@@ -328,6 +333,8 @@ function NewDesignModal({ onClose }: { onClose: () => void }) {
 export function Dashboard() {
   const [docs, setDocs] = useState<DocumentRecord[]>([]);
   const [modal, setModal] = useState(false);
+  const [sortOrder, setSortOrder] = useState<DocumentSortOrder>("newest");
+  const [page, setPage] = useState(1);
 
   const refresh = async () => setDocs(await allDocuments());
 
@@ -337,12 +344,30 @@ export function Dashboard() {
   }, []);
 
   const quick = QUICK_PRESETS.map((id) => CANVAS_PRESETS.find((p) => p.id === id)).filter(Boolean) as CanvasPreset[];
+  const sortedDocs = useMemo(() => sortDocuments(docs, sortOrder), [docs, sortOrder]);
+  const pages = pageCount(sortedDocs.length, DASHBOARD_PAGE_SIZE);
+  const currentPage = Math.min(page, Math.max(1, pages));
+  const visibleDocs = useMemo(
+    () => pageDocuments(sortedDocs, currentPage, DASHBOARD_PAGE_SIZE),
+    [sortedDocs, currentPage]
+  );
+  const docCountLabel = `${docs.length} ${docs.length === 1 ? "design" : "designs"}`;
+
+  useEffect(() => {
+    setPage(1);
+  }, [sortOrder]);
+
+  useEffect(() => {
+    if (page > Math.max(1, pages)) setPage(Math.max(1, pages));
+  }, [page, pages]);
 
   return (
     <div className="min-h-full bg-[#17171a] text-neutral-200">
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-[#1c1c1f] px-6 py-3">
+      {/* Same paddings/logo size as the editor TopBar so the header reads as
+          static when switching between dashboard and editor. */}
+      <header className="sticky top-0 z-10 flex h-[49px] items-center justify-between border-b border-white/[0.06] bg-[#1c1c1f] px-3">
         <div className="flex items-center gap-2.5">
-          <img src="/brand/youzign-logo.png" alt="Youzign" className="h-8 w-8" />
+          <img src="/brand/youzign-logo.png" alt="Youzign" className="h-7 w-7" />
           <span className="text-[14px] font-semibold text-neutral-100">Youzign</span>
         </div>
         <button className={accentBtn} onClick={() => setModal(true)} data-testid="new-design">
@@ -352,11 +377,61 @@ export function Dashboard() {
 
       <main className="mx-auto max-w-7xl px-6 py-6">
         {docs.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-testid="dashboard-grid">
-            {docs.map((rec) => (
-              <DesignCard key={rec.id} rec={rec} onRefresh={() => void refresh()} />
-            ))}
-          </div>
+          <>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="text-[12px] font-medium tabular-nums text-neutral-400">{docCountLabel}</div>
+              <label className="flex items-center gap-2 text-[12px] text-neutral-500">
+                <span>Sort</span>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as DocumentSortOrder)}
+                  className="rounded-lg border border-white/[0.06] bg-[#202024] px-2.5 py-1.5 text-[13px] font-medium text-neutral-200 outline-none transition-colors duration-150 hover:border-white/15 focus:border-[var(--accent)]"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                </select>
+              </label>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-testid="dashboard-grid">
+              {visibleDocs.map((rec) => (
+                <DesignCard key={rec.id} rec={rec} onRefresh={() => void refresh()} />
+              ))}
+            </div>
+            {pages > 1 && (
+              <nav className="mt-5 flex items-center justify-center gap-1" aria-label="Design pages">
+                <button
+                  className="flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-[13px] font-medium text-neutral-400 transition-colors duration-150 hover:bg-white/[0.06] hover:text-neutral-100 disabled:pointer-events-none disabled:opacity-35"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  aria-label="Previous page"
+                >
+                  ‹
+                </button>
+                {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-[13px] font-medium tabular-nums transition-colors duration-150 ${
+                      p === currentPage
+                        ? "bg-[var(--accent)] text-white"
+                        : "text-neutral-400 hover:bg-white/[0.06] hover:text-neutral-100"
+                    }`}
+                    onClick={() => setPage(p)}
+                    aria-current={p === currentPage ? "page" : undefined}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  className="flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-[13px] font-medium text-neutral-400 transition-colors duration-150 hover:bg-white/[0.06] hover:text-neutral-100 disabled:pointer-events-none disabled:opacity-35"
+                  onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                  disabled={currentPage === pages}
+                  aria-label="Next page"
+                >
+                  ›
+                </button>
+              </nav>
+            )}
+          </>
         ) : (
           <section>
             <div className="mb-3 text-[13px] font-medium text-neutral-300">Start a new design</div>
