@@ -33,6 +33,7 @@ import { backupHash, dashboardHash, editorHash, helpHash } from "../router.js";
 import { documentFromXml, normalizeDocument } from "../document.js";
 import { APP_VERSION, fetchUpdateInfo, type VersionInfo } from "../version.js";
 import { Icon, accentBtn, ghostBtn, segItem } from "./ui.js";
+import { sections, type HelpBlock } from "../help-content.js";
 
 const QUICK_PRESETS = ["ig-post-square", "ig-story", "yt-thumbnail", "print-a4", "print-business-card"];
 type DashboardTab = "designs" | "help" | "backup";
@@ -392,16 +393,143 @@ function DashboardTabs({ active }: { active: DashboardTab }) {
   );
 }
 
-function HelpPlaceholder() {
+function useActiveHelpSection() {
+  const [active, setActive] = useState(sections[0]?.id ?? "");
+
+  useEffect(() => {
+    const nodes = sections
+      .map((section) => document.getElementById(section.id))
+      .filter((node): node is HTMLElement => Boolean(node));
+    if (!nodes.length || typeof IntersectionObserver === "undefined") return;
+
+    const visible = new Map<string, number>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) visible.set(entry.target.id, entry.boundingClientRect.top);
+          else visible.delete(entry.target.id);
+        }
+        const next = [...visible.entries()].sort((a, b) => Math.abs(a[1]) - Math.abs(b[1]))[0]?.[0];
+        if (next) setActive(next);
+      },
+      { rootMargin: "-92px 0px -60% 0px", threshold: [0, 0.2, 0.6] }
+    );
+
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, []);
+
+  return active;
+}
+
+function HelpShot({ file, caption }: Extract<HelpBlock, { type: "shot-ref" }>) {
+  const [missing, setMissing] = useState(false);
+  const src = `/help/${file}`;
+
   return (
-    <section className="mx-auto flex min-h-[360px] max-w-xl flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-[#202024] px-8 py-12 text-center">
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.06] text-neutral-300">
-        <Icon name="sparkles" size={21} />
-      </div>
-      <h1 className="mt-4 text-[16px] font-semibold text-neutral-100">Manual coming here</h1>
-      <p className="mt-2 max-w-sm text-[13px] leading-6 text-neutral-500">
-        The Help tab is reserved for the Youzign manual.
+    <figure className="my-5 overflow-hidden rounded-xl border border-white/[0.06] bg-[#151518]">
+      {!missing ? (
+        <img
+          src={src}
+          alt={caption}
+          loading="lazy"
+          onError={() => setMissing(true)}
+          className="aspect-[16/9] w-full bg-[#111114] object-cover"
+        />
+      ) : (
+        <div className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 bg-white/[0.025] text-center">
+          <Icon name="image-off" size={26} className="text-neutral-600" />
+          <div className="text-[12px] font-medium text-neutral-400">Screenshot pending</div>
+          <div className="text-[11px] font-mono text-neutral-600">/help/{file}</div>
+        </div>
+      )}
+      <figcaption className="border-t border-white/[0.06] px-3 py-2 text-[11px] leading-5 text-neutral-500">
+        {caption}
+      </figcaption>
+    </figure>
+  );
+}
+
+function ShortcutTable({ rows }: Extract<HelpBlock, { type: "shortcut-table" }>) {
+  return (
+    <div className="my-4 overflow-hidden rounded-xl border border-white/[0.06]">
+      <table className="w-full border-collapse text-left text-[13px]">
+        <tbody>
+          {rows.map((row) => (
+            <tr key={`${row.keys}-${row.action}`} className="border-b border-white/[0.06] last:border-b-0">
+              <th className="w-[42%] bg-white/[0.025] px-3 py-2.5 align-top font-mono text-[12px] font-medium text-neutral-200">
+                {row.keys}
+              </th>
+              <td className="px-3 py-2.5 leading-6 text-neutral-400">{row.action}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function HelpBlockView({ block }: { block: HelpBlock }) {
+  if (block.type === "shot-ref") return <HelpShot {...block} />;
+  if (block.type === "shortcut-table") return <ShortcutTable {...block} />;
+  if (block.type === "tip") {
+    return (
+      <p className="my-4 rounded-lg border border-[var(--accent)]/20 bg-[var(--accent)]/10 px-3 py-2.5 text-[13px] leading-6 text-neutral-300">
+        {block.text}
       </p>
+    );
+  }
+  return <p className="my-3 text-[13px] leading-7 text-neutral-400">{block.text}</p>;
+}
+
+function HelpManual() {
+  const active = useActiveHelpSection();
+
+  return (
+    <section className="grid gap-8 lg:grid-cols-[240px_minmax(0,760px)] xl:grid-cols-[260px_minmax(0,820px)]">
+      <aside className="hidden lg:block">
+        <nav className="sticky top-[116px] max-h-[calc(100vh-140px)] overflow-y-auto pr-2" aria-label="Help sections">
+          <div className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-600">Manual</div>
+          <div className="space-y-0.5">
+            {sections.map((section) => (
+              <a
+                key={section.id}
+                href={`#${section.id}`}
+                className={`block rounded-lg px-2.5 py-2 text-[12px] font-medium transition-colors duration-150 ${
+                  active === section.id
+                    ? "bg-white/[0.07] text-neutral-100"
+                    : "text-neutral-500 hover:bg-white/[0.04] hover:text-neutral-200"
+                }`}
+              >
+                {section.title}
+              </a>
+            ))}
+          </div>
+        </nav>
+      </aside>
+
+      <div className="min-w-0">
+        <header className="mb-8 border-b border-white/[0.06] pb-5">
+          <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-neutral-500">Youzign Manual</div>
+          <h1 className="mt-2 text-[24px] font-semibold tracking-normal text-neutral-100">Living help for the local editor</h1>
+          <p className="mt-2 max-w-2xl text-[13px] leading-6 text-neutral-500">
+            A practical reference for the dashboard, editor, content panels, AI tools, export, backup, and keyboard shortcuts.
+          </p>
+        </header>
+
+        <div className="space-y-10">
+          {sections.map((section) => (
+            <article key={section.id} id={section.id} className="scroll-mt-28">
+              <h2 className="text-[18px] font-semibold tracking-normal text-neutral-100">{section.title}</h2>
+              <div className="mt-3">
+                {section.blocks.map((block, index) => (
+                  <HelpBlockView key={`${section.id}-${index}`} block={block} />
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }
@@ -590,7 +718,7 @@ export function Dashboard({ tab = "designs" }: { tab?: DashboardTab }) {
 
       <main className="mx-auto max-w-7xl px-6 py-6">
         {tab === "help" ? (
-          <HelpPlaceholder />
+          <HelpManual />
         ) : tab === "backup" ? (
           <BackupPanel docs={docs} onRefresh={() => void refresh()} />
         ) : docs.length > 0 ? (
