@@ -79,7 +79,7 @@ import {
   type PageEntry,
 } from "./document.js";
 
-const LS_PREFIX = "youzign-next:design:";
+export const LS_PREFIX = "youzign-next:design:";
 
 /** Map a magic-suite error to a user-facing message. */
 function magicMessage(err: unknown): string {
@@ -159,6 +159,7 @@ interface EditorState {
   design: Design;
   pages: PageEntry[];
   activePage: number;
+  documentId: string | null;
   designName: string;
   selectedUids: number[];
   drillGroupUid: number | null; // the group we've drilled into (child selection)
@@ -189,6 +190,8 @@ interface EditorState {
 
   load: (xml: string, name: string) => void;
   loadSaved: (raw: string, name: string) => void;
+  loadDocument: (doc: EditorDocument, name: string, id?: string | null) => void;
+  setDocumentId: (id: string | null) => void;
   setName: (name: string) => void;
   setZoom: (z: number) => void;
   toggleGrid: () => void;
@@ -355,6 +358,7 @@ export const useEditor = create<EditorState>((set, get) => {
     design: activeDesign(initialDoc),
     pages: initialDoc.pages,
     activePage: initialDoc.activePage,
+    documentId: null,
     designName: "untitled",
     selectedUids: [],
     drillGroupUid: null,
@@ -378,13 +382,18 @@ export const useEditor = create<EditorState>((set, get) => {
 
     load: (xml, name) => {
       const doc = tagDocument(documentFromXml(xml));
-      set({ pages: doc.pages, activePage: doc.activePage, design: activeDesign(doc), designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, magicNotice: null, blurPreview: null, past: [], future: [], lockedUids: [] });
+      set({ pages: doc.pages, activePage: doc.activePage, design: activeDesign(doc), documentId: null, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, magicNotice: null, blurPreview: null, past: [], future: [], lockedUids: [] });
     },
     loadSaved: (raw, name) => {
       const doc = tagDocument(parseAutosave(raw));
-      set({ pages: doc.pages, activePage: doc.activePage, design: activeDesign(doc), designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, magicNotice: null, blurPreview: null, past: [], future: [], lockedUids: [] });
+      set({ pages: doc.pages, activePage: doc.activePage, design: activeDesign(doc), documentId: null, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, magicNotice: null, blurPreview: null, past: [], future: [], lockedUids: [] });
+    },
+    loadDocument: (input, name, id = null) => {
+      const doc = tagDocument(input);
+      set({ pages: doc.pages, activePage: doc.activePage, design: activeDesign(doc), documentId: id, designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, magicNotice: null, blurPreview: null, past: [], future: [], lockedUids: [] });
     },
 
+    setDocumentId: (id) => set({ documentId: id }),
     setName: (name) => set({ designName: name }),
     setZoom: (z) => set({ zoom: z }),
     toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
