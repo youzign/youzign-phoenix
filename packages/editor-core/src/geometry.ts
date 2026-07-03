@@ -2,6 +2,7 @@
 // editor overlay for handles and hit-testing. Coordinates are in canvas space.
 
 import type { Item } from "@youzign/designstring";
+import { measuredTextBox } from "./text-bounds.js";
 
 export interface SelBox {
   cx: number;
@@ -146,13 +147,7 @@ export function itemBox(item: Item & Record<string, any>): SelBox {
       return { cx: left + w / 2, cy: top + h / 2, w, h, rotation: item.rotation };
     }
     case "text": {
-      const sx = item.textAreaWidth ? item.mcWidth / item.textAreaWidth : 1;
-      const sy = item.textAreaHeight ? item.mcHeight / item.textAreaHeight : 1;
-      const left = item.xpos + item.textAreaxpos * sx;
-      const top = item.ypos + item.textAreaypos * sy;
-      const w = item.mcWidth || item.textAreaWidth * sx;
-      const h = item.mcHeight || item.textAreaHeight * sy;
-      return { cx: left + w / 2, cy: top + h / 2, w, h, rotation: item.rotation };
+      return measuredTextBox(item as any);
     }
     default:
       return { cx: 0, cy: 0, w: 0, h: 0, rotation: 0 };

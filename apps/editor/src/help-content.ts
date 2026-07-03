@@ -37,7 +37,7 @@ export const sections: HelpSection[] = [
       { type: "shot-ref", file: "editor-overview.png", caption: "Editor shell with sidebar, canvas, pages strip, properties, and layers." },
       {
         type: "paragraph",
-        text: "Click an item to select it, Shift-click to add or remove it from the selection, drag from empty canvas to marquee-select, and drag selected items to move them. Double-click a group to drill into a child; Escape returns to the parent group or clears selection.",
+        text: "Click an item to select it, Shift-click to add or remove it from the selection, drag from empty canvas to marquee-select, and drag selected items to move them. Text selection boxes hug the rendered glyphs. Double-click a group to drill into a child; Escape returns to the parent group or clears selection.",
       },
       {
         type: "paragraph",
@@ -45,7 +45,7 @@ export const sections: HelpSection[] = [
       },
       {
         type: "paragraph",
-        text: "Use the rotate handle to turn selected items. The HUD shows the angle; rotation snaps to 45-degree guides by default, Shift quantizes to 15-degree steps, and Ctrl or Cmd enables fine rotation.",
+        text: "Use the rotate handle to turn selected items. The HUD shows the angle; rotation snaps to 45-degree guides by default, Shift quantizes to 15-degree steps, and Ctrl or Cmd enables fine rotation. Items are visually clipped at the canvas edge while selection handles can remain outside it.",
       },
       {
         type: "paragraph",
@@ -98,7 +98,7 @@ export const sections: HelpSection[] = [
     blocks: [
       {
         type: "paragraph",
-        text: "The properties panel changes the selected item's size, rotation, opacity, fill, text styling, and image-specific controls. Parametric shapes can use a solid fill or no fill.",
+        text: "The properties panel changes the selected item's size, rotation, opacity, fill, text styling, and image-specific controls. Text and parametric shapes can use a solid fill or no fill.",
       },
       {
         type: "paragraph",
@@ -220,6 +220,7 @@ export const sections: HelpSection[] = [
           { keys: "G", action: "Toggle grid overlay" },
           { keys: "PageUp / PageDown", action: "Go to previous or next page" },
           { keys: "Enter in text edit", action: "Commit inline text editing" },
+          { keys: "Click away in text edit", action: "Commit inline text editing and continue the click" },
           { keys: "Shift + Enter in text edit", action: "Insert a line break" },
           { keys: "Escape in text edit", action: "Cancel text editing and restore previous content" },
         ],

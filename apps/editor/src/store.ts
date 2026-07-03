@@ -269,6 +269,7 @@ interface EditorState {
   centerSelected: (axis: CenterAxis) => void;
   toggleTextStyle: (attr: "bold" | "italic" | "underline" | "strikethrough") => void;
   setSelectedShapeNoFill: () => void;
+  setSelectedTextNoFill: () => void;
 
   // lock (session-only — NEVER serialized; legacy XML never stored isLocked)
   lockedUids: number[];
@@ -982,6 +983,19 @@ export const useEditor = create<EditorState>((set, get) => {
         for (const uid of uids) {
           const it = findByUid(d, uid);
           if (it && it.type === "clipart") setShapeNoFill(it as any);
+        }
+      });
+    },
+
+    setSelectedTextNoFill: () => {
+      const uids = get().selectedUids;
+      if (uids.length === 0) return;
+      commit((d) => {
+        for (const uid of uids) {
+          const it = findByUid(d, uid);
+          if (it && (it.type === "text" || it.type === "text-curved")) {
+            patchItem(it as any, { isNoFill: true });
+          }
         }
       });
     },

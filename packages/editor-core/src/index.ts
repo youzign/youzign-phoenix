@@ -8,6 +8,7 @@ export * from "./background.js";
 export * from "./bg-removal.js";
 export * from "./magic.js";
 export * from "./geometry.js";
+export * from "./text-bounds.js";
 export * from "./selection.js";
 export * from "./resize.js";
 export * from "./transform.js";

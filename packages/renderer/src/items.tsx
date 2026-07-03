@@ -170,9 +170,9 @@ function TextItemView({ item }: { item: TextItem }) {
     overflow: "visible",
   };
 
-  // Legacy: with a border of size > 1 and "no fill", the glyph fill goes
-  // transparent so only the outline (textShadow) shows.
-  const noFill = item.isNoFill && item.isBorder && item.borderSize > 1;
+  // Legacy no-fill text stores `isNoFill`; outlines/shadows still render
+  // because only the glyph fill color goes transparent.
+  const noFill = item.isNoFill;
 
   return (
     <div style={style}>
@@ -201,6 +201,7 @@ function TextCurvedItemView({ item }: { item: TextCurvedItem }) {
 
   const [pathId] = useState(() => `yz-curve-${item.index}-${curvedSeq++}`);
   const color = signedIntToHex(item.colors.length ? item.colors[0] : 0);
+  const noFill = item.isNoFill;
 
   // Legacy places curved text via createGroupMatrix: (xpos,ypos) is the origin
   // and rotation pivots there. We align the arc apex (text centre) to that
@@ -230,7 +231,8 @@ function TextCurvedItemView({ item }: { item: TextCurvedItem }) {
           fontFamily: `"${item.font}", sans-serif`,
           fontWeight: item.bold ? 700 : 400,
           fontStyle: item.italic ? "italic" : "normal",
-          fill: color,
+          fill: noFill ? "transparent" : color,
+          textShadow: textBorderShadow(item),
         }}
       >
         <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">

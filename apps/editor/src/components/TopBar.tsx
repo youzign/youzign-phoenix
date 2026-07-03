@@ -6,21 +6,7 @@ import { ResizeMenu } from "./ResizeMenu.js";
 import { dashboardHash } from "../router.js";
 import { pickFiles, saveBlob } from "../native.js";
 
-const FIXTURE_LABELS: Record<string, string> = {
-  "mountains-input.xml": "Mountains (input)",
-  "mountains-output.xml": "Mountains (output)",
-  "clipart-local.xml": "Clipart (local)",
-};
-
-export function TopBar({
-  fixtures,
-  fixture,
-  onFixture,
-}: {
-  fixtures: Record<string, string>;
-  fixture: string;
-  onFixture: (name: string) => void;
-}) {
+export function TopBar() {
   const design = useEditor((s) => s.design);
   const pages = useEditor((s) => s.pages);
   const activePage = useEditor((s) => s.activePage);
@@ -105,33 +91,8 @@ export function TopBar({
         </button>
       </div>
 
-      {/* right: template + import/export */}
+      {/* right: import/export */}
       <div className="ml-auto flex items-center gap-2">
-        <div className="relative">
-          <select
-            className="appearance-none rounded-md bg-white/[0.05] py-1.5 pl-2.5 pr-7 text-[12px] font-medium text-neutral-200 outline-none transition-colors hover:bg-white/[0.09] focus:ring-1 focus:ring-[var(--accent)]/60"
-            value={fixture}
-            onChange={(e) => {
-              const next = e.target.value;
-              onFixture(next);
-              load(fixtures[next], next.replace(/\.xml$/i, ""));
-            }}
-          >
-            {Object.keys(fixtures).map((k) => (
-              <option key={k} value={k} className="bg-neutral-800">
-                {FIXTURE_LABELS[k] ?? k}
-              </option>
-            ))}
-          </select>
-          <Icon
-            name="chevron-down"
-            size={14}
-            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500"
-          />
-        </div>
-
-        <div className="mx-0.5 h-5 w-px bg-white/10" />
-
         <button className={ghostBtn} onClick={() => void importXml()}>
           <Icon name="upload" size={16} /> Import
         </button>

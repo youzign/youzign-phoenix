@@ -1002,6 +1002,7 @@ export function PropertiesPanel() {
   const setCurveByUid = useEditor((s) => s.setCurveByUid);
   const beginCrop = useEditor((s) => s.beginCrop);
   const setShapeNoFill = useEditor((s) => s.setSelectedShapeNoFill);
+  const setTextNoFill = useEditor((s) => s.setSelectedTextNoFill);
   const removeBg = useEditor((s) => s.removeBg);
   const bgProcessingUids = useEditor((s) => s.bgProcessingUids);
   const bgStage = useEditor((s) => s.bgStage);
@@ -1207,6 +1208,13 @@ export function PropertiesPanel() {
                 noFill={isShapeNoFill(item as any)}
                 onColor={(hex) => recolor(hex)}
                 onNoFill={setShapeNoFill}
+              />
+            ) : isTextItem ? (
+              <ShapeFill
+                fillHex={fillHex}
+                noFill={!!any.isNoFill}
+                onColor={(hex) => recolor(hex)}
+                onNoFill={setTextNoFill}
               />
             ) : (
               <ColorSwatch value={fillHex} onChange={(hex) => recolor(hex)} />
