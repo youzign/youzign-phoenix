@@ -138,6 +138,7 @@ export function CanvasStage() {
   const [fileOver, setFileOver] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
+  const inlineCommitRef = useRef<(() => void) | null>(null);
   const marqueeRef = useRef<{ x0: number; y0: number } | null>(null);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [guides, setGuides] = useState<SnapLines>({ v: [], h: [] });
@@ -157,6 +158,20 @@ export function CanvasStage() {
 
   const single = selectedUids.length === 1 ? selectedUids[0] : null;
   const selectedIsTopLevel = single !== null && drillGroupUid === null;
+
+  useEffect(() => {
+    if (editingUid === null) {
+      inlineCommitRef.current = null;
+      return;
+    }
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-inline-text-editor='true']")) return;
+      inlineCommitRef.current?.();
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    return () => window.removeEventListener("pointerdown", onPointerDown, true);
+  }, [editingUid]);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -535,7 +550,9 @@ export function CanvasStage() {
           outlineOffset: fileOver ? "6px" : undefined,
         }}
       >
-        <DesignCanvas design={design} zoom={zoom} />
+        <div className="absolute inset-0 overflow-hidden">
+          <DesignCanvas design={design} zoom={zoom} />
+        </div>
 
         {/* grid overlay (toggle: G / TopBar) — 8px minor / 64px major */}
         {showGrid && (
@@ -966,8 +983,14 @@ export function CanvasStage() {
             <InlineTextEditor
               item={singleItem as any}
               zoom={zoom}
+              registerCommit={(commit) => {
+                inlineCommitRef.current = commit;
+              }}
               onCommit={(text) => {
                 setContentByUid(single, text);
+                setEditing(null);
+              }}
+              onCancel={() => {
                 setEditing(null);
               }}
             />
@@ -1505,14 +1528,30 @@ function MagicGrabOverlay({
 function InlineTextEditor({
   item,
   zoom,
+  registerCommit,
   onCommit,
+  onCancel,
 }: {
   item: any;
   zoom: number;
+  registerCommit: (commit: () => void) => void;
   onCommit: (text: string) => void;
+  onCancel: () => void;
 }) {
-  const box = itemBox(item);
+  const box = inlineTextEditBox(item);
   const ref = useRef<HTMLDivElement>(null);
+  const doneRef = useRef(false);
+  const latestTextRef = useRef(item.content);
+  const commit = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onCommit(latestTextRef.current);
+  };
+  const cancel = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onCancel();
+  };
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -1525,6 +1564,10 @@ function InlineTextEditor({
     sel?.addRange(range);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => {
+    registerCommit(commit);
+    return () => registerCommit(() => {});
+  });
 
   const style: CSSProperties = {
     position: "absolute",
@@ -1551,22 +1594,37 @@ function InlineTextEditor({
 
   return (
     <div
+      data-inline-text-editor="true"
       ref={ref}
       contentEditable
       suppressContentEditableWarning
       style={style}
       onPointerDown={(e) => e.stopPropagation()}
-      onBlur={(e) => onCommit(e.currentTarget.textContent ?? "")}
+      onInput={(e) => {
+        latestTextRef.current = e.currentTarget.textContent ?? "";
+      }}
+      onBlur={() => commit()}
       onKeyDown={(e) => {
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
-          (e.currentTarget as HTMLElement).blur();
+          commit();
         }
         if (e.key === "Escape") {
           e.preventDefault();
-          onCommit(item.content);
+          cancel();
         }
       }}
     />
   );
+}
+
+function inlineTextEditBox(item: any): SelBox {
+  if (item.type !== "text") return itemBox(item);
+  const sx = item.textAreaWidth ? item.mcWidth / item.textAreaWidth : 1;
+  const sy = item.textAreaHeight ? item.mcHeight / item.textAreaHeight : 1;
+  const left = item.xpos + item.textAreaxpos * sx;
+  const top = item.ypos + item.textAreaypos * sy;
+  const w = item.mcWidth || item.textAreaWidth * sx;
+  const h = item.mcHeight || item.textAreaHeight * sy;
+  return { cx: left + w / 2, cy: top + h / 2, w, h, rotation: item.rotation };
 }
