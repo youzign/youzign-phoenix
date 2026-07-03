@@ -52,7 +52,10 @@ future contributors. This is an implementation map, not product copy.
 | AI & Magic | Image edit | Create/Edit sends prompt plus up to 10 reference images to `google/nano-banana-2-lite/edit`. | `apps/editor/src/components/LeftSidebar.tsx`, `apps/editor/src/library/generate.ts` |
 | AI & Magic | Background removal | Image panel runs U2-Netp ONNX locally and replaces the image source with a PNG cutout. | `apps/editor/src/components/PropertiesPanel.tsx`, `apps/editor/src/bg/removeBackground.ts`, `apps/editor/src/bg/worker.ts` |
 | AI & Magic | Magic Eraser | Brush mask over an image; fal `fal-ai/bria/eraser` fills the region and replaces the source. | `apps/editor/src/components/PropertiesPanel.tsx`, `apps/editor/src/components/CanvasStage.tsx`, `apps/editor/src/magic/endpoints.ts` |
+| AI & Magic | Magic Edit | Brush mask over an image, enter a replacement prompt, and fal `fal-ai/flux-pro/v1/fill` inpaints the region into the same source. | `apps/editor/src/components/PropertiesPanel.tsx`, `apps/editor/src/components/CanvasStage.tsx`, `apps/editor/src/magic/endpoints.ts` |
 | AI & Magic | Magic Grab | Click a subject; fal SAM2 segments, local raster extracts it, bria erases the original, and a new image layer is added. | `apps/editor/src/components/PropertiesPanel.tsx`, `apps/editor/src/magic/endpoints.ts`, `apps/editor/src/magic/raster.ts` |
+| AI & Magic | Magic Expand | Outpaint an image with ratio chips and replace the source with a larger centered image, clearing crop memory. | `apps/editor/src/components/PropertiesPanel.tsx`, `apps/editor/src/magic/endpoints.ts`, `apps/editor/src/store.ts` |
+| AI & Magic | Upscale/Enhance | Send a capped image source to fal `fal-ai/clarity-upscaler`, replace the high-resolution source, and keep canvas W/H unchanged. | `apps/editor/src/components/PropertiesPanel.tsx`, `apps/editor/src/magic/endpoints.ts`, `apps/editor/src/magic/raster.ts` |
 | AI & Magic | Magic Blur | Local U2-Netp cutout plus browser canvas blur creates a live preview, then bakes on Apply. | `apps/editor/src/components/PropertiesPanel.tsx`, `apps/editor/src/magic/raster.ts` |
 | Backgrounds & pages | Canvas resize | Resize menu offers modern presets and custom W/H. | `apps/editor/src/components/ResizeMenu.tsx`, `packages/editor-core/src/canvas-presets.ts` |
 | Backgrounds & pages | Smart resize | Optional scale-to-fit mode scales content uniformly and recenters it. | `apps/editor/src/components/ResizeMenu.tsx`, `packages/editor-core/src/resize.ts` |
@@ -297,6 +300,15 @@ downloads the result, converts it to a data URI, and writes it to `source`.
 Cost profile: fal API call plus local mask rasterization and result download.
 Known limitations: it requires a fal key. The source is destructively replaced;
 there is no separate serialized mask.
+### Magic Edit
+Magic Edit reuses the eraser brush overlay but requires a replacement prompt.
+The mask is rasterized at the source image's native resolution and posted with
+the prompt to `fal-ai/flux-pro/v1/fill`. The result is downloaded, converted to
+a data URI, and written through the same `applySource` path as eraser so undo
+restores the prior source.
+Cost profile: one fal inpaint call plus local mask rasterization.
+Known limitations: it requires a fal key and a non-empty prompt. The source is
+destructively replaced; there is no separate serialized mask or prompt.
 ### Magic Grab
 Magic Grab sends a point prompt to `fal-ai/sam2/image`, uses local raster code to
 extract the subject from the returned mask, then calls `fal-ai/bria/eraser` to
@@ -306,6 +318,25 @@ selected.
 Cost profile: two fal API calls plus local raster extraction.
 Known limitations: if the eraser/fill step fails, the lift is aborted so the
 user does not get a duplicated subject over an intact original.
+### Magic Expand
+Magic Expand plans a larger outpaint canvas around the source image using ratio
+chips: 1:1, 4:5, 16:9, 9:16, or Free for the current canvas ratio. It posts the
+source plus canvas size and original image placement to `fal-ai/bria/expand`.
+The returned image replaces the source, the item grows by the returned natural
+dimension scale, remains centered on the old position, and is clamped to the
+canvas. Crop memory is cleared because the image content changed.
+Cost profile: one fal outpaint call.
+Known limitation: it requires a fal key. Rotated image boxes use the same
+axis-aligned geometry path as other source replacement tools.
+### Upscale/Enhance
+Upscale/Enhance caps the submitted source to a 2048 px longest side, posts it to
+`fal-ai/clarity-upscaler`, downloads the result as a data URI, and writes it
+through `applySource`. The canvas item width and height are unchanged, so the
+image simply becomes sharper in place. A short confirmation appears after the
+source swap.
+Cost profile: one fal upscale call plus optional local downscale before upload.
+Known limitation: it requires a fal key and depends on the browser being able to
+read the selected image into a canvas when downscaling is needed.
 ### Magic Blur
 Magic Blur is local. It computes a subject cutout through the same U2-Netp
 background-removal path, then uses browser canvas compositing to blur the
@@ -416,6 +447,8 @@ inline text edit is active.
 | Escape | Image edge-crop drag | Cancel the in-progress edge crop drag. | `apps/editor/src/components/CanvasStage.tsx` |
 | Enter | Magic Eraser overlay | Apply brush mask. | `apps/editor/src/components/CanvasStage.tsx` |
 | Escape | Magic Eraser overlay | Cancel eraser mode. | `apps/editor/src/components/CanvasStage.tsx` |
+| Enter | Magic Edit overlay | Apply brush mask and prompt when the prompt is non-empty. | `apps/editor/src/components/CanvasStage.tsx` |
+| Escape | Magic Edit overlay | Cancel edit mode. | `apps/editor/src/components/CanvasStage.tsx` |
 | Escape | Magic Grab overlay | Cancel grab mode. | `apps/editor/src/components/CanvasStage.tsx` |
 | Enter | Magic Blur preview | Bake preview into image source. | `apps/editor/src/components/CanvasStage.tsx` |
 | Escape | Magic Blur preview | Cancel preview without writing XML. | `apps/editor/src/components/CanvasStage.tsx` |

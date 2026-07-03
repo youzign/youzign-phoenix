@@ -24,6 +24,38 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+export async function imageNaturalSize(src: string): Promise<{ width: number; height: number }> {
+  const img = await loadImage(src);
+  return {
+    width: img.naturalWidth || img.width,
+    height: img.naturalHeight || img.height,
+  };
+}
+
+export async function capImageLongestSide(src: string, maxSide: number): Promise<string> {
+  const img = await loadImage(src);
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  const longest = Math.max(w, h);
+  // Under the cap: still normalize to a data URI — fal can't fetch
+  // relative/local URLs.
+  if (longest <= maxSide) return toDataUri(src);
+  const scale = maxSide / longest;
+  const outW = Math.max(1, Math.round(w * scale));
+  const outH = Math.max(1, Math.round(h * scale));
+  const c = document.createElement("canvas");
+  c.width = outW;
+  c.height = outH;
+  const ctx = c.getContext("2d");
+  if (!ctx) throw new RasterError("Canvas unavailable.");
+  ctx.drawImage(img, 0, 0, outW, outH);
+  try {
+    return c.toDataURL("image/png");
+  } catch {
+    throw new RasterError("Image is cross-origin protected and can't be read.");
+  }
+}
+
 /** Draw an image into a canvas at the given size and read back its RGBA. */
 function pixelsOf(img: HTMLImageElement, w: number, h: number): Uint8ClampedArray {
   const c = document.createElement("canvas");

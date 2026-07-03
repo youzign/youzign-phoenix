@@ -22,6 +22,15 @@ import {
   MAX_EDIT_IMAGES,
   FAL_EDIT_MODEL,
 } from "../src/library/generate.js";
+import {
+  MAGIC_EDIT_MODEL,
+  MAGIC_EXPAND_MODEL,
+  MAGIC_UPSCALE_MODEL,
+  buildMagicEditRequest,
+  buildMagicExpandRequest,
+  buildMagicUpscaleRequest,
+  planExpand,
+} from "../src/magic/endpoints.js";
 
 describe("iconify adapter", () => {
   it("maps a search response to an icon-id list", () => {
@@ -185,5 +194,57 @@ describe("fal.ai image-to-image (nano-banana edit) adapter", () => {
     });
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ url: "https://fal/out/edit.png", width: 1024 });
+  });
+});
+
+describe("magic extras fal request builders", () => {
+  it("targets the chosen fal models", () => {
+    expect(MAGIC_EDIT_MODEL).toBe("fal-ai/flux-pro/v1/fill");
+    expect(MAGIC_EXPAND_MODEL).toBe("fal-ai/bria/expand");
+    expect(MAGIC_UPSCALE_MODEL).toBe("fal-ai/clarity-upscaler");
+  });
+
+  it("builds prompt inpaint payloads without mutating image inputs", () => {
+    expect(buildMagicEditRequest("img", "mask", "  red apple  ")).toEqual({
+      image_url: "img",
+      mask_url: "mask",
+      prompt: "red apple",
+      num_images: 1,
+      enable_safety_checker: true,
+    });
+  });
+
+  it("plans expand canvases around the original image", () => {
+    expect(planExpand(360, 260, "16:9", 4 / 3)).toEqual({
+      canvasWidth: 720,
+      canvasHeight: 405,
+      originalX: 180,
+      originalY: 73,
+      originalWidth: 360,
+      originalHeight: 260,
+    });
+    const free = planExpand(360, 260, "free", 800 / 600);
+    expect(free.canvasWidth / free.canvasHeight).toBeCloseTo(800 / 600, 2);
+    expect(free.originalX).toBeGreaterThan(0);
+    expect(free.originalY).toBeGreaterThan(0);
+  });
+
+  it("builds bria expand placement payloads from a plan", () => {
+    const plan = planExpand(100, 50, "1:1", 1);
+    expect(buildMagicExpandRequest("img", plan)).toEqual({
+      image_url: "img",
+      canvas_size: [200, 200],
+      original_image_size: [100, 50],
+      original_image_location: [50, 75],
+    });
+  });
+
+  it("builds clarity upscale payloads with a 2x enhancement target", () => {
+    expect(buildMagicUpscaleRequest("img")).toMatchObject({
+      image_url: "img",
+      upscale_factor: 2,
+      creativity: 0.2,
+      resemblance: 0.75,
+    });
   });
 });

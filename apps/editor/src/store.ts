@@ -1,9 +1,20 @@
 import { create } from "zustand";
 import { removeBackground, BgRemovalError } from "./bg/removeBackground.js";
 import { getKey } from "./library/settings.js";
-import { eraseRegion, segmentAtPoint, MagicError } from "./magic/endpoints.js";
 import {
+  eraseRegion,
+  editRegion,
+  expandImage,
+  segmentAtPoint,
+  upscaleImage,
+  planExpand,
+  MagicError,
+  type MagicExpandRatio,
+} from "./magic/endpoints.js";
+import {
+  capImageLongestSide,
   extractSubject,
+  imageNaturalSize,
   blurBackgroundComposite,
   toDataUri,
   RasterError,
@@ -157,11 +168,12 @@ interface EditorState {
   bgStage: string | null; // coarse progress stage of the active removal
   bgError: { uid: number; message: string } | null; // last removal failure
   // magic suite (fal-powered eraser/grab + local blur)
-  magicMode: "erase" | "grab" | null; // active canvas interaction mode
+  magicMode: "erase" | "edit" | "grab" | null; // active canvas interaction mode
   magicUid: number | null; // image item the active magic tool targets
   magicBusy: boolean; // an async magic op is running
   magicStage: string | null; // coarse progress label
   magicError: { uid: number; message: string } | null;
+  magicNotice: { uid: number; message: string } | null;
   // live background-blur preview (non-destructive until Apply)
   blurPreview: {
     uid: number;
@@ -215,11 +227,15 @@ interface EditorState {
 
   // magic suite
   beginMagicErase: (uid: number) => void;
+  beginMagicEdit: (uid: number) => void;
   beginMagicGrab: (uid: number) => void;
   cancelMagic: () => void;
   clearMagicError: () => void;
   applyMagicErase: (uid: number, maskDataUri: string) => Promise<void>;
+  applyMagicEdit: (uid: number, maskDataUri: string, prompt: string) => Promise<void>;
   applyMagicGrab: (uid: number, imgX: number, imgY: number) => Promise<void>;
+  applyMagicExpand: (uid: number, ratio: MagicExpandRatio) => Promise<void>;
+  applyMagicUpscale: (uid: number) => Promise<void>;
   // background blur: preview flow (compute cutout once, recompute blur live)
   beginMagicBlur: (uid: number, amount: number) => Promise<void>;
   setMagicBlurAmount: (amount: number) => Promise<void>;
@@ -352,6 +368,7 @@ export const useEditor = create<EditorState>((set, get) => {
     magicBusy: false,
     magicStage: null,
     magicError: null,
+    magicNotice: null,
     blurPreview: null,
     zoom: 0.6,
     showGrid: false,
@@ -361,11 +378,11 @@ export const useEditor = create<EditorState>((set, get) => {
 
     load: (xml, name) => {
       const doc = tagDocument(documentFromXml(xml));
-      set({ pages: doc.pages, activePage: doc.activePage, design: activeDesign(doc), designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, blurPreview: null, past: [], future: [], lockedUids: [] });
+      set({ pages: doc.pages, activePage: doc.activePage, design: activeDesign(doc), designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, magicNotice: null, blurPreview: null, past: [], future: [], lockedUids: [] });
     },
     loadSaved: (raw, name) => {
       const doc = tagDocument(parseAutosave(raw));
-      set({ pages: doc.pages, activePage: doc.activePage, design: activeDesign(doc), designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, blurPreview: null, past: [], future: [], lockedUids: [] });
+      set({ pages: doc.pages, activePage: doc.activePage, design: activeDesign(doc), designName: name, selectedUids: [], drillGroupUid: null, editingUid: null, croppingUid: null, bgProcessingUids: [], bgStage: null, bgError: null, magicMode: null, magicUid: null, magicBusy: false, magicStage: null, magicError: null, magicNotice: null, blurPreview: null, past: [], future: [], lockedUids: [] });
     },
 
     setName: (name) => set({ designName: name }),
@@ -504,15 +521,20 @@ export const useEditor = create<EditorState>((set, get) => {
     beginMagicErase: (uid) => {
       const it = findByUid(get().design, uid);
       if (!it || it.type !== "image") return;
-      set({ magicMode: "erase", magicUid: uid, selectedUids: [uid], drillGroupUid: null, editingUid: null, croppingUid: null, magicError: null });
+      set({ magicMode: "erase", magicUid: uid, selectedUids: [uid], drillGroupUid: null, editingUid: null, croppingUid: null, magicError: null, magicNotice: null });
+    },
+    beginMagicEdit: (uid) => {
+      const it = findByUid(get().design, uid);
+      if (!it || it.type !== "image") return;
+      set({ magicMode: "edit", magicUid: uid, selectedUids: [uid], drillGroupUid: null, editingUid: null, croppingUid: null, magicError: null, magicNotice: null });
     },
     beginMagicGrab: (uid) => {
       const it = findByUid(get().design, uid);
       if (!it || it.type !== "image") return;
-      set({ magicMode: "grab", magicUid: uid, selectedUids: [uid], drillGroupUid: null, editingUid: null, croppingUid: null, magicError: null });
+      set({ magicMode: "grab", magicUid: uid, selectedUids: [uid], drillGroupUid: null, editingUid: null, croppingUid: null, magicError: null, magicNotice: null });
     },
     cancelMagic: () => set({ magicMode: null, magicUid: null }),
-    clearMagicError: () => set({ magicError: null }),
+    clearMagicError: () => set({ magicError: null, magicNotice: null }),
 
     applyMagicErase: async (uid, maskDataUri) => {
       const item = findByUid(get().design, uid);
@@ -523,6 +545,31 @@ export const useEditor = create<EditorState>((set, get) => {
       set({ magicBusy: true, magicStage: "erasing", magicError: null });
       try {
         const url = await eraseRegion(source, maskDataUri, key);
+        const png = await toDataUri(url);
+        commit((d) => {
+          const it = findByUid(d, uid);
+          if (it && it.type === "image") applySource(it as any, png);
+        });
+        set({ magicMode: null, magicUid: null });
+      } catch (err) {
+        set({ magicError: { uid, message: magicMessage(err) } });
+      } finally {
+        set({ magicBusy: false, magicStage: null });
+      }
+    },
+
+    applyMagicEdit: async (uid, maskDataUri, prompt) => {
+      const item = findByUid(get().design, uid);
+      if (!item || item.type !== "image" || get().magicBusy) return;
+      const key = getKey("fal");
+      if (!key) { set({ magicError: { uid, message: "Connect fal.ai to use magic tools." } }); return; }
+      const cleanPrompt = prompt.trim();
+      if (!cleanPrompt) { set({ magicError: { uid, message: "Describe what should replace the painted area." } }); return; }
+      set({ magicBusy: true, magicStage: "editing", magicError: null, magicNotice: null });
+      try {
+        // fal can't fetch relative/local URLs — always ship a data URI.
+        const source = await toDataUri((item as any).source as string);
+        const url = await editRegion(source, maskDataUri, cleanPrompt, key);
         const png = await toDataUri(url);
         commit((d) => {
           const it = findByUid(d, uid);
@@ -576,6 +623,70 @@ export const useEditor = create<EditorState>((set, get) => {
           d.items.push(subject);
         });
         set({ magicMode: null, magicUid: null, selectedUids: [subject._uid!], drillGroupUid: null });
+      } catch (err) {
+        set({ magicError: { uid, message: magicMessage(err) } });
+      } finally {
+        set({ magicBusy: false, magicStage: null });
+      }
+    },
+
+    applyMagicExpand: async (uid, ratio) => {
+      const item = findByUid(get().design, uid) as IdItem | undefined;
+      if (!item || item.type !== "image" || get().magicBusy) return;
+      const key = getKey("fal");
+      if (!key) { set({ magicError: { uid, message: "Connect fal.ai to use magic tools." } }); return; }
+      set({ magicBusy: true, magicStage: "expanding", magicError: null, magicNotice: null });
+      try {
+        // fal can't fetch relative/local URLs — always ship a data URI.
+        const source = await toDataUri((item as any).source as string);
+        const natural = await imageNaturalSize(source);
+        const d0 = get().design;
+        const plan = planExpand(natural.width, natural.height, ratio, d0.canvasWidth / d0.canvasHeight);
+        const url = await expandImage(source, plan, key);
+        const png = await toDataUri(url);
+        const expanded = await imageNaturalSize(png);
+        const x0 = (item as any).xpos as number;
+        const y0 = (item as any).ypos as number;
+        let nextW = ((item as any).width as number) * (expanded.width / natural.width);
+        let nextH = ((item as any).height as number) * (expanded.height / natural.height);
+        const fit = Math.min(1, d0.canvasWidth / nextW, d0.canvasHeight / nextH);
+        nextW = Math.max(1, nextW * fit);
+        nextH = Math.max(1, nextH * fit);
+        const nextX = Math.min(Math.max(x0, nextW / 2), d0.canvasWidth - nextW / 2);
+        const nextY = Math.min(Math.max(y0, nextH / 2), d0.canvasHeight - nextH / 2);
+        commit((d) => {
+          const it = findByUid(d, uid);
+          if (it && it.type === "image") {
+            applySource(it as any, png);
+            patchItem(it as any, { xpos: nextX, ypos: nextY, width: nextW, height: nextH, cropped: false });
+          }
+        });
+      } catch (err) {
+        set({ magicError: { uid, message: magicMessage(err) } });
+      } finally {
+        set({ magicBusy: false, magicStage: null });
+      }
+    },
+
+    applyMagicUpscale: async (uid) => {
+      const item = findByUid(get().design, uid);
+      if (!item || item.type !== "image" || get().magicBusy) return;
+      const key = getKey("fal");
+      if (!key) { set({ magicError: { uid, message: "Connect fal.ai to use magic tools." } }); return; }
+      set({ magicBusy: true, magicStage: "enhancing", magicError: null, magicNotice: null });
+      try {
+        const source = await capImageLongestSide((item as any).source as string, 2048);
+        const url = await upscaleImage(source, key);
+        const png = await toDataUri(url);
+        commit((d) => {
+          const it = findByUid(d, uid);
+          if (it && it.type === "image") applySource(it as any, png);
+        });
+        set({ magicNotice: { uid, message: "Enhanced ✓" } });
+        window.setTimeout(() => {
+          const cur = get().magicNotice;
+          if (cur?.uid === uid) set({ magicNotice: null });
+        }, 1800);
       } catch (err) {
         set({ magicError: { uid, message: magicMessage(err) } });
       } finally {
