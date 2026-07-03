@@ -368,7 +368,7 @@ export function Dashboard() {
       <header className="sticky top-0 z-10 flex h-[49px] items-center justify-between border-b border-white/[0.06] bg-[#1c1c1f] px-3">
         <div className="flex items-center gap-2.5">
           <img src="/brand/youzign-logo.png" alt="Youzign" className="h-7 w-7" />
-          <span className="text-[14px] font-semibold text-neutral-100">Youzign</span>
+          <span className="text-[14px] font-semibold text-neutral-100">youzign</span>
         </div>
         <button className={accentBtn} onClick={() => setModal(true)} data-testid="new-design">
           <Icon name="plus" size={16} /> New design
