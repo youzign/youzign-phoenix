@@ -129,7 +129,6 @@ export function CanvasStage() {
   const applyMagicBlur = useEditor((s) => s.applyMagicBlur);
   const cancelMagicBlur = useEditor((s) => s.cancelMagicBlur);
   const bgProcessingUids = useEditor((s) => s.bgProcessingUids);
-  const beginCrop = useEditor((s) => s.beginCrop);
   const cancelCrop = useEditor((s) => s.cancelCrop);
   const commitCrop = useEditor((s) => s.commitCrop);
   const addPhoto = useEditor((s) => s.addPhoto);
@@ -431,10 +430,6 @@ export function CanvasStage() {
       setEditing(uid);
       return;
     }
-    if (item.type === "image") {
-      beginCrop(uid);
-      return;
-    }
     if (item.type === "group") {
       // Drill into the topmost child under the cursor.
       const group = findGroup(design, uid);
@@ -647,13 +642,19 @@ export function CanvasStage() {
               const showHandles = selectedIsTopLevel && !isText && !locked;
               const showRotate = selectedIsTopLevel && !locked;
               const isImageSel = singleItem?.type === "image";
-              const handleVisual: CSSProperties = {
-                width: 12,
-                height: 12,
+              const handleFill: CSSProperties = {
                 background: "#fff",
                 border: "1.5px solid var(--accent)",
-                borderRadius: 3,
                 boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+              };
+              const handleVisual = (id: HandleId): CSSProperties => {
+                if (id === "n" || id === "s") {
+                  return { ...handleFill, width: 18, height: 5, borderRadius: 999 };
+                }
+                if (id === "e" || id === "w") {
+                  return { ...handleFill, width: 5, height: 18, borderRadius: 999 };
+                }
+                return { ...handleFill, width: 12, height: 12, borderRadius: 3 };
               };
               const renderHandle = (id: HandleId) => (
                 <div
@@ -674,7 +675,7 @@ export function CanvasStage() {
                   }}
                   onPointerDown={(e) => startTransform(e, single, "resize", id)}
                 >
-                  <div style={handleVisual} />
+                  <div style={handleVisual(id)} />
                 </div>
               );
               return (
@@ -1370,9 +1371,16 @@ function MagicEraseOverlay({
           style={{ position: "absolute", inset: 0, width: dispW, height: dispH, pointerEvents: "none" }}
         />
       </div>
-      {/* toolbar */}
+      {/* toolbar — never narrower than 380px so the Edit prompt stays usable
+          on small images; centered under the item when wider than it. */}
       <div
-        style={{ position: "absolute", left: px(boxLeft), top: px(boxTop + item.height) + 8, width: dispW }}
+        style={{
+          position: "absolute",
+          left: px(boxLeft + item.width / 2),
+          top: px(boxTop + item.height) + 8,
+          width: Math.max(dispW, 380),
+          transform: "translateX(-50%)",
+        }}
         onPointerDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 rounded-lg bg-neutral-900/95 px-3 py-2 shadow-lg ring-1 ring-white/10">

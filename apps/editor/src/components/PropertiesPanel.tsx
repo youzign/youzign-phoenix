@@ -368,13 +368,30 @@ function CornerRadiusBlock({ any, patch }: { any: any; patch: (p: ItemPatch) => 
           />
         </div>
       ) : (
-        <NumberField
-          label="Radius"
-          value={tl}
-          onChange={(v) => setAll(Math.max(0, v))}
-          min={0}
-          unit="px"
-        />
+        <div className="flex items-center gap-1.5">
+          <div className="min-w-0 flex-1">
+            <NumberField
+              label="Radius"
+              value={tl}
+              onChange={(v) => setAll(Math.max(0, v))}
+              min={0}
+              unit="px"
+            />
+          </div>
+          {[10, 20, 40].map((v) => (
+            <button
+              key={v}
+              onClick={() => setAll(v)}
+              className={`h-7 rounded-md px-2 text-[11px] tabular-nums transition-colors duration-150 ${
+                tl === v
+                  ? "bg-[var(--accent)] text-white"
+                  : "bg-white/[0.06] text-neutral-300 hover:bg-white/[0.1]"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -790,7 +807,7 @@ function MagicSection({ uid }: { uid: number }) {
       <Divider />
       <SectionLabel>
         <span className="inline-flex items-center gap-1.5">
-          <Icon name="sparkles" size={13} /> Magic
+          <Icon name="sparkles" size={13} /> A.I.
         </span>
       </SectionLabel>
       <div className="grid grid-cols-3 gap-1.5">
@@ -912,7 +929,7 @@ function MagicSection({ uid }: { uid: number }) {
         <p className="text-[10px] leading-relaxed text-rose-400">{magicError.message}</p>
       ) : !hasFal ? (
         <p className="text-[10px] leading-relaxed text-neutral-500">
-          Magic AI tools need fal.ai —{" "}
+          A.I. tools need fal.ai —{" "}
           <a href={FAL_KEY_URL} target="_blank" rel="noreferrer" className="text-[var(--accent)] hover:underline">
             Connect fal.ai
           </a>{" "}
@@ -1121,7 +1138,7 @@ export function PropertiesPanel() {
             </p>
           )}
           {any.cropped && (
-            <p className="text-[10px] text-neutral-500">Cropped · double-click to re-crop</p>
+            <p className="text-[10px] text-neutral-500">Cropped · use Crop image to re-crop</p>
           )}
         </section>
       )}

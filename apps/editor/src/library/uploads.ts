@@ -179,7 +179,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
  * the cap are redrawn through a canvas at the reduced size (alpha preserved for
  * png/webp). The data URI is what gets inserted — no invented designstring attrs.
  */
-export async function fileToUploadRecord(file: File): Promise<UploadRecord> {
+export async function fileToUploadRecord(file: File, cap = MAX_UPLOAD_DIM): Promise<UploadRecord> {
   const rawUri = await readAsDataUri(file);
   const base = {
     id: newId(),
@@ -204,7 +204,7 @@ export async function fileToUploadRecord(file: File): Promise<UploadRecord> {
   const img = await loadImage(rawUri);
   const nW = img.naturalWidth || 1;
   const nH = img.naturalHeight || 1;
-  const dims = downscaleDims(nW, nH);
+  const dims = downscaleDims(nW, nH, cap);
   if (!dims.scaled) {
     return { ...base, dataUri: rawUri, width: nW, height: nH };
   }

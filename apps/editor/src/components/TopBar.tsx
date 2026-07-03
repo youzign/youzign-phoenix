@@ -4,6 +4,7 @@ import { useEditor } from "../store.js";
 import { Icon, IconButton, ghostBtn } from "./ui.js";
 import { ExportMenu } from "./ExportMenu.js";
 import { ResizeMenu } from "./ResizeMenu.js";
+import { dashboardHash } from "../router.js";
 
 const FIXTURE_LABELS: Record<string, string> = {
   "mountains-input.xml": "Mountains (input)",
@@ -54,12 +55,17 @@ export function TopBar({
   };
 
   return (
-    <header className="flex items-center gap-3 border-b border-white/[0.06] bg-[#1c1c1f] px-3 py-2">
+    <header className="flex h-[49px] items-center gap-3 border-b border-white/[0.06] bg-[#1c1c1f] px-3">
       {/* brand + doc name */}
       <div className="flex items-center gap-2.5">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-[13px] font-bold text-white shadow-sm">
-          Y
-        </span>
+        <button
+          type="button"
+          onClick={() => (window.location.hash = dashboardHash())}
+          className="flex h-7 w-7 items-center justify-center rounded-lg transition-transform duration-150 hover:scale-105"
+          aria-label="Back to dashboard"
+        >
+          <img src="/brand/youzign-logo.png" alt="Youzign" className="h-7 w-7" />
+        </button>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -112,7 +118,11 @@ export function TopBar({
           <select
             className="appearance-none rounded-md bg-white/[0.05] py-1.5 pl-2.5 pr-7 text-[12px] font-medium text-neutral-200 outline-none transition-colors hover:bg-white/[0.09] focus:ring-1 focus:ring-[var(--accent)]/60"
             value={fixture}
-            onChange={(e) => onFixture(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              onFixture(next);
+              load(fixtures[next], next.replace(/\.xml$/i, ""));
+            }}
           >
             {Object.keys(fixtures).map((k) => (
               <option key={k} value={k} className="bg-neutral-800">
