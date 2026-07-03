@@ -52,8 +52,11 @@ import {
   type AspectPreset,
   type GenResult,
 } from "../library/generate.js";
+import { pickFiles } from "../native.js";
 
 type Tab = "photos" | "icons" | "text" | "elements" | "generate";
+
+const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
 
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: "photos", label: "Photos", icon: "image" },
@@ -503,7 +506,6 @@ function UploadsSection({
   busy: boolean;
 }) {
   const [records, setRecords] = useState<UploadRecord[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
   const addPhoto = useEditor((s) => s.addPhoto);
 
   useEffect(() => {
@@ -523,13 +525,17 @@ function UploadsSection({
 
   const insert = (r: UploadRecord) =>
     addPhoto({ source: r.dataUri, width: r.width, height: r.height });
+  const chooseFiles = async () => {
+    const files = await pickFiles({ accept: IMAGE_ACCEPT, multiple: true });
+    if (files.length) await onFiles(files);
+  };
 
   return (
     <div className="mb-4">
       <div className="mb-2 flex items-center justify-between">
         <SectionLabel>My uploads</SectionLabel>
         <button
-          onClick={() => inputRef.current?.click()}
+          onClick={() => void chooseFiles()}
           className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors duration-150 hover:brightness-110"
         >
           {busy ? (
@@ -540,21 +546,10 @@ function UploadsSection({
           Upload
         </button>
       </div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/webp,image/svg+xml"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          if (e.target.files) void onFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
 
       {records.length === 0 ? (
         <button
-          onClick={() => inputRef.current?.click()}
+          onClick={() => void chooseFiles()}
           className="flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.02] px-3 py-5 text-center transition-colors duration-150 hover:border-[var(--accent)]/50 hover:bg-white/[0.05]"
         >
           <Icon name="image" size={18} className="text-neutral-500" />
@@ -1223,7 +1218,6 @@ function EditControls({ busy, onStart, onResults, onError }: ModeProps) {
   const [refs, setRefs] = useState<EditRef[]>([]);
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [showPicker, setShowPicker] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // Selected canvas image (offer a one-tap "use this" chip).
   const selected = useEditor((s) => s.selectedItem());
@@ -1258,6 +1252,10 @@ function EditControls({ busy, onStart, onResults, onError }: ModeProps) {
     if (!files || (files as FileList).length === 0) return;
     const recs = await ingestFiles(files); // persists to My uploads too
     addRefs(recs.map((r) => ({ id: r.id, url: r.dataUri, label: r.name })));
+  };
+  const chooseFiles = async () => {
+    const files = await pickFiles({ accept: IMAGE_ACCEPT, multiple: true });
+    if (files.length) await onFiles(files);
   };
 
   const run = () => {
@@ -1298,7 +1296,7 @@ function EditControls({ busy, onStart, onResults, onError }: ModeProps) {
         ))}
         {room > 0 && (
           <button
-            onClick={() => fileRef.current?.click()}
+            onClick={() => void chooseFiles()}
             title="Upload images"
             className="flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-white/[0.14] text-neutral-500 transition-colors hover:border-[var(--accent)]/50 hover:text-neutral-200"
           >
@@ -1307,17 +1305,6 @@ function EditControls({ busy, onStart, onResults, onError }: ModeProps) {
           </button>
         )}
       </div>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/png,image/jpeg,image/webp,image/svg+xml"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          if (e.target.files) void onFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
 
       {/* quick sources */}
       <div className="mb-2.5 flex flex-wrap gap-1.5">

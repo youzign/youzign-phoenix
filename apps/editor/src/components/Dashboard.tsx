@@ -25,13 +25,14 @@ import {
   type DocumentRecord,
 } from "../library/documents.js";
 import { fileToUploadRecord, isAcceptedFile } from "../library/uploads.js";
-import { openExternal } from "../native.js";
+import { openExternal, pickFiles } from "../native.js";
 import { blankDocument, imageDocument, startImageDims, START_IMAGE_MAX_DIM } from "../newDesign.js";
 import { editorHash } from "../router.js";
 import { APP_VERSION, fetchUpdateInfo, type VersionInfo } from "../version.js";
 import { Icon, accentBtn, ghostBtn, segItem } from "./ui.js";
 
 const QUICK_PRESETS = ["ig-post-square", "ig-story", "yt-thumbnail", "print-a4", "print-business-card"];
+const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
 
 function checkerStyle() {
   return {
@@ -177,8 +178,6 @@ function NewDesignModal({ onClose }: { onClose: () => void }) {
   const [customH, setCustomH] = useState("1002");
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
   const q = query.trim().toLowerCase();
   const visible = useMemo(
     () =>
@@ -213,6 +212,10 @@ function NewDesignModal({ onClose }: { onClose: () => void }) {
     } finally {
       setBusy(false);
     }
+  };
+  const chooseFile = async () => {
+    const [file] = await pickFiles({ accept: IMAGE_ACCEPT });
+    await startFromFile(file);
   };
 
   return (
@@ -300,7 +303,7 @@ function NewDesignModal({ onClose }: { onClose: () => void }) {
               className={`mt-2 flex h-36 w-full flex-col items-center justify-center rounded-xl border border-dashed text-[12px] transition-colors duration-150 ${
                 dragging ? "border-[var(--accent)] bg-[var(--accent)]/10 text-white" : "border-white/15 bg-white/[0.03] text-neutral-400 hover:bg-white/[0.06]"
               }`}
-              onClick={() => fileRef.current?.click()}
+              onClick={() => void chooseFile()}
               onDragOver={(e) => {
                 e.preventDefault();
                 setDragging(true);
@@ -317,14 +320,6 @@ function NewDesignModal({ onClose }: { onClose: () => void }) {
               <span className="mt-2">{busy ? "Preparing image..." : "Drop or choose an image"}</span>
               <span className="mt-1 text-[11px] text-neutral-500">Longest side capped at {START_IMAGE_MAX_DIM}px</span>
             </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              className="hidden"
-              onChange={(e) => void startFromFile(e.target.files?.[0])}
-              data-testid="image-file-input"
-            />
           </div>
         </aside>
       </div>

@@ -1,11 +1,10 @@
-import { useRef } from "react";
 import { serialize } from "@youzign/designstring";
 import { useEditor } from "../store.js";
 import { Icon, IconButton, ghostBtn } from "./ui.js";
 import { ExportMenu } from "./ExportMenu.js";
 import { ResizeMenu } from "./ResizeMenu.js";
 import { dashboardHash } from "../router.js";
-import { saveBlob } from "../native.js";
+import { pickFiles, saveBlob } from "../native.js";
 
 const FIXTURE_LABELS: Record<string, string> = {
   "mountains-input.xml": "Mountains (input)",
@@ -36,19 +35,16 @@ export function TopBar({
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
   const load = useEditor((s) => s.load);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const exportXml = async () => {
     const blob = new Blob([serialize(design)], { type: "application/xml" });
     await saveBlob(blob, `${name || "design"}.xml`);
   };
 
-  const importXml = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const importXml = async () => {
+    const [file] = await pickFiles({ accept: ".xml,application/xml,text/xml" });
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => load(String(reader.result), file.name.replace(/\.xml$/i, ""));
-    reader.readAsText(file);
+    load(await file.text(), file.name.replace(/\.xml$/i, ""));
   };
 
   return (
@@ -136,8 +132,7 @@ export function TopBar({
 
         <div className="mx-0.5 h-5 w-px bg-white/10" />
 
-        <input ref={fileRef} type="file" accept=".xml" className="hidden" onChange={importXml} />
-        <button className={ghostBtn} onClick={() => fileRef.current?.click()}>
+        <button className={ghostBtn} onClick={() => void importXml()}>
           <Icon name="upload" size={16} /> Import
         </button>
         <button className={ghostBtn} onClick={() => void exportXml()}>
