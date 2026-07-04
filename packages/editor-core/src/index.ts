@@ -5,6 +5,7 @@ export * from "./text-effects.js";
 export * from "./text-combos.js";
 export * from "./arrange.js";
 export * from "./background.js";
+export * from "./canvas-filter.js";
 export * from "./bg-removal.js";
 export * from "./magic.js";
 export * from "./geometry.js";
