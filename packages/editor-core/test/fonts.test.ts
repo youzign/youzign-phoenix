@@ -17,9 +17,12 @@ const fixture = resolve(__dirname, "../../../apps/editor/src/fixtures/mountains-
 const XML = readFileSync(fixture, "utf8");
 
 describe("curated font list", () => {
-  it("includes Arvo (the fixture family) and is unique", () => {
+  it("includes key families, is large, sorted, and unique", () => {
     expect(GOOGLE_FONTS).toContain("Arvo");
+    expect(GOOGLE_FONTS).toContain("Inter");
+    expect(GOOGLE_FONTS.length).toBeGreaterThanOrEqual(250);
     expect(new Set(GOOGLE_FONTS).size).toBe(GOOGLE_FONTS.length);
+    expect(GOOGLE_FONTS).toEqual([...GOOGLE_FONTS].sort((a, b) => a.localeCompare(b)));
   });
 });
 

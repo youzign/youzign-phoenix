@@ -473,6 +473,9 @@ function BrandFonts({ brand }: { brand: Brand }) {
   return (
     <div className="mb-5">
       <SectionLabel>Fonts</SectionLabel>
+      <p className="mt-1 text-[11px] leading-4 text-neutral-500">
+        Search any Google Font by name and add it from the picker.
+      </p>
       <div className="mt-2 flex flex-col gap-2.5">
         <label className="flex flex-col gap-1.5">
           <span className="text-[11px] text-neutral-500">Heading</span>
