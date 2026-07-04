@@ -6,6 +6,7 @@ import {
   isShapeNoFill,
   curveAmount,
   fontPatch,
+  canvasAdjustmentsNeutral,
   GRADIENT_PRESETS,
   GRADIENT_ANGLES,
   backgroundColorHex,
@@ -14,9 +15,11 @@ import {
   TEXT_EFFECTS,
   textEffectPatch,
   detectTextEffect,
+  type CanvasAdjustmentKey,
   type ItemPatch,
 } from "@youzign/editor-core";
-import { signedIntToHex, hexToSignedInt } from "@youzign/designstring";
+import { signedIntToHex, hexToSignedInt, type FilterItem } from "@youzign/designstring";
+import { FILTER_NAMES, VIGNETTE_BACKGROUND, filterRecipe } from "@youzign/renderer";
 import { useEditor } from "../store.js";
 import { getKey } from "../library/settings.js";
 import { FAL_KEY_URL } from "../library/generate.js";
@@ -49,6 +52,23 @@ const EXPAND_RATIOS: { ratio: MagicExpandRatio; label: string; title: string }[]
   { ratio: "free", label: "Canvas", title: "Use the current canvas ratio" },
 ];
 
+const MODERN_FILTER_IDS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28] as const;
+
+const ADJUST_SLIDERS: {
+  key: CanvasAdjustmentKey;
+  label: string;
+  min: number;
+  max: number;
+  unit?: string;
+}[] = [
+  { key: "brightness", label: "Brightness", min: -100, max: 100 },
+  { key: "contrast", label: "Contrast", min: -100, max: 100 },
+  { key: "saturation", label: "Saturation", min: -100, max: 100 },
+  { key: "hue", label: "Hue", min: -180, max: 180, unit: "deg" },
+  { key: "warmth", label: "Warmth", min: -100, max: 100 },
+  { key: "vignette", label: "Vignette", min: 0, max: 100 },
+];
+
 function Divider() {
   return <div className="h-px w-full bg-white/[0.06]" />;
 }
@@ -73,6 +93,80 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="text-neutral-400">{label}</span>
       {children}
     </label>
+  );
+}
+
+function filterThumbStyle(filterid: number): React.CSSProperties {
+  if (filterid <= 1) return {};
+  const recipe = filterRecipe(filterid, 1);
+  return { filter: recipe.canvasFilter };
+}
+
+function filterThumbOverlay(filterid: number) {
+  if (filterid <= 1) return null;
+  const layer = filterRecipe(filterid, 1).layers[0];
+  if (!layer) return null;
+  return (
+    <span
+      className="pointer-events-none absolute inset-0"
+      style={{
+        background: layer.background ?? VIGNETTE_BACKGROUND,
+        mixBlendMode: layer.blendMode as React.CSSProperties["mixBlendMode"],
+        opacity: layer.opacity,
+      }}
+    />
+  );
+}
+
+function adjustmentValue(item: FilterItem | undefined, key: CanvasAdjustmentKey): number {
+  if (!item) return 0;
+  switch (key) {
+    case "brightness":
+      return item.adjBrightness;
+    case "contrast":
+      return item.adjContrast;
+    case "saturation":
+      return item.adjSaturation;
+    case "hue":
+      return item.adjHue;
+    case "warmth":
+      return item.adjWarmth;
+    case "vignette":
+      return item.adjVignette;
+  }
+}
+
+function SliderCommit({
+  value,
+  min,
+  max,
+  step = 1,
+  onCommit,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onCommit: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = () => {
+    if (draft !== value) onCommit(draft);
+  };
+  return (
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={draft}
+      onChange={(e) => setDraft(Number(e.target.value))}
+      onPointerUp={commit}
+      onKeyUp={commit}
+      onBlur={commit}
+      className="yz-range"
+    />
   );
 }
 
@@ -520,9 +614,17 @@ function CanvasPanel() {
   const reverse = useEditor((s) => s.reverseBgGradient);
   const setBorderWidth = useEditor((s) => s.setCanvasBorderWidth);
   const setBorderColor = useEditor((s) => s.setCanvasBorderColor);
+  const setCanvasFilter = useEditor((s) => s.setCanvasFilter);
+  const setCanvasFilterAlpha = useEditor((s) => s.setCanvasFilterAlpha);
+  const setCanvasAdjustment = useEditor((s) => s.setCanvasAdjustment);
+  const resetCanvasAdjustments = useEditor((s) => s.resetCanvasAdjustments);
 
   const isGradient = design.bgType === "gradient";
   const transparent = !!design.transparent;
+  const filterItem = design.items.find((it) => it.type === "filter") as FilterItem | undefined;
+  const activeFilterId = filterItem?.filterid ?? 1;
+  const hasLegacyFilter = activeFilterId >= 2 && activeFilterId <= 15;
+  const hasAdjustments = !canvasAdjustmentsNeutral(filterItem);
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -642,6 +744,111 @@ function CanvasPanel() {
             </button>
           </div>
         )}
+      </section>
+
+      <Divider />
+
+      <section className="flex flex-col gap-3">
+        <SectionLabel>Filter</SectionLabel>
+        <div className="grid grid-cols-3 gap-1.5">
+          {hasLegacyFilter && (
+            <button
+              type="button"
+              data-preset-id={activeFilterId}
+              onClick={() => setCanvasFilter(activeFilterId)}
+              className="rounded-md bg-white/[0.04] p-1 text-left ring-2 ring-[var(--accent)] transition-colors duration-150 hover:bg-white/[0.08]"
+            >
+              <span className="relative block aspect-square overflow-hidden rounded-[5px] bg-neutral-800">
+                <img src="/sample-photo.png" alt="" className="h-full w-full object-cover" style={filterThumbStyle(activeFilterId)} />
+                {filterThumbOverlay(activeFilterId)}
+              </span>
+              <span className="mt-1 block truncate text-[10.5px] font-medium text-neutral-100">
+                Legacy — {FILTER_NAMES[activeFilterId]}
+              </span>
+            </button>
+          )}
+          <button
+            type="button"
+            data-preset-id="1"
+            onClick={() => setCanvasFilter(null)}
+            className={`rounded-md bg-white/[0.04] p-1 text-left transition-colors duration-150 hover:bg-white/[0.08] ${
+              activeFilterId <= 1 && !hasAdjustments ? "ring-2 ring-[var(--accent)]" : "ring-1 ring-inset ring-white/10"
+            }`}
+          >
+            <span className="relative block aspect-square overflow-hidden rounded-[5px] bg-neutral-800">
+              <img src="/sample-photo.png" alt="" className="h-full w-full object-cover" />
+            </span>
+            <span className="mt-1 block truncate text-[10.5px] font-medium text-neutral-200">Original</span>
+          </button>
+          {MODERN_FILTER_IDS.map((id) => {
+            const active = activeFilterId === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                data-preset-id={id}
+                onClick={() => setCanvasFilter(id)}
+                className={`rounded-md bg-white/[0.04] p-1 text-left transition-colors duration-150 hover:bg-white/[0.08] ${
+                  active ? "ring-2 ring-[var(--accent)]" : "ring-1 ring-inset ring-white/10"
+                }`}
+              >
+                <span className="relative block aspect-square overflow-hidden rounded-[5px] bg-neutral-800">
+                  <img src="/sample-photo.png" alt="" className="h-full w-full object-cover" style={filterThumbStyle(id)} />
+                  {filterThumbOverlay(id)}
+                </span>
+                <span className="mt-1 block truncate text-[10.5px] font-medium text-neutral-200">{FILTER_NAMES[id]}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {activeFilterId > 1 && filterItem && (
+          <div className="flex flex-col gap-2">
+            <SectionLabel right={<span className="text-[12px] tabular-nums text-neutral-300">{Math.round(filterItem.opacity * 100)}%</span>}>
+              Intensity
+            </SectionLabel>
+            <SliderCommit
+              min={0}
+              max={100}
+              value={Math.round(filterItem.opacity * 100)}
+              onCommit={(value) => setCanvasFilterAlpha(value / 100)}
+            />
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2.5">
+          <SectionLabel
+            right={
+              hasAdjustments ? (
+                <button
+                  type="button"
+                  onClick={resetCanvasAdjustments}
+                  className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-neutral-300 hover:bg-white/[0.08] hover:text-white"
+                >
+                  Reset
+                </button>
+              ) : null
+            }
+          >
+            Adjust
+          </SectionLabel>
+          {ADJUST_SLIDERS.map((slider) => {
+            const value = adjustmentValue(filterItem, slider.key);
+            return (
+              <div key={slider.key} className="flex flex-col gap-1.5">
+                <SectionLabel right={<span className="text-[12px] tabular-nums text-neutral-300">{value}{slider.unit ?? ""}</span>}>
+                  {slider.label}
+                </SectionLabel>
+                <SliderCommit
+                  min={slider.min}
+                  max={slider.max}
+                  value={value}
+                  onCommit={(next) => setCanvasAdjustment(slider.key, next)}
+                />
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       <Divider />
