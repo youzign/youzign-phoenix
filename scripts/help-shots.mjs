@@ -357,7 +357,7 @@ async function makeAiShot(hasFalKey) {
     await page.evaluate((source) => {
       const st = window.__editor.getState();
       st.addPhoto({ source, width: 1080, height: 1080 });
-      const uid = st.selectedUids[0];
+      const uid = window.__editor.getState().selectedUids[0];
       st.patchItemByUid(uid, { xpos: 540, ypos: 540, width: 1080, height: 1080 });
     }, `data:image/png;base64,${fs.readFileSync(target).toString("base64")}`);
     await shot("ai-tools.png");
@@ -366,7 +366,7 @@ async function makeAiShot(hasFalKey) {
 
   await page.waitForSelector('[data-testid="generate-prompt"]', { timeout: 10000 });
   await page.click('[data-testid="generate-prompt"]');
-  await page.keyboard.type("vibrant gradient poster background, purple and electric blue, minimal", { delay: 8 });
+  await page.keyboard.type("vibrant abstract gradient background, purple and electric blue, edge to edge full bleed, no border, no frame", { delay: 8 });
   await page.evaluate(() => {
     const buttons = [...document.querySelectorAll("button")];
     const square = buttons.find((b) => b.textContent.trim() === "Square");
@@ -395,7 +395,12 @@ async function makeAiShot(hasFalKey) {
     const st = window.__editor.getState();
     const uid = st.selectedUids[0];
     const d = st.design;
-    st.patchItemByUid(uid, { xpos: d.canvasWidth / 2, ypos: d.canvasHeight / 2, width: d.canvasWidth, height: d.canvasHeight });
+    // Cover-fit: scale to fill the canvas, overflow clips at the canvas edge.
+    const item = st.selectedItem();
+    const a = item && item.height ? item.width / item.height : 1;
+    const width = a >= 1 ? d.canvasHeight * a : d.canvasWidth;
+    const height = a >= 1 ? d.canvasHeight : d.canvasWidth / a;
+    st.patchItemByUid(uid, { xpos: d.canvasWidth / 2, ypos: d.canvasHeight / 2, width, height });
   });
   await shot("ai-tools.png");
 }
@@ -406,11 +411,18 @@ async function makeRemoveBgShot() {
     const st = window.__editor.getState();
     st.setBgTransparent(true);
     st.addPhoto({ source: "/demo-portrait.jpg", width: 640, height: 640 });
-    const uid = st.selectedUids[0];
+    // Re-read state: `st` is a pre-addPhoto snapshot, its selectedUids is stale.
+    const uid = window.__editor.getState().selectedUids[0];
     st.patchItemByUid(uid, { xpos: 540, ypos: 540, width: 800, height: 800 });
     st.select(uid);
   });
   await waitForDesignPaint();
+  // addPhoto commits after the image decodes — the Remove bg button only exists
+  // once an image item is selected, so wait for that state before clicking.
+  await page.waitForFunction(
+    () => window.__editor.getState().selectedItem()?.type === "image",
+    { timeout: 15000, polling: 200 }
+  );
 
   const clicked = await page.evaluate(() => {
     const btn = [...document.querySelectorAll("button")].find((b) => /remove bg/i.test(b.textContent || ""));
@@ -481,12 +493,10 @@ async function makeBackgroundShot() {
 }
 
 async function verifyHelpImageMap() {
-  const referenced = await page.evaluate(async () => {
-    const mod = await import("/src/help-content.ts");
-    return mod.sections.flatMap((section) =>
-      section.blocks.filter((block) => block.type === "shot-ref").map((block) => block.file)
-    );
-  });
+  // Static scan of help-content.ts on disk — a browser dynamic import of the TS
+  // module only resolves under the raw dev-server root, not in this harness.
+  const helpSrc = fs.readFileSync(path.resolve(root, "apps/editor/src/help-content.ts"), "utf8");
+  const referenced = [...new Set([...helpSrc.matchAll(/([a-z0-9-]+\.png)/g)].map((m) => m[1]))];
   const missingGenerator = referenced.filter((file) => !HELP_FILES.includes(file));
   const orphanGenerator = HELP_FILES.filter((file) => !referenced.includes(file));
   if (missingGenerator.length || orphanGenerator.length) {
