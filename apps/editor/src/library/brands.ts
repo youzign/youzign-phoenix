@@ -1,6 +1,8 @@
 // Brand Kit metadata lives in localStorage; uploaded assets stay in IndexedDB
 // and are linked by brandId. All storage access is guarded for Node/test imports.
 
+import { signedIntToHex, type Design, type Item } from "@youzign/designstring";
+
 export interface Brand {
   id: string;
   name: string;
@@ -47,6 +49,77 @@ function normalizeColors(colors: string[]): string[] {
     out.push(normalized);
   }
   return out;
+}
+
+function isSentinelNumber(value: number): boolean {
+  return value === -1 || !Number.isFinite(value);
+}
+
+function addIntColor(out: string[], seen: Set<string>, value: number | undefined): void {
+  if (value === undefined || isSentinelNumber(value)) return;
+  const normalized = normalizeHex(signedIntToHex(value));
+  if (!normalized || seen.has(normalized)) return;
+  seen.add(normalized);
+  out.push(normalized);
+}
+
+function addStringColor(out: string[], seen: Set<string>, value: string | undefined): void {
+  if (!value) return;
+  const raw = value.trim();
+  if (!raw || raw === "-1" || raw.toLowerCase() === "transparent" || raw.toLowerCase() === "none") {
+    return;
+  }
+  const normalized = normalizeHex(raw);
+  if (!normalized || seen.has(normalized)) return;
+  seen.add(normalized);
+  out.push(normalized);
+}
+
+/**
+ * Pull an ordered starter palette from a design. This is intentionally DOM-free
+ * so the Brand empty state can seed from the live document and tests can cover
+ * designstring fixtures directly.
+ */
+export function collectDesignColors(design: Design): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const addInt = (value: number | undefined) => {
+    if (out.length < 8) addIntColor(out, seen, value);
+  };
+  const addString = (value: string | undefined) => {
+    if (out.length < 8) addStringColor(out, seen, value);
+  };
+
+  if (!design.transparent && design.bgType === "color") addInt(design.bgColor);
+  if (design.borderWidth > 0) addInt(design.borderColor);
+
+  const walk = (items: Item[]) => {
+    for (const item of items) {
+      if (out.length >= 8) return;
+      const anyItem = item as any;
+      if (item.type === "group") {
+        walk(item.items);
+        continue;
+      }
+      if (item.type === "text" || item.type === "text-curved") {
+        if (!anyItem.isNoFill) {
+          for (const color of item.colors) addInt(color);
+        }
+      } else if (item.type === "clipart") {
+        const shapeFill = item.rawAttrs?.shape_fill;
+        const lowerShapeFill = shapeFill?.toLowerCase();
+        addString(shapeFill);
+        if (!shapeFill || (lowerShapeFill !== "none" && lowerShapeFill !== "transparent")) {
+          for (const color of item.colors) addInt(color);
+        }
+      } else if (item.type === "image") {
+        addString(item.color);
+      }
+      if (anyItem.isBorder && (anyItem.borderSize ?? 0) > 0) addInt(anyItem.borderColor);
+    }
+  };
+  walk(design.items);
+  return out.slice(0, 8);
 }
 
 function validFonts(value: unknown): Brand["fonts"] | null {

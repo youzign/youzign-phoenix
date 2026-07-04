@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { GOOGLE_FONTS } from "@youzign/editor-core";
+import { ensureGoogleFonts } from "../fonts.js";
 
 /* ------------------------------------------------------------------ *
  * Icons — inline lucide-style SVG paths (stroke, no external dep).
@@ -392,9 +394,11 @@ export function NumberField({
 export function ColorSwatch({
   value,
   onChange,
+  compact = false,
 }: {
   value: string;
   onChange: (hex: string) => void;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -413,13 +417,17 @@ export function ColorSwatch({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 rounded-md bg-white/[0.04] p-1 pr-2 transition-colors duration-150 hover:bg-white/[0.08]"
+        className={`flex items-center gap-1.5 rounded-md bg-white/[0.04] p-1 transition-colors duration-150 hover:bg-white/[0.08] ${
+          compact ? "" : "pr-2"
+        }`}
       >
         <span
           className="h-5 w-5 rounded-[5px] ring-1 ring-inset ring-white/15"
           style={{ background: value }}
         />
-        <span className="text-[12px] tabular-nums uppercase text-neutral-300">{value}</span>
+        {!compact && (
+          <span className="text-[12px] tabular-nums uppercase text-neutral-300">{value}</span>
+        )}
       </button>
       {open && (
         <div className="absolute right-0 top-full z-40 mt-1.5 w-44 rounded-xl border border-white/10 bg-neutral-800/95 p-2.5 shadow-xl backdrop-blur">
@@ -441,6 +449,93 @@ export function ColorSwatch({
               maxLength={6}
             />
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function FontPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (family: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const families =
+    value && !GOOGLE_FONTS.includes(value) ? [value, ...GOOGLE_FONTS] : GOOGLE_FONTS;
+  const filtered = families.filter((f) =>
+    f.toLowerCase().includes(query.trim().toLowerCase())
+  );
+
+  useEffect(() => {
+    if (open) ensureGoogleFonts(filtered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, query]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        className="flex w-full items-center justify-between rounded-md bg-white/[0.05] px-2.5 py-2 text-[13px] text-neutral-100 transition-colors duration-150 hover:bg-white/[0.09]"
+        style={{ fontFamily: `"${value}", sans-serif` }}
+        onClick={() => {
+          setOpen((o) => !o);
+          setQuery("");
+        }}
+      >
+        <span className="truncate">{value || "Select font"}</span>
+        <Icon name="chevron-down" size={15} className="ml-2 shrink-0 text-neutral-500" />
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1.5 overflow-hidden rounded-xl border border-white/10 bg-neutral-800/95 shadow-2xl backdrop-blur">
+          <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2.5 py-2">
+            <Icon name="search" size={15} className="shrink-0 text-neutral-500" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search fonts…"
+              className="w-full bg-transparent text-[13px] text-neutral-100 outline-none placeholder:text-neutral-500"
+            />
+          </div>
+          <ul className="max-h-64 overflow-y-auto py-1">
+            {filtered.map((f) => {
+              const cur = f === value;
+              return (
+                <li key={f}>
+                  <button
+                    className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-[14px] transition-colors duration-100 ${
+                      cur ? "bg-[var(--accent-soft)] text-white" : "text-neutral-200 hover:bg-white/[0.06]"
+                    }`}
+                    style={{ fontFamily: `"${f}", sans-serif` }}
+                    onClick={() => {
+                      onChange(f);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="truncate">{f}</span>
+                    {cur && <Icon name="check" size={15} className="ml-2 shrink-0 text-[var(--accent)]" />}
+                  </button>
+                </li>
+              );
+            })}
+            {filtered.length === 0 && (
+              <li className="px-2.5 py-2.5 text-[12px] text-neutral-500">No matches</li>
+            )}
+          </ul>
         </div>
       )}
     </div>

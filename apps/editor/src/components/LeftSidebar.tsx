@@ -15,7 +15,7 @@ import {
 } from "@youzign/editor-core";
 import { useEditor } from "../store.js";
 import { ensureGoogleFonts } from "../fonts.js";
-import { Icon, type IconName } from "./ui.js";
+import { ColorSwatch, FontPicker, Icon, type IconName } from "./ui.js";
 import {
   searchIcons,
   iconifySvgUrl,
@@ -40,8 +40,22 @@ import {
   allUploads,
   deleteUpload,
   onUploadsChanged,
+  uploadsForBrand,
   type UploadRecord,
 } from "../library/uploads.js";
+import {
+  collectDesignColors,
+  createBrand,
+  deleteBrand,
+  getActiveBrandId,
+  listBrands,
+  onBrandsChanged,
+  renameBrand,
+  setActiveBrand,
+  setBrandColors,
+  setBrandFonts,
+  type Brand,
+} from "../library/brands.js";
 import {
   ASPECT_PRESETS,
   FAL_KEY_URL,
@@ -54,7 +68,7 @@ import {
 } from "../library/generate.js";
 import { pickFiles } from "../native.js";
 
-type Tab = "photos" | "icons" | "text" | "elements" | "generate";
+type Tab = "photos" | "icons" | "text" | "elements" | "generate" | "brand";
 
 const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
 
@@ -64,6 +78,7 @@ const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: "text", label: "Text", icon: "type" },
   { id: "elements", label: "Elements", icon: "shapes" },
   { id: "generate", label: "Create", icon: "sparkles" },
+  { id: "brand", label: "Brand", icon: "droplet" },
 ];
 
 /* --------------------------- small shared hooks --------------------------- */
@@ -113,6 +128,7 @@ export function LeftSidebar() {
         {tab === "icons" && <IconsPanel />}
         {tab === "photos" && <PhotosPanel />}
         {tab === "generate" && <GeneratePanel />}
+        {tab === "brand" && <BrandPanel />}
       </div>
     </div>
   );
@@ -216,6 +232,380 @@ function QuietLine({ children }: { children: React.ReactNode }) {
     <p className="px-1 py-6 text-center text-[11px] leading-relaxed text-neutral-500">
       {children}
     </p>
+  );
+}
+
+/* -------------------------------- Brand ---------------------------------- */
+
+function BrandPanel() {
+  const design = useEditor((s) => s.design);
+  const [, setRev] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+
+  useEffect(() => onBrandsChanged(() => setRev((r) => r + 1)), []);
+
+  const brands = listBrands();
+  const activeId = getActiveBrandId() ?? brands[0]?.id ?? null;
+  const activeBrand = brands.find((brand) => brand.id === activeId) ?? brands[0];
+
+  const createFromDesign = () => {
+    const brand = createBrand({ name: "My brand", colors: collectDesignColors(design) });
+    setActiveBrand(brand.id);
+  };
+  const createEmpty = () => {
+    const brand = createBrand({ name: "New brand" });
+    setActiveBrand(brand.id);
+  };
+  const commitRename = () => {
+    if (editingId) renameBrand(editingId, editingName);
+    setEditingId(null);
+  };
+
+  if (brands.length === 0) {
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <PanelHeader>Brand</PanelHeader>
+        <button
+          onClick={createFromDesign}
+          className="mb-3 flex w-full flex-col gap-2 rounded-xl border border-[var(--accent)]/45 bg-[var(--accent-soft)]/70 p-3 text-left transition-all duration-150 hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]"
+        >
+          <span className="flex items-center gap-2 text-[13px] font-semibold text-neutral-100">
+            <Icon name="droplet" size={15} className="text-[var(--accent)]" />
+            Start from this design
+          </span>
+          <span className="text-[11px] leading-relaxed text-neutral-400">
+            Create My brand using the colors already on this canvas.
+          </span>
+          <div className="flex gap-1.5 pt-1">
+            {collectDesignColors(design).slice(0, 6).map((color) => (
+              <span
+                key={color}
+                className="h-5 w-5 rounded-md ring-1 ring-inset ring-white/15"
+                style={{ background: color }}
+              />
+            ))}
+          </div>
+        </button>
+        <button
+          onClick={createEmpty}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white/[0.05] px-3 py-2.5 text-[12px] font-semibold text-neutral-200 transition-colors duration-150 hover:bg-white/[0.09] hover:text-neutral-100"
+        >
+          <Icon name="plus" size={14} />
+          New brand
+        </button>
+      </div>
+    );
+  }
+
+  if (!activeBrand) return null;
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <PanelHeader>Brand</PanelHeader>
+        <button
+          onClick={createEmpty}
+          title="New brand"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/[0.05] text-neutral-300 transition-colors duration-150 hover:bg-white/[0.09] hover:text-neutral-100"
+        >
+          <Icon name="plus" size={14} />
+        </button>
+      </div>
+
+      <SectionLabel>Brands</SectionLabel>
+      <div className="mb-4 flex flex-col gap-1.5">
+        {brands.map((brand) => {
+          const active = brand.id === activeBrand.id;
+          const editing = editingId === brand.id;
+          return (
+            <div
+              key={brand.id}
+              className={`group flex items-center gap-1.5 rounded-lg border px-2 py-1.5 transition-colors duration-150 ${
+                active
+                  ? "border-[var(--accent)]/50 bg-[var(--accent-soft)]/45"
+                  : "border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06]"
+              }`}
+            >
+              {editing ? (
+                <input
+                  autoFocus
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename();
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-neutral-100 outline-none"
+                />
+              ) : (
+                <button
+                  onClick={() => setActiveBrand(brand.id)}
+                  onDoubleClick={() => {
+                    setEditingId(brand.id);
+                    setEditingName(brand.name);
+                  }}
+                  className="min-w-0 flex-1 truncate text-left text-[12px] font-medium text-neutral-100"
+                >
+                  {brand.name}
+                </button>
+              )}
+              <button
+                title="Rename brand"
+                onClick={() => {
+                  setEditingId(brand.id);
+                  setEditingName(brand.name);
+                }}
+                className="flex h-6 w-6 items-center justify-center rounded-md text-neutral-500 opacity-0 transition-all duration-150 hover:bg-white/10 hover:text-neutral-100 group-hover:opacity-100"
+              >
+                <Icon name="type" size={12} />
+              </button>
+              <button
+                title="Delete brand"
+                onClick={() => {
+                  if (window.confirm(`Delete ${brand.name}?`)) deleteBrand(brand.id);
+                }}
+                className="flex h-6 w-6 items-center justify-center rounded-md text-neutral-500 opacity-0 transition-all duration-150 hover:bg-red-500/15 hover:text-red-300 group-hover:opacity-100"
+              >
+                <Icon name="trash" size={12} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <BrandPalette brand={activeBrand} />
+      <BrandFonts brand={activeBrand} />
+      <BrandAssets brand={activeBrand} />
+    </div>
+  );
+}
+
+function BrandPalette({ brand }: { brand: Brand }) {
+  const colors = brand.colors;
+  const replace = (next: string[]) => setBrandColors(brand.id, next);
+  const addColor = () => {
+    const fallback = ["#3b82f6", "#14b8a6", "#f97316", "#a855f7", "#111827"].find(
+      (color) => !colors.includes(color)
+    );
+    replace([...colors, fallback ?? "#3b82f6"]);
+  };
+  const move = (index: number, dir: -1 | 1) => {
+    const next = [...colors];
+    const target = index + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    replace(next);
+  };
+
+  return (
+    <div className="mb-5">
+      <div className="mb-2 flex items-center justify-between">
+        <SectionLabel>Palette</SectionLabel>
+        <button
+          onClick={addColor}
+          className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.05] px-2.5 py-1 text-[11px] font-semibold text-neutral-300 transition-colors duration-150 hover:bg-white/[0.09] hover:text-neutral-100"
+        >
+          <Icon name="plus" size={13} />
+          Add color
+        </button>
+      </div>
+      {colors.length === 0 ? (
+        <QuietLine>No brand colors yet.</QuietLine>
+      ) : (
+        <div className="grid grid-cols-4 gap-2">
+          {colors.map((color, index) => (
+            <div
+              key={`${color}-${index}`}
+              data-brand-swatch={color}
+              className="group relative flex aspect-square items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.03]"
+            >
+              <ColorSwatch
+                compact
+                value={color}
+                onChange={(hex) => replace(colors.map((c, i) => (i === index ? hex : c)))}
+              />
+              <button
+                title="Remove color"
+                onClick={() => replace(colors.filter((_, i) => i !== index))}
+                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-md bg-black/60 text-white opacity-0 transition-opacity duration-150 hover:bg-red-600 group-hover:opacity-100"
+              >
+                <Icon name="plus" size={11} className="rotate-45" />
+              </button>
+              <div className="absolute bottom-1 left-1 flex gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                <button
+                  title="Move left"
+                  disabled={index === 0}
+                  onClick={() => move(index, -1)}
+                  className="flex h-5 w-5 items-center justify-center rounded-md bg-black/55 text-[10px] text-white disabled:opacity-30"
+                >
+                  ‹
+                </button>
+                <button
+                  title="Move right"
+                  disabled={index === colors.length - 1}
+                  onClick={() => move(index, 1)}
+                  className="flex h-5 w-5 items-center justify-center rounded-md bg-black/55 text-[10px] text-white disabled:opacity-30"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BrandFonts({ brand }: { brand: Brand }) {
+  const pick = (key: "heading" | "body", family: string) => {
+    ensureGoogleFonts([family]);
+    setBrandFonts(brand.id, { [key]: family });
+  };
+  return (
+    <div className="mb-5">
+      <SectionLabel>Fonts</SectionLabel>
+      <div className="mt-2 flex flex-col gap-2.5">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[11px] text-neutral-500">Heading</span>
+          <FontPicker value={brand.fonts.heading ?? ""} onChange={(family) => pick("heading", family)} />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[11px] text-neutral-500">Body</span>
+          <FontPicker value={brand.fonts.body ?? ""} onChange={(family) => pick("body", family)} />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function BrandAssets({ brand }: { brand: Brand }) {
+  const [records, setRecords] = useState<UploadRecord[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  const addPhoto = useEditor((s) => s.addPhoto);
+
+  useEffect(() => {
+    let alive = true;
+    const refresh = () => {
+      uploadsForBrand(brand.id).then((r) => {
+        if (alive) setRecords(r);
+      });
+    };
+    refresh();
+    const off = onUploadsChanged(refresh);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, [brand.id]);
+
+  const onFiles = async (files: FileList | File[]) => {
+    if (!files || (files as FileList).length === 0) return;
+    setBusy(true);
+    try {
+      await ingestFiles(files, { brandId: brand.id });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const chooseFiles = async () => {
+    const files = await pickFiles({ accept: IMAGE_ACCEPT, multiple: true });
+    if (files.length) await onFiles(files);
+  };
+  const insert = (r: UploadRecord) =>
+    addPhoto({ source: r.dataUri, width: r.width, height: r.height });
+
+  return (
+    <div
+      className="relative"
+      onDragEnter={(e) => {
+        if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+        e.preventDefault();
+        dragDepth.current += 1;
+        setDragging(true);
+      }}
+      onDragOver={(e) => {
+        if (Array.from(e.dataTransfer.types).includes("Files")) e.preventDefault();
+      }}
+      onDragLeave={() => {
+        dragDepth.current = Math.max(0, dragDepth.current - 1);
+        if (dragDepth.current === 0) setDragging(false);
+      }}
+      onDrop={(e) => {
+        if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+        e.preventDefault();
+        dragDepth.current = 0;
+        setDragging(false);
+        void onFiles(e.dataTransfer.files);
+      }}
+    >
+      <div className="mb-2 flex items-center justify-between">
+        <SectionLabel>Assets</SectionLabel>
+        <button
+          onClick={() => void chooseFiles()}
+          className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors duration-150 hover:brightness-110"
+        >
+          {busy ? (
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          ) : (
+            <Icon name="plus" size={13} />
+          )}
+          Upload
+        </button>
+      </div>
+      {records.length === 0 ? (
+        <button
+          onClick={() => void chooseFiles()}
+          className="flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.02] px-3 py-5 text-center transition-colors duration-150 hover:border-[var(--accent)]/50 hover:bg-white/[0.05]"
+        >
+          <Icon name="image" size={18} className="text-neutral-500" />
+          <span className="text-[11px] leading-relaxed text-neutral-500">
+            Drop brand images here or click to upload
+          </span>
+        </button>
+      ) : (
+        <div className="grid grid-cols-3 gap-2.5">
+          {records.map((r) => (
+            <div
+              key={r.id}
+              className="group relative aspect-square overflow-hidden rounded-xl border border-white/[0.06] bg-[repeating-conic-gradient(#2a2a30_0%_25%,#232329_0%_50%)] bg-[length:14px_14px] transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--accent)]/50"
+            >
+              <img
+                src={r.dataUri}
+                alt={r.name}
+                loading="lazy"
+                className="h-full w-full cursor-pointer object-contain"
+                onClick={() => insert(r)}
+                title="Click to add to canvas"
+              />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void deleteUpload(r.id);
+                }}
+                title="Remove asset"
+                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-md bg-black/60 text-white opacity-0 transition-opacity duration-150 hover:bg-red-600 group-hover:opacity-100"
+              >
+                <Icon name="plus" size={12} className="rotate-45" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {dragging && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--accent)] bg-[#202024]/92 backdrop-blur-sm">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+            <Icon name="image" size={22} />
+          </div>
+          <p className="text-[13px] font-semibold text-neutral-100">Drop to upload</p>
+          <p className="text-[11px] text-neutral-500">PNG, JPG, WEBP or SVG</p>
+        </div>
+      )}
+    </div>
   );
 }
 

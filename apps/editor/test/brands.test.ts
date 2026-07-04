@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { parse } from "@youzign/designstring";
 import {
+  collectDesignColors,
   createBrand,
   deleteBrand,
   getActiveBrand,
@@ -52,6 +54,50 @@ describe("brand color normalization", () => {
     expect(normalizeHex("#12")).toBeNull();
     expect(normalizeHex("#abcd")).toBeNull();
     expect(normalizeHex("not-a-color")).toBeNull();
+  });
+});
+
+describe("collectDesignColors", () => {
+  it("collects canvas, text, clipart, borders, and nested group colors in order", () => {
+    const design = parse(`
+      <data canvas_width="800" canvas_height="600" bg_color="1122867" bg_type="color" border_width="2" border_color="4478310">
+        <item type="text" index="0" xpos="100" ypos="100" width="0" height="0" rotation="0" opacity="1" color="16711680@@@16711680" is_border="true" border_size="3" border_color="65280"><![CDATA[Hi]]></item>
+        <item type="clipart" index="1" xpos="200" ypos="200" width="100" height="100" rotation="0" opacity="1" color="255@@@16711680" />
+        <item type="group" index="2" xpos="300" ypos="300" width="100" height="100" rotation="0" opacity="1">
+          <item type="text" index="0" xpos="0" ypos="0" width="0" height="0" rotation="0" opacity="1" color="1193046"><![CDATA[Nested]]></item>
+        </item>
+      </data>
+    `);
+
+    expect(collectDesignColors(design)).toEqual([
+      "#112233",
+      "#445566",
+      "#ff0000",
+      "#00ff00",
+      "#0000ff",
+      "#123456",
+    ]);
+  });
+
+  it("skips transparent/no-fill sentinels, dedupes, and caps at eight colors", () => {
+    const design = parse(`
+      <data canvas_width="800" canvas_height="600" bg_color="-1" bg_type="color" transparent="true">
+        <item type="text" index="0" xpos="100" ypos="100" width="0" height="0" rotation="0" opacity="1" color="-1@@@16711680" isNoFill="true"><![CDATA[No fill]]></item>
+        <item type="clipart" index="1" xpos="200" ypos="200" width="100" height="100" rotation="0" opacity="1" color="16711680@@@65280@@@255@@@1193046@@@6636321@@@1122867@@@4478310@@@7833753@@@10070715" />
+        <item type="clipart" index="2" xpos="300" ypos="300" width="100" height="100" rotation="0" opacity="1" color="16711680" shape_fill="none" />
+      </data>
+    `);
+
+    expect(collectDesignColors(design)).toEqual([
+      "#ff0000",
+      "#00ff00",
+      "#0000ff",
+      "#123456",
+      "#654321",
+      "#112233",
+      "#445566",
+      "#778899",
+    ]);
   });
 });
 
