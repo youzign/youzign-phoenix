@@ -419,38 +419,41 @@ function BrandPalette({ brand }: { brand: Brand }) {
             <div
               key={`${color}-${index}`}
               data-brand-swatch={color}
-              className="group relative flex aspect-square items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.03]"
+              className="flex items-center justify-center"
             >
               <ColorSwatch
                 compact
+                showBrandRow={false}
                 value={color}
                 onChange={(hex) => replace(colors.map((c, i) => (i === index ? hex : c)))}
+                actions={
+                  <>
+                    <button
+                      type="button"
+                      disabled={index === 0}
+                      onClick={() => move(index, -1)}
+                      className="rounded-md px-1.5 py-1 text-[11px] font-medium text-neutral-300 transition-colors duration-150 hover:bg-white/[0.08] hover:text-neutral-100 disabled:pointer-events-none disabled:opacity-35"
+                    >
+                      ← Move
+                    </button>
+                    <button
+                      type="button"
+                      disabled={index === colors.length - 1}
+                      onClick={() => move(index, 1)}
+                      className="rounded-md px-1.5 py-1 text-[11px] font-medium text-neutral-300 transition-colors duration-150 hover:bg-white/[0.08] hover:text-neutral-100 disabled:pointer-events-none disabled:opacity-35"
+                    >
+                      Move →
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => replace(colors.filter((_, i) => i !== index))}
+                      className="rounded-md px-1.5 py-1 text-[11px] font-medium text-red-300 transition-colors duration-150 hover:bg-red-500/15 hover:text-red-200"
+                    >
+                      Remove
+                    </button>
+                  </>
+                }
               />
-              <button
-                title="Remove color"
-                onClick={() => replace(colors.filter((_, i) => i !== index))}
-                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-md bg-black/60 text-white opacity-0 transition-opacity duration-150 hover:bg-red-600 group-hover:opacity-100"
-              >
-                <Icon name="plus" size={11} className="rotate-45" />
-              </button>
-              <div className="absolute bottom-1 left-1 flex gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-                <button
-                  title="Move left"
-                  disabled={index === 0}
-                  onClick={() => move(index, -1)}
-                  className="flex h-5 w-5 items-center justify-center rounded-md bg-black/55 text-[10px] text-white disabled:opacity-30"
-                >
-                  ‹
-                </button>
-                <button
-                  title="Move right"
-                  disabled={index === colors.length - 1}
-                  onClick={() => move(index, 1)}
-                  className="flex h-5 w-5 items-center justify-center rounded-md bg-black/55 text-[10px] text-white disabled:opacity-30"
-                >
-                  ›
-                </button>
-              </div>
             </div>
           ))}
         </div>

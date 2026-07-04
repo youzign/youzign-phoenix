@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { GOOGLE_FONTS } from "@youzign/editor-core";
 import { ensureGoogleFonts } from "../fonts.js";
 import { getActiveBrand, type Brand } from "../library/brands.js";
@@ -396,97 +397,162 @@ export function ColorSwatch({
   value,
   onChange,
   compact = false,
+  showBrandRow = true,
+  actions,
 }: {
   value: string;
   onChange: (hex: string) => void;
   compact?: boolean;
+  showBrandRow?: boolean;
+  actions?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState<CSSProperties | null>(null);
   const [brandColors, setBrandColors] = useState<string[]>([]);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+
+  const updatePopoverPosition = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const margin = 8;
+    const gap = 6;
+    const triggerBox = trigger.getBoundingClientRect();
+    const popover = popRef.current;
+    const width = popover?.offsetWidth || 176;
+    const height = popover?.offsetHeight || 240;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    let left = triggerBox.left;
+    let top = triggerBox.bottom + gap;
+
+    if (left + width > viewportWidth - margin) left = viewportWidth - margin - width;
+    if (left < margin) left = triggerBox.right - width;
+    if (top + height > viewportHeight - margin) top = triggerBox.top - gap - height;
+
+    left = Math.max(margin, Math.min(left, viewportWidth - margin - width));
+    top = Math.max(margin, Math.min(top, viewportHeight - margin - height));
+    setPopoverStyle({ left, top });
+  };
 
   useEffect(() => {
     if (!open) return;
-    setBrandColors(getActiveBrand()?.colors ?? []);
-  }, [open]);
+    setBrandColors(showBrandRow ? getActiveBrand()?.colors ?? [] : []);
+  }, [open, showBrandRow]);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target) || popRef.current?.contains(target)) return;
+      setOpen(false);
     };
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    updatePopoverPosition();
+    const onViewportChange = () => setOpen(false);
+    window.addEventListener("scroll", onViewportChange, true);
+    window.addEventListener("resize", onViewportChange);
+    return () => {
+      window.removeEventListener("scroll", onViewportChange, true);
+      window.removeEventListener("resize", onViewportChange);
+    };
+  }, [open, brandColors.length, actions]);
+
+  const popover =
+    open && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            ref={popRef}
+            data-color-swatch-popover
+            className="fixed z-[1000] w-44 rounded-xl border border-white/10 bg-neutral-800/95 p-2.5 shadow-xl backdrop-blur"
+            style={popoverStyle ?? { left: -9999, top: -9999 }}
+          >
+            {showBrandRow && brandColors.length > 0 && (
+              <div className="mb-2.5 border-b border-white/[0.06] pb-2.5" data-brand-color-row>
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                  Brand
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {brandColors.map((hex, index) => (
+                    <button
+                      key={`${hex}-${index}`}
+                      type="button"
+                      title={hex}
+                      aria-label={`Brand color ${hex}`}
+                      data-brand-color-swatch={hex}
+                      onClick={(e) => {
+                        // Closing the popover unmounts this button mid-dispatch; an
+                        // ancestor <label> (PropertiesPanel Field) would then forward
+                        // the click to its first labelable control (e.g. the "No fill"
+                        // checkerboard). preventDefault cancels that forwarding.
+                        e.preventDefault();
+                        onChange(hex);
+                        setOpen(false);
+                      }}
+                      className="h-5 w-5 rounded-[5px] ring-1 ring-inset ring-white/15 transition-transform duration-100 hover:scale-110 hover:ring-white/35"
+                      style={{ background: hex }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            <input
+              type="color"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className="h-20 w-full cursor-pointer rounded-lg border-0 bg-transparent p-0"
+            />
+            <div className="mt-2 flex items-center gap-1 rounded-md bg-white/[0.05] px-2 py-1">
+              <span className="text-[12px] text-neutral-500">#</span>
+              <input
+                aria-label="Hex color"
+                value={value.replace(/^#/, "")}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6);
+                  if (v.length === 6) onChange("#" + v);
+                }}
+                className="w-full bg-transparent text-[12px] uppercase tabular-nums text-neutral-100 outline-none"
+                maxLength={6}
+              />
+            </div>
+            {actions && (
+              <div className="mt-2 flex items-center justify-between gap-1 border-t border-white/[0.06] pt-2">
+                {actions}
+              </div>
+            )}
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-1.5 rounded-md bg-white/[0.04] p-1 transition-colors duration-150 hover:bg-white/[0.08] ${
-          compact ? "" : "pr-2"
+        onClick={() => {
+          setOpen((o) => !o);
+          setPopoverStyle(null);
+        }}
+        className={`flex items-center gap-1.5 rounded-md bg-white/[0.04] transition-colors duration-150 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-cyan-400/45 ${
+          compact ? "h-8 w-8 justify-center p-1" : "p-1 pr-2"
         }`}
       >
         <span
-          className="h-5 w-5 rounded-[5px] ring-1 ring-inset ring-white/15"
+          className={`${compact ? "h-full w-full" : "h-5 w-5"} rounded-[5px] ring-1 ring-inset ring-white/15`}
           style={{ background: value }}
         />
         {!compact && (
           <span className="text-[12px] tabular-nums uppercase text-neutral-300">{value}</span>
         )}
       </button>
-      {open && (
-        <div className="absolute right-0 top-full z-40 mt-1.5 w-44 rounded-xl border border-white/10 bg-neutral-800/95 p-2.5 shadow-xl backdrop-blur">
-          {brandColors.length > 0 && (
-            <div className="mb-2.5 border-b border-white/[0.06] pb-2.5" data-brand-color-row>
-              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
-                Brand
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {brandColors.map((hex, index) => (
-                  <button
-                    key={`${hex}-${index}`}
-                    type="button"
-                    title={hex}
-                    aria-label={`Brand color ${hex}`}
-                    data-brand-color-swatch={hex}
-                    onClick={(e) => {
-                      // Closing the popover unmounts this button mid-dispatch; an
-                      // ancestor <label> (PropertiesPanel Field) would then forward
-                      // the click to its first labelable control (e.g. the "No fill"
-                      // checkerboard). preventDefault cancels that forwarding.
-                      e.preventDefault();
-                      onChange(hex);
-                      setOpen(false);
-                    }}
-                    className="h-5 w-5 rounded-[5px] ring-1 ring-inset ring-white/15 transition-transform duration-100 hover:scale-110 hover:ring-white/35"
-                    style={{ background: hex }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-          <input
-            type="color"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="h-20 w-full cursor-pointer rounded-lg border-0 bg-transparent p-0"
-          />
-          <div className="mt-2 flex items-center gap-1 rounded-md bg-white/[0.05] px-2 py-1">
-            <span className="text-[12px] text-neutral-500">#</span>
-            <input
-              value={value.replace(/^#/, "")}
-              onChange={(e) => {
-                const v = e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6);
-                if (v.length === 6) onChange("#" + v);
-              }}
-              className="w-full bg-transparent text-[12px] uppercase tabular-nums text-neutral-100 outline-none"
-              maxLength={6}
-            />
-          </div>
-        </div>
-      )}
+      {popover}
     </div>
   );
 }
