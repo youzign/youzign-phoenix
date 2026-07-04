@@ -40,7 +40,7 @@ describe("measuredTextBox", () => {
     expect(box.cx).toBe(400);
   });
 
-  it("wraps long text when legacy wrapping is enabled", () => {
+  it("uses the stored wrap area when legacy wrapping is enabled", () => {
     const d = parse(EMPTY);
     const item = createTextItem(d, 400, 300, {
       content: "Alpha Beta",
@@ -51,7 +51,8 @@ describe("measuredTextBox", () => {
     item.wrapping = true;
     item.rawAttrs.wrapping = "true";
     const box = measuredTextBox(item, fixedMeasure);
-    expect(box.w).toBe(50);
-    expect(box.h).toBeGreaterThan(20);
+    expect(box.w).toBe(60);
+    expect(box.h).toBe(item.mcHeight);
+    expect(box.cx).toBe(400);
   });
 });

@@ -30,6 +30,15 @@ function textGeometrySnapshot(item: ReturnType<typeof createTextItem>) {
   };
 }
 
+function textLeftEdge(item: Pick<ReturnType<typeof createTextItem>, "xpos" | "textAreaxpos" | "textAreaWidth" | "mcWidth">) {
+  const sx = item.textAreaWidth ? item.mcWidth / item.textAreaWidth : 1;
+  return item.xpos + item.textAreaxpos * sx;
+}
+
+function textRightEdge(item: Pick<ReturnType<typeof createTextItem>, "xpos" | "textAreaxpos" | "textAreaWidth" | "mcWidth">) {
+  return textLeftEdge(item) + item.mcWidth;
+}
+
 describe("resizeCorner", () => {
   it("pins the opposite corner (se drag grows toward pointer)", () => {
     // Drag SE corner to (200, 200); NW corner (50,75) must stay fixed.
@@ -93,21 +102,43 @@ describe("text resize handles", () => {
   it("right side pill changes width and keeps the left edge anchored", () => {
     const d = parse(EMPTY);
     const item = createTextItem(d, 100, 100, { content: "Wrap", size: 20, width: 200 });
+    const left = textLeftEdge(item);
     const r = resizeTextSide(item, "e", { x: 200, y: 100 }, { x: 250, y: 100 });
     expect(r.textAreaWidth).toBeCloseTo(250);
     expect(r.mcWidth).toBeCloseTo(250);
-    expect(r.xpos! - r.mcWidth! / 2).toBeCloseTo(0);
+    expect(textLeftEdge({ ...item, ...r })).toBeCloseTo(left);
     expect(r.wrapping).toBe(true);
   });
 
   it("left side pill changes width and keeps the right edge anchored", () => {
     const d = parse(EMPTY);
     const item = createTextItem(d, 100, 100, { content: "Wrap", size: 20, width: 200 });
+    const right = textRightEdge(item);
     const r = resizeTextSide(item, "w", { x: 0, y: 100 }, { x: 50, y: 100 });
     expect(r.textAreaWidth).toBeCloseTo(150);
     expect(r.mcWidth).toBeCloseTo(150);
-    expect(r.xpos! + r.mcWidth! / 2).toBeCloseTo(200);
+    expect(textRightEdge({ ...item, ...r })).toBeCloseTo(right);
     expect(r.textAreaxpos).toBeCloseTo(-75);
+  });
+
+  it("side pill preserves the anchored edge when mc/text-area scale is not 1", () => {
+    const d = parse(EMPTY);
+    const item = createTextItem(d, 120, 100, { content: "Scaled wrap", size: 20, width: 200 });
+    item.textAreaWidth = 400;
+    item.mcWidth = 200;
+    item.textAreaxpos = -200;
+
+    const left = textLeftEdge(item);
+    const east = resizeTextSide(item, "e", { x: 220, y: 100 }, { x: 320, y: 100 });
+    expect(east.mcWidth).toBeCloseTo(300);
+    expect(east.textAreaWidth).toBeCloseTo(600);
+    expect(textLeftEdge({ ...item, ...east })).toBeCloseTo(left);
+
+    const right = textRightEdge(item);
+    const west = resizeTextSide(item, "w", { x: 20, y: 100 }, { x: -80, y: 100 });
+    expect(west.mcWidth).toBeCloseTo(300);
+    expect(west.textAreaWidth).toBeCloseTo(600);
+    expect(textRightEdge({ ...item, ...west })).toBeCloseTo(right);
   });
 
   it("side drags operate along the rotated local x-axis", () => {
@@ -128,7 +159,9 @@ describe("text resize handles", () => {
     item.mcWidth = 360;
     item.textAreaxpos = -180;
     const before = textGeometrySnapshot(item);
-    patchItem(item as any, resizeTextSide(item, "e", { x: 280, y: 100 }, { x: 280, y: 100 }));
+    const patch = resizeTextSide(item, "e", { x: 280, y: 100 }, { x: 280, y: 100 });
+    expect(patch).toEqual({});
+    patchItem(item as any, patch);
     expect(textGeometrySnapshot(item)).toEqual(before);
   });
 
@@ -141,7 +174,9 @@ describe("text resize handles", () => {
     });
     patchItem(item as any, { wrapping: true });
     const before = textGeometrySnapshot(item);
-    patchItem(item as any, resizeTextSide(item, "w", { x: 10, y: 100 }, { x: 10, y: 100 }));
+    const patch = resizeTextSide(item, "w", { x: 10, y: 100 }, { x: 10, y: 100 });
+    expect(patch).toEqual({});
+    patchItem(item as any, patch);
     expect(textGeometrySnapshot(item)).toEqual(before);
   });
 
