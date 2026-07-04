@@ -1,8 +1,14 @@
 # Youzign OSS — Status & Working Agreements
-*Updated 2026-07-04 afternoon. This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
+*Updated 2026-07-04 afternoon (Brand Kit merged). This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
 
-## NEXT UP (new chat): Brand Kit v1
-Bertrand confirmed blur ✅ + text handles ✅ in the 11:32 build. Next feature: **simple brand-kit system** — named brands with colors/fonts/assets, brand colors one click away in every color picker. Full spec + build order in `docs/BRAND-KIT-SPEC.md` (read it first). Bertrand also mentioned "a couple updates to add before wrapping this build" — ask him what they are at the start of the new chat.
+## NEXT UP: Bertrand's pre-wrap updates + fresh .app build
+Brand Kit v1 is DONE and merged to main (see below). Bertrand mentioned "a couple updates to add before wrapping this build" — still waiting on what they are. After those: `pnpm -r build` → tauri build (foreground, full logs) → fingerprint per protocol → hand over.
+
+## 2026-07-04 Brand Kit v1 (merged to main `c6189ab`, 323 tests + WebKit-verified)
+- **Feature per docs/BRAND-KIT-SPEC.md, all 4 steps**: `library/brands.ts` (named brands, one active, localStorage; hex normalize/dedupe; listeners) + brandId-tagged uploads; Brand tab in left rail (empty state seeds palette from the CURRENT design via `collectDesignColors` — presets-over-search honored; palette/fonts/assets editors); Brand swatch row atop the shared ColorSwatch popover + pinned "Brand fonts" in FontPicker (bypass sweep: nothing else picks colors); Backup bundle carries brands+brandAssets (backward-compatible, merge-by-id import, active preserved); Help "Brand Kit" section + regenerated shots (`brand-kit.png`).
+- **Real bug caught by pixel review (state asserts had PASSED)**: applying a brand swatch flipped text to `isNoFill:true` → invisible. Cause: PropertiesPanel `Field` = a real `<label>`; the swatch click unmounts the popover mid-dispatch, so the label forwards the click to its first labelable control = the "No fill" checkerboard. Fix `28d7ac0`: `preventDefault()` in the swatch handler. Lesson reinforced: harness must assert pixels/visibility, not just store state (`brand-pickers-e2e.mjs` now asserts isNoFill).
+- **Process (this chat)**: `codex --dangerously-bypass-approvals-and-sandbox` is DENIED by the auto-mode classifier despite the settings allowlist → working split: Codex `--full-auto` implements + writes harness scripts; Claude runs WebKit harness + help-shots (Codex sandbox also blocks dev-server listen + repo-wide pnpm) and reviews screenshots. FontPicker now lives in `components/ui.tsx` (shared). Harness scripts: `brand-tab-e2e.mjs`, `brand-pickers-e2e.mjs` in the bec91ab6 scratchpad webkit-harness dir.
+- Polish nits (non-blocking): brand delete uses bare `window.confirm` (app's first native confirm; fine in WKWebView, could be styled later).
 
 ## 2026-07-04 afternoon wave (merged to main, 304/304 tests) — verified-handoff era
 - **Blur FIXED + verified in real WebKit**: ctx.filter is a silent no-op in WKWebView → pure-JS Gaussian fallback (`gaussianBlurRGBA` in editor-core/magic.ts, CSS sigma semantics). Proof: Playwright-WebKit checkerboard isolate = 99.5% high-freq reduction; portrait preview shows real halo. Bertrand confirmed working in the .app.
