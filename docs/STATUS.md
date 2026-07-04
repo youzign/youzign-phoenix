@@ -1,8 +1,15 @@
 # Youzign OSS — Status & Working Agreements
 *Updated 2026-07-04 afternoon (Brand Kit merged). This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
 
-## NEXT UP: Bertrand retests the polish wave
-Brand Kit v1 + the polish wave (below) are merged to main; fresh fingerprinted .app handed over 2026-07-04 ~13:30. Waiting on Bertrand's retest verdict.
+## NEXT UP: Bertrand retests feedback wave 2; landing deploy pending his go
+All of Bertrand's 2026-07-04 pm feedback (9 items) shipped & merged; fresh .app ~15:45. OPEN: (a) landing hero swapped+committed but `vercel --prod` blocked by permission classifier — Bertrand must say "deploy the landing" or run it himself; (b) his retest verdict.
+
+## 2026-07-04 feedback wave 2 (merged to main, 336 tests + WebKit-verified)
+- **Rotated-text chrome bug FIXED** (`4c30bc8`): chrome drifted from glyphs under rotation — `measuredTextBox` added local bounds to left/top while the renderer rotates about the text-matrix origin (coincide at 0°, diverge with angle). Chrome now transforms through the same origin. Evidence: center deltas <0.13px at 0/30/75° + side-pill-then-rotate; side-pill-e2e 5/5 no regression. (Codex's harness had 2 script bugs — offscreen text-measurer div matched, and found-branch flags missing — orchestrator patched the SCRIPT, fix was good.)
+- **Interactions** (`0451c30`): click on dark workspace deselects (click-only, marquee-from-dark still selects); "Try a sample design" card on empty dashboard loads bundled `public/starter/youzign-starter.xml` (Bertrand's youzign_default.xml) through the shared import path; palette chips carry a discoverability tooltip.
+- **Help TLC** (`25162da`+`6e74bcc`): side-menu nav bug fixed (links wrote `#section` over the `#/help` route hash → dashboard kick; now scrollIntoView). help-shots.mjs reworked: starter design as canvas content, REAL nano-banana generation (FAL_KEY env; full-bleed prompt + cover-fit insert), REAL local bg-removal cutout (alpha-probed), paint-readiness probes killed the black frames. Orchestrator fixed 4 script bugs post-Codex (browser TS import, stale zustand snapshots ×2, missing image-selected wait). ALL 13 PNGs reviewed.
+- **Landing hero** updated (`7c24cda`, landing/assets/hero-editor.png, 1720px) — deploy pending.
+- Palette delete/reorder discoverability: actions live in the swatch popover footer (by design; tooltip added).
 
 ## 2026-07-04 Brand Kit polish wave (merged to main, 332 tests + WebKit-verified) — Bertrand's feedback round
 - **Palette UX fix** (`15d228a`): ColorSwatch popover now PORTALS to document.body (fixed, viewport-clamped, flips at edges) — was clipped behind the left icon rail from the Brand tab; outside-click close handles the portal. Palette chips are clean 32px targets (no ×/‹› overlay chrome); Move ←/→ + Remove live in the popover footer via new ColorSwatch `actions` prop; `showBrandRow` prop suppresses the brand row while editing the brand itself.
