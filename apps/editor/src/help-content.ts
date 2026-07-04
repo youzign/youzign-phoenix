@@ -18,7 +18,7 @@ export const sections: HelpSection[] = [
       { type: "shot-ref", file: "dashboard.png", caption: "Dashboard, new design flow, sorting, and local design cards." },
       {
         type: "paragraph",
-        text: "The dashboard is your local design library. Use New design to start from a preset, enter a custom canvas size, import a local XML design, or drop an image to create a canvas at the image's prepared size.",
+        text: "The dashboard is your local design library. Use the sample design on an empty dashboard, New design to start from a preset, enter a custom canvas size, import a local XML design, or drop an image to create a canvas at the image's prepared size.",
       },
       {
         type: "paragraph",

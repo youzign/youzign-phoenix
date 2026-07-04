@@ -400,12 +400,14 @@ export function ColorSwatch({
   compact = false,
   showBrandRow = true,
   actions,
+  title,
 }: {
   value: string;
   onChange: (hex: string) => void;
   compact?: boolean;
   showBrandRow?: boolean;
   actions?: ReactNode;
+  title?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [popoverStyle, setPopoverStyle] = useState<CSSProperties | null>(null);
@@ -537,6 +539,7 @@ export function ColorSwatch({
       <button
         ref={triggerRef}
         type="button"
+        title={title}
         onClick={() => {
           setOpen((o) => !o);
           setPopoverStyle(null);

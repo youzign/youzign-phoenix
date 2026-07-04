@@ -1,5 +1,5 @@
 import { parse, serialize } from "@youzign/designstring";
-import { type EditorDocument, normalizeDocument, parseAutosave } from "../document.js";
+import { documentFromXml, type EditorDocument, normalizeDocument, parseAutosave } from "../document.js";
 import { LS_PREFIX } from "../store.js";
 import { promisifyRequest } from "./uploads.js";
 
@@ -73,6 +73,10 @@ export function shapeDocumentRecord({
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,
   };
+}
+
+export function documentRecordFromXml(name: string, xml: string, now = Date.now()): DocumentRecord {
+  return shapeDocumentRecord({ name, doc: documentFromXml(xml), now });
 }
 
 export function editorDocumentFromRecord(rec: Pick<DocumentRecord, "pages" | "titles" | "activePage">): EditorDocument {
