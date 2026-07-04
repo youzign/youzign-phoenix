@@ -183,6 +183,7 @@ export function resizeTextSide(
   const currentWidth = item.mcWidth || item.textAreaWidth;
   const sx = item.textAreaWidth ? currentWidth / item.textAreaWidth : 1;
   const signedDelta = edge === "e" ? d.x : -d.x;
+  if (Math.abs(signedDelta) < 0.0001) return {};
   const newMcWidth = Math.max(textMinWidth(item), currentWidth + signedDelta);
   const newTextAreaWidth = newMcWidth / (sx || 1);
   const centerDelta = edge === "e"

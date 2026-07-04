@@ -15,6 +15,21 @@ import { parse } from "@youzign/designstring";
 const box: SelBox = { cx: 100, cy: 100, w: 100, h: 50, rotation: 0 };
 const EMPTY = '<data canvas_width="800" canvas_height="600" bg_color="-1" bg_type="color"></data>';
 
+function textGeometrySnapshot(item: ReturnType<typeof createTextItem>) {
+  return {
+    xpos: item.xpos,
+    ypos: item.ypos,
+    size: item.size,
+    wrapping: item.wrapping,
+    textAreaWidth: item.textAreaWidth,
+    textAreaHeight: item.textAreaHeight,
+    mcWidth: item.mcWidth,
+    mcHeight: item.mcHeight,
+    textAreaxpos: item.textAreaxpos,
+    textAreaypos: item.textAreaypos,
+  };
+}
+
 describe("resizeCorner", () => {
   it("pins the opposite corner (se drag grows toward pointer)", () => {
     // Drag SE corner to (200, 200); NW corner (50,75) must stay fixed.
@@ -103,6 +118,31 @@ describe("text resize handles", () => {
     expect(r.mcWidth).toBeCloseTo(250);
     expect(r.xpos).toBeCloseTo(100);
     expect(r.ypos).toBeCloseTo(125);
+  });
+
+  it("side resize with zero delta is a no-op for non-wrapped text", () => {
+    const d = parse(EMPTY);
+    const item = createTextItem(d, 100, 100, { content: "Legacy wide area", size: 20, width: 360 });
+    item.wrapping = false;
+    item.textAreaWidth = 360;
+    item.mcWidth = 360;
+    item.textAreaxpos = -180;
+    const before = textGeometrySnapshot(item);
+    patchItem(item as any, resizeTextSide(item, "e", { x: 280, y: 100 }, { x: 280, y: 100 }));
+    expect(textGeometrySnapshot(item)).toEqual(before);
+  });
+
+  it("side resize with zero delta is a no-op for wrapped text", () => {
+    const d = parse(EMPTY);
+    const item = createTextItem(d, 100, 100, {
+      content: "Alpha Beta Gamma Delta",
+      size: 20,
+      width: 180,
+    });
+    patchItem(item as any, { wrapping: true });
+    const before = textGeometrySnapshot(item);
+    patchItem(item as any, resizeTextSide(item, "w", { x: 10, y: 100 }, { x: 10, y: 100 }));
+    expect(textGeometrySnapshot(item)).toEqual(before);
   });
 
   it("height re-derives from wrapped content after width changes", () => {
