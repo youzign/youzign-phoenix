@@ -652,7 +652,7 @@ export function createTextItem(
   ];
   const known = new Set(pairs.map(([k]) => k));
   const carrier = carrierFrom(pairs, known);
-  return {
+  const item: TextItem = {
     type: "text",
     ...carrier,
     index,
@@ -699,6 +699,12 @@ export function createTextItem(
     isNoFill: false,
     underline: false,
   };
+  // Seed the text-area height from the SAME derivation the patch path uses
+  // (syncTextAreaHeight). A `size * 1.35` estimate here rendered fresh text at
+  // mcHeight/derivedHeight scale until the first gesture re-synced it — the
+  // "text pops ~13% larger when first touched" bug.
+  syncTextAreaHeight(item);
+  return item;
 }
 
 export interface ShapePreset {

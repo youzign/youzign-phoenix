@@ -79,6 +79,17 @@ describe("new items serialize to valid designstring", () => {
     expect(added.xpos).toBe(300);
   });
 
+  it("fresh text item is born with the canonical derived text-area height", async () => {
+    const { derivedTextAreaHeight } = await import("../src/text-bounds.js");
+    const d = parse(XML);
+    const t = createTextItem(d, 300, 300, { size: 90 }) as any;
+    // creation must match what syncTextAreaHeight derives — a mismatch renders
+    // fresh text at the wrong scale until the first gesture re-syncs it
+    expect(t.mcHeight).toBe(derivedTextAreaHeight(t));
+    expect(t.textAreaHeight).toBe(t.mcHeight);
+    expect(t.textAreaypos).toBe(-t.mcHeight / 2);
+  });
+
   it("added shape is a clipart with an inline svg source and recolors", () => {
     const d = parse(XML);
     const shape = createShapeItem(d, "star", 400, 400);

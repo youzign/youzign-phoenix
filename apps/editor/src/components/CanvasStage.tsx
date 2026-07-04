@@ -177,6 +177,44 @@ export function CanvasStage() {
   const isLocked = (uid: number) => lockedUids.includes(uid);
 
   const [fileOver, setFileOver] = useState(false);
+
+  // Selection chrome is measured via canvas measureText, which reports
+  // fallback-font metrics until the webfont actually arrives. WebKit is doubly
+  // treacherous: fonts.check() returns true before the face is usable AND
+  // loadingdone never fires for stylesheet-loaded faces. So actively
+  // fonts.load() every face the design's text uses and re-render once each
+  // resolves — otherwise the chrome hugs stale bounds until the first gesture
+  // and visibly "jumps" when grabbed.
+  const [, setFontsTick] = useState(0);
+  const loadedFontSpecs = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const fonts = (document as unknown as { fonts?: FontFaceSet }).fonts;
+    if (!fonts?.load) return;
+    let cancelled = false;
+    const pending: string[] = [];
+    const walk = (items: Item[]) => {
+      for (const it of items) {
+        if (it.type === "group") walk((it as { items: Item[] } & Item).items);
+        else if (it.type === "text" || it.type === "text-curved") {
+          const t = it as TextItem;
+          const spec = `${t.italic ? "italic " : ""}${t.bold ? "700" : "400"} 16px "${t.font}"`;
+          if (!loadedFontSpecs.current.has(spec)) {
+            loadedFontSpecs.current.add(spec);
+            pending.push(spec);
+          }
+        }
+      }
+    };
+    walk(design.items as Item[]);
+    if (!pending.length) return;
+    Promise.all(pending.map((s) => fonts.load(s).catch(() => null))).then(() => {
+      if (!cancelled) setFontsTick((n) => n + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [design]);
+
   const overlayRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
   const inlineCommitRef = useRef<(() => void) | null>(null);
