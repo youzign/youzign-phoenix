@@ -24,6 +24,7 @@ import {
   itemTargets,
   gridTargets,
   mergeTargets,
+  textMatrixCenterOffset,
   type SelBox,
   type SnapLines,
   type SnapState,
@@ -67,6 +68,13 @@ interface Drag {
   fullNatural?: { w: number; h: number };
   // text resize starts from the original model values for stable live preview
   textItem?: TextItem;
+  textRotation?: {
+    item: TextItem;
+    center: { x: number; y: number };
+    offset: { x: number; y: number };
+    sx: number;
+    sy: number;
+  };
   // Canvas-space handle anchor at gesture start. Resize math receives this
   // virtual pointer plus drag delta so off-center grabs do not resize on grab.
   handleStart?: { x: number; y: number };
@@ -139,6 +147,23 @@ function textResizeSnapshot(item: TextItem, box: SelBox, handle?: HandleId): Tex
     snapshot.textAreaxpos = -width / 2;
   }
   return snapshot;
+}
+
+function textRotationPatch(
+  item: TextItem,
+  center: { x: number; y: number },
+  offset: { x: number; y: number },
+  sx: number,
+  sy: number,
+  rotation: number
+) {
+  const rotated = rotateOffset(offset.x, offset.y, rotation);
+  const origin = { x: center.x - rotated.x, y: center.y - rotated.y };
+  return {
+    rotation,
+    xpos: origin.x - item.textAreaxpos * sx,
+    ypos: origin.y - item.textAreaypos * sy,
+  };
 }
 
 export function CanvasStage() {
@@ -305,7 +330,19 @@ export function CanvasStage() {
           fine: e.ctrlKey || e.metaKey,
           step: shift,
         });
-        livePatch(d.uid, { rotation: snap.angle });
+        livePatch(
+          d.uid,
+          d.textRotation
+            ? textRotationPatch(
+                d.textRotation.item,
+                d.textRotation.center,
+                d.textRotation.offset,
+                d.textRotation.sx,
+                d.textRotation.sy,
+                snap.angle
+              )
+            : { rotation: snap.angle }
+        );
         // Degree readout pill positioned near the cursor (overlay-relative px).
         const r = overlayRef.current?.getBoundingClientRect();
         if (r) {
@@ -514,6 +551,20 @@ export function CanvasStage() {
     }
     beginHistory();
     const startCanvas = toCanvas(e.clientX, e.clientY);
+    const textRotation =
+      isPlainText && mode === "rotate"
+        ? {
+            item: loc!.item as TextItem,
+            center: { x: box.cx, y: box.cy },
+            offset: textMatrixCenterOffset(loc!.item as TextItem),
+            sx: (loc!.item as TextItem).textAreaWidth
+              ? (loc!.item as TextItem).mcWidth / (loc!.item as TextItem).textAreaWidth
+              : 1,
+            sy: (loc!.item as TextItem).textAreaHeight
+              ? (loc!.item as TextItem).mcHeight / (loc!.item as TextItem).textAreaHeight
+              : 1,
+          }
+        : undefined;
     dragRef.current = {
       mode,
       handle,
@@ -525,6 +576,7 @@ export function CanvasStage() {
         isPlainText && mode === "resize"
           ? textResizeSnapshot(loc!.item as TextItem, box, handle)
           : undefined,
+      textRotation,
     };
   };
 
@@ -828,7 +880,10 @@ export function CanvasStage() {
                 </div>
               );
               return (
-                <div style={{ ...boxToStyle(chromeBox), pointerEvents: "none" }}>
+                <div
+                  data-testid="selection-chrome"
+                  style={{ ...boxToStyle(chromeBox), pointerEvents: "none" }}
+                >
                   <div
                     className="absolute inset-0"
                     style={{
@@ -839,6 +894,7 @@ export function CanvasStage() {
                   />
                   {showRotate && (
                     <div
+                      data-testid="rotate-handle"
                       style={{
                         position: "absolute",
                         left: "50%",

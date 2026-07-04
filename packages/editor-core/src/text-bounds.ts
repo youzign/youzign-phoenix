@@ -61,7 +61,7 @@ function rotate(x: number, y: number, deg: number) {
   return { x: x * c - y * s, y: x * s + y * c };
 }
 
-function textMatrixCenter(
+export function textMatrixCenter(
   item: CommonItemFields & TextFields,
   left: number,
   top: number,
@@ -72,6 +72,13 @@ function textMatrixCenter(
 ) {
   const r = rotate(localCx * sx, localCy * sy, item.rotation);
   return { cx: left + r.x, cy: top + r.y };
+}
+
+function textScale(item: CommonItemFields & TextFields) {
+  return {
+    sx: item.textAreaWidth ? item.mcWidth / item.textAreaWidth : 1,
+    sy: item.textAreaHeight ? item.mcHeight / item.textAreaHeight : 1,
+  };
 }
 
 export function wrappedTextLines(
@@ -107,22 +114,17 @@ export function derivedTextAreaHeight(
   return Math.max(glyphHeight, lines.length * lineHeight);
 }
 
-export function measuredTextBox(
+function measuredTextLocalBounds(
   item: CommonItemFields & TextFields,
   measurer: TextMeasurer = fallbackMeasure
-): SelBox {
-  const sx = item.textAreaWidth ? item.mcWidth / item.textAreaWidth : 1;
-  const sy = item.textAreaHeight ? item.mcHeight / item.textAreaHeight : 1;
-  const left = item.xpos + item.textAreaxpos * sx;
-  const top = item.ypos + item.textAreaypos * sy;
+): { localCx: number; localCy: number; w: number; h: number } {
+  const { sx, sy } = textScale(item);
   if (item.wrapping) {
-    const w = item.mcWidth || item.textAreaWidth * sx;
-    const h = item.mcHeight || item.textAreaHeight * sy;
     return {
-      ...textMatrixCenter(item, left, top, item.textAreaWidth / 2, item.textAreaHeight / 2, sx, sy),
-      w,
-      h,
-      rotation: item.rotation,
+      localCx: item.textAreaWidth / 2,
+      localCy: item.textAreaHeight / 2,
+      w: item.mcWidth || item.textAreaWidth * sx,
+      h: item.mcHeight || item.textAreaHeight * sy,
     };
   }
 
@@ -162,15 +164,38 @@ export function measuredTextBox(
   });
 
   if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
-    return { cx: left, cy: top, w: 0, h: 0, rotation: item.rotation };
+    return { localCx: 0, localCy: 0, w: 0, h: 0 };
   }
 
-  const w = Math.max(1, (maxX - minX) * sx);
-  const h = Math.max(1, (maxY - minY) * sy);
   return {
-    ...textMatrixCenter(item, left, top, (minX + maxX) / 2, (minY + maxY) / 2, sx, sy),
-    w,
-    h,
+    localCx: (minX + maxX) / 2,
+    localCy: (minY + maxY) / 2,
+    w: Math.max(1, (maxX - minX) * sx),
+    h: Math.max(1, (maxY - minY) * sy),
+  };
+}
+
+export function textMatrixCenterOffset(
+  item: CommonItemFields & TextFields,
+  measurer: TextMeasurer = fallbackMeasure
+): { x: number; y: number } {
+  const { sx, sy } = textScale(item);
+  const bounds = measuredTextLocalBounds(item, measurer);
+  return { x: bounds.localCx * sx, y: bounds.localCy * sy };
+}
+
+export function measuredTextBox(
+  item: CommonItemFields & TextFields,
+  measurer: TextMeasurer = fallbackMeasure
+): SelBox {
+  const { sx, sy } = textScale(item);
+  const left = item.xpos + item.textAreaxpos * sx;
+  const top = item.ypos + item.textAreaypos * sy;
+  const bounds = measuredTextLocalBounds(item, measurer);
+  return {
+    ...textMatrixCenter(item, left, top, bounds.localCx, bounds.localCy, sx, sy),
+    w: bounds.w,
+    h: bounds.h,
     rotation: item.rotation,
   };
 }
