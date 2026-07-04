@@ -95,6 +95,12 @@ export function measuredTextBox(
   const sy = item.textAreaHeight ? item.mcHeight / item.textAreaHeight : 1;
   const left = item.xpos + item.textAreaxpos * sx;
   const top = item.ypos + item.textAreaypos * sy;
+  if (item.wrapping) {
+    const w = item.mcWidth || item.textAreaWidth * sx;
+    const h = item.mcHeight || item.textAreaHeight * sy;
+    return { cx: left + w / 2, cy: top + h / 2, w, h, rotation: item.rotation };
+  }
+
   const font = textFontCss(item);
   const measure = (text: string) => measurer(text || " ", font);
   const lines = wrappedTextLines(item, measurer);
