@@ -198,6 +198,25 @@ export const sections: HelpSection[] = [
     ],
   },
   {
+    id: "filters",
+    title: "Filters",
+    blocks: [
+      { type: "shot-ref", file: "filters.png", caption: "Canvas filter presets, intensity, and adjustment sliders." },
+      {
+        type: "paragraph",
+        text: "When nothing is selected, the Filter section applies a canvas-wide look. Original removes the preset; modern presets replace legacy looks while old imported filters remain visible until changed.",
+      },
+      {
+        type: "paragraph",
+        text: "Intensity controls the selected preset opacity. Adjust sliders refine brightness, contrast, saturation, hue, warmth, and vignette on the same canvas filter item.",
+      },
+      {
+        type: "paragraph",
+        text: "Reset clears only the Adjust sliders. Choose Original to remove the preset and return the canvas to its unfiltered state.",
+      },
+    ],
+  },
+  {
     id: "saving-exporting",
     title: "Saving & Exporting",
     blocks: [

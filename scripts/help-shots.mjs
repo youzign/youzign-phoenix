@@ -30,6 +30,7 @@ const HELP_FILES = [
   "resize.png",
   "export.png",
   "backup.png",
+  "filters.png",
 ];
 
 function crc32(buf) {
@@ -492,6 +493,23 @@ async function makeBackgroundShot() {
   await shot("backgrounds.png");
 }
 
+
+async function makeFiltersShot() {
+  await loadStarterDesign();
+  await page.evaluate(() => {
+    const st = window.__editor.getState();
+    st.select(null);
+    st.setCanvasFilter(19);
+    st.setCanvasAdjustment("warmth", 20);
+  });
+  await waitForUiSettle();
+  await page.evaluate(() => {
+    document.querySelector('[data-preset-id="16"]')?.scrollIntoView({ block: "center" });
+  });
+  await sleep(300);
+  await shot("filters.png");
+}
+
 async function verifyHelpImageMap() {
   // Static scan of help-content.ts on disk — a browser dynamic import of the TS
   // module only resolves under the raw dev-server root, not in this harness.
@@ -537,6 +555,7 @@ try {
   await makeAiShot(hasFalKey);
   await makeRemoveBgShot();
   await makeBackgroundShot();
+  await makeFiltersShot();
 
   await page.click('[data-testid="resize-toggle"]');
   await page.waitForSelector('[data-testid="resize-popover"]', { timeout: 10000 });

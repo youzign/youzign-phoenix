@@ -56,7 +56,17 @@ const KNOWN_BY_TYPE: Record<string, Set<string>> = {
     "top_direction", "use_letter_angle"]),
   clipart: new Set([...COMMON_KNOWN, "source", "source_svg", "color", "swf_id", "svg_id"]),
   group: new Set([...COMMON_KNOWN, "isSavedInLib", "scaleX", "scaleY"]),
-  filter: new Set(["type", "filterid", "opacity"]),
+  filter: new Set([
+    "type",
+    "filterid",
+    "opacity",
+    "adj_brightness",
+    "adj_contrast",
+    "adj_saturation",
+    "adj_hue",
+    "adj_warmth",
+    "adj_vignette",
+  ]),
 };
 
 // ---- coercion helpers ----
@@ -215,6 +225,12 @@ function parseItem(node: any): Item {
         type, ...carrier,
         filterid: num(attrs, "filterid"),
         opacity: num(attrs, "opacity", 1),
+        adjBrightness: num(attrs, "adj_brightness"),
+        adjContrast: num(attrs, "adj_contrast"),
+        adjSaturation: num(attrs, "adj_saturation"),
+        adjHue: num(attrs, "adj_hue"),
+        adjWarmth: num(attrs, "adj_warmth"),
+        adjVignette: num(attrs, "adj_vignette"),
       };
     default:
       // Unknown item type: keep raw for round-trip; model as clipart-ish carrier.

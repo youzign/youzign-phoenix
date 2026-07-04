@@ -57,6 +57,11 @@ import {
   reverseGradient,
   setBorderWidth,
   setBorderColor,
+  setCanvasFilter as setCanvasFilterCore,
+  setCanvasFilterAlpha as setCanvasFilterAlphaCore,
+  setCanvasAdjustment as setCanvasAdjustmentCore,
+  resetCanvasAdjustments as resetCanvasAdjustmentsCore,
+  type CanvasAdjustmentKey,
   cloneItemForDuplicate,
   ensureUid,
   toggleUid,
@@ -289,6 +294,10 @@ interface EditorState {
   reverseBgGradient: () => void;
   setCanvasBorderWidth: (width: number) => void;
   setCanvasBorderColor: (hex: string) => void;
+  setCanvasFilter: (filterid: number | null) => void;
+  setCanvasFilterAlpha: (alpha: number) => void;
+  setCanvasAdjustment: (key: CanvasAdjustmentKey, value: number) => void;
+  resetCanvasAdjustments: () => void;
 
   undo: () => void;
   redo: () => void;
@@ -1029,6 +1038,10 @@ export const useEditor = create<EditorState>((set, get) => {
     reverseBgGradient: () => commit((d) => reverseGradient(d)),
     setCanvasBorderWidth: (width) => commit((d) => setBorderWidth(d, width)),
     setCanvasBorderColor: (hex) => commit((d) => setBorderColor(d, hex)),
+    setCanvasFilter: (filterid) => commit((d) => setCanvasFilterCore(d, filterid)),
+    setCanvasFilterAlpha: (alpha) => commit((d) => setCanvasFilterAlphaCore(d, alpha)),
+    setCanvasAdjustment: (key, value) => commit((d) => setCanvasAdjustmentCore(d, key, value)),
+    resetCanvasAdjustments: () => commit((d) => resetCanvasAdjustmentsCore(d)),
 
     undo: () =>
       set((s) => {
