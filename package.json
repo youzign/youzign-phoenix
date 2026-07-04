@@ -2,6 +2,7 @@
   "name": "youzign-next",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.9.0",
   "description": "Local-first OSS resurrection of the 2015 Youzign DOM design editor",
   "scripts": {
     "dev": "pnpm --filter @youzign/editor dev",
