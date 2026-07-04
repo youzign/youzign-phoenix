@@ -5,7 +5,6 @@ import {
   isShape,
   isShapeNoFill,
   curveAmount,
-  GOOGLE_FONTS,
   fontPatch,
   GRADIENT_PRESETS,
   GRADIENT_ANGLES,
@@ -29,6 +28,7 @@ import {
   Switch,
   NumberField,
   ColorSwatch,
+  FontPicker,
   SectionLabel,
   type IconName,
 } from "./ui.js";
@@ -48,93 +48,6 @@ const EXPAND_RATIOS: { ratio: MagicExpandRatio; label: string; title: string }[]
   { ratio: "9:16", label: "9:16", title: "Expand to vertical 9:16" },
   { ratio: "free", label: "Canvas", title: "Use the current canvas ratio" },
 ];
-
-function FontPicker({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (family: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  const families =
-    value && !GOOGLE_FONTS.includes(value) ? [value, ...GOOGLE_FONTS] : GOOGLE_FONTS;
-  const filtered = families.filter((f) =>
-    f.toLowerCase().includes(query.trim().toLowerCase())
-  );
-
-  useEffect(() => {
-    if (open) ensureGoogleFonts(filtered);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, query]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  return (
-    <div ref={rootRef} className="relative">
-      <button
-        className="flex w-full items-center justify-between rounded-md bg-white/[0.05] px-2.5 py-2 text-[13px] text-neutral-100 transition-colors duration-150 hover:bg-white/[0.09]"
-        style={{ fontFamily: `"${value}", sans-serif` }}
-        onClick={() => {
-          setOpen((o) => !o);
-          setQuery("");
-        }}
-      >
-        <span className="truncate">{value || "Select font"}</span>
-        <Icon name="chevron-down" size={15} className="ml-2 shrink-0 text-neutral-500" />
-      </button>
-      {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1.5 overflow-hidden rounded-xl border border-white/10 bg-neutral-800/95 shadow-2xl backdrop-blur">
-          <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2.5 py-2">
-            <Icon name="search" size={15} className="shrink-0 text-neutral-500" />
-            <input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search fonts…"
-              className="w-full bg-transparent text-[13px] text-neutral-100 outline-none placeholder:text-neutral-500"
-            />
-          </div>
-          <ul className="max-h-64 overflow-y-auto py-1">
-            {filtered.map((f) => {
-              const cur = f === value;
-              return (
-                <li key={f}>
-                  <button
-                    className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-[14px] transition-colors duration-100 ${
-                      cur ? "bg-[var(--accent-soft)] text-white" : "text-neutral-200 hover:bg-white/[0.06]"
-                    }`}
-                    style={{ fontFamily: `"${f}", sans-serif` }}
-                    onClick={() => {
-                      onChange(f);
-                      setOpen(false);
-                    }}
-                  >
-                    <span className="truncate">{f}</span>
-                    {cur && <Icon name="check" size={15} className="ml-2 shrink-0 text-[var(--accent)]" />}
-                  </button>
-                </li>
-              );
-            })}
-            {filtered.length === 0 && (
-              <li className="px-2.5 py-2.5 text-[12px] text-neutral-500">No matches</li>
-            )}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function Divider() {
   return <div className="h-px w-full bg-white/[0.06]" />;

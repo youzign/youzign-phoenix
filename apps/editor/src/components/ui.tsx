@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { GOOGLE_FONTS } from "@youzign/editor-core";
+import { ensureGoogleFonts } from "../fonts.js";
+import { getActiveBrand, type Brand } from "../library/brands.js";
 
 /* ------------------------------------------------------------------ *
  * Icons — inline lucide-style SVG paths (stroke, no external dep).
@@ -392,12 +395,20 @@ export function NumberField({
 export function ColorSwatch({
   value,
   onChange,
+  compact = false,
 }: {
   value: string;
   onChange: (hex: string) => void;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [brandColors, setBrandColors] = useState<string[]>([]);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setBrandColors(getActiveBrand()?.colors ?? []);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -413,16 +424,49 @@ export function ColorSwatch({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 rounded-md bg-white/[0.04] p-1 pr-2 transition-colors duration-150 hover:bg-white/[0.08]"
+        className={`flex items-center gap-1.5 rounded-md bg-white/[0.04] p-1 transition-colors duration-150 hover:bg-white/[0.08] ${
+          compact ? "" : "pr-2"
+        }`}
       >
         <span
           className="h-5 w-5 rounded-[5px] ring-1 ring-inset ring-white/15"
           style={{ background: value }}
         />
-        <span className="text-[12px] tabular-nums uppercase text-neutral-300">{value}</span>
+        {!compact && (
+          <span className="text-[12px] tabular-nums uppercase text-neutral-300">{value}</span>
+        )}
       </button>
       {open && (
         <div className="absolute right-0 top-full z-40 mt-1.5 w-44 rounded-xl border border-white/10 bg-neutral-800/95 p-2.5 shadow-xl backdrop-blur">
+          {brandColors.length > 0 && (
+            <div className="mb-2.5 border-b border-white/[0.06] pb-2.5" data-brand-color-row>
+              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                Brand
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {brandColors.map((hex, index) => (
+                  <button
+                    key={`${hex}-${index}`}
+                    type="button"
+                    title={hex}
+                    aria-label={`Brand color ${hex}`}
+                    data-brand-color-swatch={hex}
+                    onClick={(e) => {
+                      // Closing the popover unmounts this button mid-dispatch; an
+                      // ancestor <label> (PropertiesPanel Field) would then forward
+                      // the click to its first labelable control (e.g. the "No fill"
+                      // checkerboard). preventDefault cancels that forwarding.
+                      e.preventDefault();
+                      onChange(hex);
+                      setOpen(false);
+                    }}
+                    className="h-5 w-5 rounded-[5px] ring-1 ring-inset ring-white/15 transition-transform duration-100 hover:scale-110 hover:ring-white/35"
+                    style={{ background: hex }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
           <input
             type="color"
             value={value}
@@ -441,6 +485,135 @@ export function ColorSwatch({
               maxLength={6}
             />
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function FontPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (family: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [brandFonts, setBrandFonts] = useState<Brand["fonts"]>({});
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const families =
+    value && !GOOGLE_FONTS.includes(value) ? [value, ...GOOGLE_FONTS] : GOOGLE_FONTS;
+  const filtered = families.filter((f) =>
+    f.toLowerCase().includes(query.trim().toLowerCase())
+  );
+  const brandFontRows = [
+    brandFonts.heading ? { label: "Heading", family: brandFonts.heading } : null,
+    brandFonts.body ? { label: "Body", family: brandFonts.body } : null,
+  ].filter((row): row is { label: string; family: string } => !!row);
+  const brandFontFamilies = brandFontRows.map((row) => row.family);
+
+  useEffect(() => {
+    if (!open) return;
+    setBrandFonts(getActiveBrand()?.fonts ?? {});
+  }, [open]);
+
+  useEffect(() => {
+    if (open) ensureGoogleFonts([...brandFontFamilies, ...filtered]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, query, brandFonts.heading, brandFonts.body]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        className="flex w-full items-center justify-between rounded-md bg-white/[0.05] px-2.5 py-2 text-[13px] text-neutral-100 transition-colors duration-150 hover:bg-white/[0.09]"
+        style={{ fontFamily: `"${value}", sans-serif` }}
+        onClick={() => {
+          setOpen((o) => !o);
+          setQuery("");
+        }}
+      >
+        <span className="truncate">{value || "Select font"}</span>
+        <Icon name="chevron-down" size={15} className="ml-2 shrink-0 text-neutral-500" />
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1.5 overflow-hidden rounded-xl border border-white/10 bg-neutral-800/95 shadow-2xl backdrop-blur">
+          {brandFontRows.length > 0 && (
+            <div className="border-b border-white/[0.06] px-2.5 py-2" data-brand-fonts-section>
+              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                Brand fonts
+              </div>
+              <div className="flex flex-col gap-1">
+                {brandFontRows.map(({ label, family }) => (
+                  <button
+                    key={`${label}-${family}`}
+                    type="button"
+                    data-brand-font-row={label.toLowerCase()}
+                    className="flex w-full min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-[12px] text-neutral-300 transition-colors duration-100 hover:bg-white/[0.06] hover:text-neutral-100"
+                    onClick={() => {
+                      onChange(family);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                      {label}
+                    </span>
+                    <span
+                      className="min-w-0 flex-1 truncate text-right text-[14px] text-neutral-100"
+                      style={{ fontFamily: `"${family}", sans-serif` }}
+                    >
+                      {family}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2.5 py-2">
+            <Icon name="search" size={15} className="shrink-0 text-neutral-500" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search fonts…"
+              className="w-full bg-transparent text-[13px] text-neutral-100 outline-none placeholder:text-neutral-500"
+            />
+          </div>
+          <ul className="max-h-64 overflow-y-auto py-1">
+            {filtered.map((f) => {
+              const cur = f === value;
+              return (
+                <li key={f}>
+                  <button
+                    className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-[14px] transition-colors duration-100 ${
+                      cur ? "bg-[var(--accent-soft)] text-white" : "text-neutral-200 hover:bg-white/[0.06]"
+                    }`}
+                    style={{ fontFamily: `"${f}", sans-serif` }}
+                    onClick={() => {
+                      onChange(f);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="truncate">{f}</span>
+                    {cur && <Icon name="check" size={15} className="ml-2 shrink-0 text-[var(--accent)]" />}
+                  </button>
+                </li>
+              );
+            })}
+            {filtered.length === 0 && (
+              <li className="px-2.5 py-2.5 text-[12px] text-neutral-500">No matches</li>
+            )}
+          </ul>
         </div>
       )}
     </div>

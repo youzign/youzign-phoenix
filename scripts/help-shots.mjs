@@ -136,6 +136,77 @@ async function openEditorWithImage() {
   await sleep(300);
 }
 
+async function seedBrandKit() {
+  await inPage(`
+    const c = document.createElement("canvas");
+    c.width = 640;
+    c.height = 360;
+    const g = c.getContext("2d");
+    g.fillStyle = "#f8fafc";
+    g.fillRect(0, 0, 640, 360);
+    g.fillStyle = "#0f766e";
+    g.fillRect(70, 70, 180, 180);
+    g.fillStyle = "#f97316";
+    g.beginPath();
+    g.arc(380, 180, 90, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = "#111827";
+    g.font = "700 44px Inter, sans-serif";
+    g.fillText("ACME", 70, 300);
+    const dataUri = c.toDataURL("image/png");
+    localStorage.setItem("youzign-next:brands", JSON.stringify({
+      brands: [
+        {
+          id: "br_help_acme",
+          name: "Acme Studio",
+          colors: ["#0f766e", "#f97316", "#111827", "#f8fafc", "#2563eb", "#e11d48"],
+          fonts: { heading: "Inter", body: "Roboto" },
+          createdAt: 1783200000000
+        },
+        {
+          id: "br_help_event",
+          name: "Launch Event",
+          colors: ["#7c3aed", "#facc15"],
+          fonts: { heading: "Playfair Display", body: "Inter" },
+          createdAt: 1783200001000
+        }
+      ],
+      activeId: "br_help_acme"
+    }));
+    await new Promise((res, rej) => {
+      const req = indexedDB.open("youzign-next", 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains("uploads")) db.createObjectStore("uploads", { keyPath: "id" });
+      };
+      req.onerror = () => rej(req.error);
+      req.onsuccess = () => {
+        const db = req.result;
+        const tx = db.transaction("uploads", "readwrite");
+        tx.objectStore("uploads").put({
+          id: "up_help_logo",
+          name: "acme-logo.png",
+          type: "image/png",
+          dataUri,
+          width: 640,
+          height: 360,
+          createdAt: 1783200002000,
+          brandId: "br_help_acme"
+        });
+        tx.oncomplete = () => {
+          db.close();
+          res();
+        };
+        tx.onerror = () => {
+          db.close();
+          rej(tx.error);
+        };
+      };
+    });
+    return true;
+  `);
+}
+
 try {
   fs.mkdirSync(outDir, { recursive: true });
   await page.setViewport({ width: 1440, height: 940, deviceScaleFactor: 1 });
@@ -162,6 +233,11 @@ try {
 
   await clickButtonText("Text");
   await shot("panels-text.png");
+
+  await seedBrandKit();
+  await clickButtonText("Brand");
+  await page.waitForSelector('[data-brand-swatch="#0f766e"]');
+  await shot("brand-kit.png");
 
   await clickButtonText("Create");
   await shot("ai-tools.png");

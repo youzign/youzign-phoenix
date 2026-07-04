@@ -25,7 +25,8 @@ import {
   type DocumentRecord,
 } from "../library/documents.js";
 import { buildBackupBundle, parseBackupBundle } from "../library/backup.js";
-import { fileToUploadRecord, isAcceptedFile } from "../library/uploads.js";
+import { getActiveBrandId, listBrands, mergeBrands } from "../library/brands.js";
+import { allUploads, fileToUploadRecord, isAcceptedFile, putUpload } from "../library/uploads.js";
 import { openExternal, pickFiles, saveBlob } from "../native.js";
 import { blankDocument, imageDocument, startImageDims, START_IMAGE_MAX_DIM } from "../newDesign.js";
 import { backupHash, dashboardHash, editorHash, helpHash } from "../router.js";
@@ -536,10 +537,32 @@ function BackupPanel({ docs, onRefresh }: { docs: DocumentRecord[]; onRefresh: (
     setBusy(true);
     setStatus("");
     try {
-      const bundle = buildBackupBundle(await allDocuments());
+      const brands = listBrands();
+      const brandIds = new Set(brands.map((brand) => brand.id));
+      const brandAssets = (await allUploads())
+        .filter((upload) => upload.brandId && brandIds.has(upload.brandId))
+        .map((upload) => ({
+          id: upload.id,
+          name: upload.name,
+          type: upload.type,
+          dataUri: upload.dataUri,
+          width: upload.width,
+          height: upload.height,
+          createdAt: upload.createdAt,
+          brandId: upload.brandId!,
+        }));
+      const bundle = buildBackupBundle(await allDocuments(), undefined, {
+        brands,
+        activeBrandId: getActiveBrandId(),
+        brandAssets,
+      });
       const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
       await saveBlob(blob, "youzign-backup.json");
-      setStatus(`Exported ${bundle.docs.length} ${bundle.docs.length === 1 ? "design" : "designs"}`);
+      setStatus(
+        `Exported ${bundle.docs.length} ${bundle.docs.length === 1 ? "design" : "designs"} and ${bundle.brands?.length ?? 0} ${
+          bundle.brands?.length === 1 ? "brand" : "brands"
+        }`
+      );
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Export failed");
     } finally {
@@ -575,6 +598,12 @@ function BackupPanel({ docs, onRefresh }: { docs: DocumentRecord[]; onRefresh: (
           await putDocument(rec);
           imported++;
         }
+        if (bundle.brands) {
+          mergeBrands(bundle.brands, { activeId: bundle.brands.find((brand) => brand.active)?.id ?? null });
+        }
+        if (bundle.brandAssets) {
+          for (const asset of bundle.brandAssets) await putUpload(asset);
+        }
       }
       onRefresh();
       setStatus(`Imported ${imported} ${imported === 1 ? "design" : "designs"}`);
@@ -600,7 +629,7 @@ function BackupPanel({ docs, onRefresh }: { docs: DocumentRecord[]; onRefresh: (
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
-          <button className={accentBtn} onClick={() => void exportAll()} disabled={busy || docs.length === 0}>
+          <button className={accentBtn} onClick={() => void exportAll()} disabled={busy}>
             <Icon name="download" size={15} /> Export all designs
           </button>
           <button className={ghostBtn} onClick={() => void importFile()} disabled={busy}>

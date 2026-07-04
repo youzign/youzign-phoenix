@@ -24,6 +24,7 @@ export interface UploadRecord {
   width: number;
   height: number;
   createdAt: number;
+  brandId?: string;
 }
 
 /* ------------------------------ pure logic ------------------------------- */
@@ -140,6 +141,22 @@ export async function deleteUpload(id: string): Promise<void> {
   notify();
 }
 
+export async function setUploadBrand(id: string, brandId: string | undefined): Promise<void> {
+  if (!hasIDB()) return;
+  const rec = await tx<UploadRecord | undefined>("readonly", (s) => s.get(id) as any);
+  if (!rec) return;
+  const next = { ...rec };
+  if (brandId) next.brandId = brandId;
+  else delete next.brandId;
+  await tx("readwrite", (s) => s.put(next));
+  notify();
+}
+
+export async function uploadsForBrand(brandId: string): Promise<UploadRecord[]> {
+  const uploads = await allUploads();
+  return uploads.filter((upload) => upload.brandId === brandId);
+}
+
 /* ---------------------- change notification (no deps) -------------------- */
 
 const listeners = new Set<() => void>();
@@ -223,12 +240,16 @@ export async function fileToUploadRecord(file: File, cap = MAX_UPLOAD_DIM): Prom
  * Validate, process, and persist a batch of dropped/selected files. Returns the
  * records actually ingested (accepted types only), newest handling last.
  */
-export async function ingestFiles(files: FileList | File[]): Promise<UploadRecord[]> {
+export async function ingestFiles(
+  files: FileList | File[],
+  opts?: { brandId?: string }
+): Promise<UploadRecord[]> {
   const out: UploadRecord[] = [];
   for (const f of Array.from(files)) {
     if (!isAcceptedFile(f)) continue;
     try {
-      const rec = await fileToUploadRecord(f);
+      const base = await fileToUploadRecord(f);
+      const rec = opts?.brandId ? { ...base, brandId: opts.brandId } : base;
       await putUpload(rec).catch(() => {});
       out.push(rec);
     } catch {

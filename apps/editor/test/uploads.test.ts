@@ -1,12 +1,93 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  allUploads,
   isAcceptedFile,
   downscaleDims,
   canvasMime,
+  ingestFiles,
   promisifyRequest,
+  setUploadBrand,
+  uploadsForBrand,
   MAX_UPLOAD_DIM,
   ACCEPTED_EXT,
 } from "../src/library/uploads.js";
+
+function requestWith<T>(result: T): IDBRequest<T> {
+  const req = { result, error: undefined, onsuccess: null, onerror: null } as unknown as IDBRequest<T>;
+  queueMicrotask(() => req.onsuccess?.call(req, {} as Event));
+  return req;
+}
+
+function installIndexedDb() {
+  const records = new Map<string, any>();
+  let hasStore = false;
+  const store = {
+    put: (record: any) => {
+      records.set(record.id, { ...record });
+      return requestWith(record.id);
+    },
+    get: (id: string) => requestWith(records.get(id) ? { ...records.get(id) } : undefined),
+    getAll: () => requestWith([...records.values()].map((record) => ({ ...record }))),
+    delete: (id: string) => {
+      records.delete(id);
+      return requestWith(undefined);
+    },
+  };
+  const db = {
+    objectStoreNames: { contains: () => hasStore },
+    createObjectStore: () => {
+      hasStore = true;
+      return store;
+    },
+    transaction: () => ({ objectStore: () => store }),
+    close: () => {},
+  };
+  vi.stubGlobal("indexedDB", {
+    open: () => {
+      const req: any = { result: db, error: undefined, onupgradeneeded: null, onsuccess: null, onerror: null };
+      queueMicrotask(() => {
+        if (!hasStore) req.onupgradeneeded?.();
+        req.onsuccess?.();
+      });
+      return req;
+    },
+  });
+  return records;
+}
+
+class FakeFileReader {
+  result: string | ArrayBuffer | null = null;
+  error: Error | null = null;
+  onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
+  onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
+
+  readAsDataURL(file: File) {
+    this.result = `data:${file.type};base64,${file.name}`;
+    queueMicrotask(() => this.onload?.call(this as unknown as FileReader, {} as ProgressEvent<FileReader>));
+  }
+}
+
+class FakeImage {
+  naturalWidth = 640;
+  naturalHeight = 480;
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+
+  set src(_value: string) {
+    queueMicrotask(() => this.onload?.());
+  }
+}
+
+beforeEach(() => {
+  installIndexedDb();
+  vi.stubGlobal("FileReader", FakeFileReader);
+  vi.stubGlobal("Image", FakeImage);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("upload file-type validation", () => {
   it("accepts png/jpg/webp/svg by mime type", () => {
@@ -95,5 +176,46 @@ describe("IndexedDB request wrapper", () => {
     const p = promisifyRequest(req);
     req.onerror();
     await expect(p).rejects.toBe(err);
+  });
+});
+
+describe("upload brand tagging", () => {
+  it("stamps brandId when ingesting files with opts", async () => {
+    const file = new File(["<svg />"], "logo.svg", { type: "image/svg+xml" });
+
+    const [rec] = await ingestFiles([file], { brandId: "br_1" });
+
+    expect(rec.brandId).toBe("br_1");
+    expect(await uploadsForBrand("br_1")).toMatchObject([{ id: rec.id, brandId: "br_1" }]);
+  });
+
+  it("adds and removes an upload brand tag", async () => {
+    const file = new File(["<svg />"], "logo.svg", { type: "image/svg+xml" });
+    const [rec] = await ingestFiles([file]);
+
+    await setUploadBrand(rec.id, "br_1");
+    expect((await allUploads())[0]).toMatchObject({ id: rec.id, brandId: "br_1" });
+
+    await setUploadBrand(rec.id, undefined);
+    expect((await allUploads())[0].brandId).toBeUndefined();
+  });
+
+  it("filters uploads for a brand newest first", async () => {
+    let now = 1000;
+    vi.spyOn(Date, "now").mockImplementation(() => {
+      now += 1000;
+      return now;
+    });
+    const a = new File(["<svg />"], "a.svg", { type: "image/svg+xml" });
+    const b = new File(["<svg />"], "b.svg", { type: "image/svg+xml" });
+    const c = new File(["<svg />"], "c.svg", { type: "image/svg+xml" });
+
+    const [first] = await ingestFiles([a], { brandId: "br_1" });
+    const [other] = await ingestFiles([b], { brandId: "br_2" });
+    const [second] = await ingestFiles([c], { brandId: "br_1" });
+
+    const uploads = await uploadsForBrand("br_1");
+    expect(uploads.map((upload) => upload.id)).toEqual([second.id, first.id]);
+    expect(uploads.map((upload) => upload.id)).not.toContain(other.id);
   });
 });
