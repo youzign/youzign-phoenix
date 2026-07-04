@@ -20,6 +20,7 @@ import {
   buildFalEditRequest,
   clampImages,
   MAX_EDIT_IMAGES,
+  FAL_MODEL,
   FAL_EDIT_MODEL,
 } from "../src/library/generate.js";
 import {
@@ -115,23 +116,17 @@ describe("fal.ai generate adapter", () => {
   const landscape = ASPECT_PRESETS.find((p) => p.id === "landscape")!;
   const portrait = ASPECT_PRESETS.find((p) => p.id === "portrait")!;
 
-  it("exposes square/landscape/portrait presets with flux-friendly dims", () => {
-    expect(square).toMatchObject({ width: 1024, height: 1024 });
-    expect(landscape.width).toBeGreaterThan(landscape.height);
-    expect(portrait.height).toBeGreaterThan(portrait.width);
-    // all dims are multiples of 32 (flux requirement)
-    for (const p of ASPECT_PRESETS) {
-      expect(p.width % 32).toBe(0);
-      expect(p.height % 32).toBe(0);
-    }
+  it("targets nano-banana text-to-image with enum aspect presets", () => {
+    expect(FAL_MODEL).toBe("google/nano-banana-2-lite");
+    expect(square).toMatchObject({ label: "Square", aspect_ratio: "1:1" });
+    expect(landscape).toMatchObject({ label: "Landscape", aspect_ratio: "16:9" });
+    expect(portrait).toMatchObject({ label: "Portrait", aspect_ratio: "9:16" });
   });
 
   it("builds a request payload from prompt + preset", () => {
     expect(buildFalRequest("  a red fox  ", landscape)).toEqual({
       prompt: "a red fox",
-      image_size: { width: 1344, height: 768 },
-      num_images: 1,
-      enable_safety_checker: true,
+      aspect_ratio: "16:9",
     });
   });
 

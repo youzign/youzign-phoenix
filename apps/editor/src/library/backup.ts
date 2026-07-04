@@ -1,5 +1,5 @@
 import { parse } from "@youzign/designstring";
-import type { Brand } from "./brands.js";
+import { normalizeBrandPrompts, type Brand } from "./brands.js";
 import type { DocumentRecord } from "./documents.js";
 import type { UploadRecord } from "./uploads.js";
 
@@ -72,6 +72,11 @@ function validateBrand(value: unknown, index: number): BackupBrand {
   else if (value.fonts.heading !== undefined) fail(`${label} fonts.heading must be a string`);
   if (typeof value.fonts.body === "string") fonts.body = value.fonts.body;
   else if (value.fonts.body !== undefined) fail(`${label} fonts.body must be a string`);
+  if (value.prompts !== undefined && !Array.isArray(value.prompts)) fail(`${label} prompts must be an array`);
+  const prompts = value.prompts === undefined ? [] : normalizeBrandPrompts(value.prompts.map((prompt, promptIndex) => {
+    if (typeof prompt !== "string") fail(`${label} prompt ${promptIndex + 1} must be a string`);
+    return prompt;
+  }));
 
   return {
     id: value.id,
@@ -83,6 +88,7 @@ function validateBrand(value: unknown, index: number): BackupBrand {
       return normalized;
     }),
     fonts,
+    ...(prompts.length ? { prompts } : {}),
     createdAt: value.createdAt,
     active: value.active,
   };
@@ -128,12 +134,16 @@ export function buildBackupBundle(
     })),
   };
   if (extras?.brands) {
-    bundle.brands = extras.brands.map((brand) => ({
-      ...brand,
-      colors: [...brand.colors],
-      fonts: { ...brand.fonts },
-      active: brand.id === extras.activeBrandId,
-    }));
+    bundle.brands = extras.brands.map((brand) => {
+      const backupBrand: BackupBrand = {
+        ...brand,
+        colors: [...brand.colors],
+        fonts: { ...brand.fonts },
+        active: brand.id === extras.activeBrandId,
+      };
+      if (brand.prompts?.length) backupBrand.prompts = [...brand.prompts];
+      return backupBrand;
+    });
   }
   if (extras?.brandAssets) {
     bundle.brandAssets = extras.brandAssets.map((asset) => ({ ...asset }));

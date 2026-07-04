@@ -49,6 +49,7 @@ describe("backup bundles", () => {
             name: "Acme",
             colors: ["#ABC", "#112233"],
             fonts: { heading: "Inter", body: "Roboto" },
+            prompts: ["  purple and electric blue accents  "],
             createdAt: 123,
           },
           {
@@ -85,6 +86,7 @@ describe("backup bundles", () => {
           name: "Acme",
           colors: ["#aabbcc", "#112233"],
           fonts: { heading: "Inter", body: "Roboto" },
+          prompts: ["purple and electric blue accents"],
           createdAt: 123,
           active: true,
         },
@@ -120,6 +122,31 @@ describe("backup bundles", () => {
     };
 
     expect(parseBackupBundle(JSON.stringify(bundle))).toEqual(bundle);
+  });
+
+  it("round-trips brand prompts through backup validation", () => {
+    const long = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
+    const bundle = {
+      version: 1,
+      exportedAt: "2026-07-03T10:00:00.000Z",
+      docs: [{ name: "Poster", pages: [xml], titles: [""], activePage: 0 }],
+      brands: [
+        {
+          id: "br_prompt",
+          name: "Prompt brand",
+          colors: [],
+          fonts: {},
+          prompts: [" purple accents ", long, "ignored"],
+          createdAt: 1,
+          active: true,
+        },
+      ],
+    };
+
+    expect(parseBackupBundle(JSON.stringify(bundle)).brands?.[0].prompts).toEqual([
+      "purple accents",
+      Array.from({ length: 50 }, (_, i) => `word${i}`).join(" "),
+    ]);
   });
 
   it("reports validation errors for bad shape", () => {
@@ -163,6 +190,17 @@ describe("backup bundles", () => {
         })
       )
     ).toThrow("Brand 1 fonts.heading must be a string");
+
+    expect(() =>
+      parseBackupBundle(
+        JSON.stringify({
+          version: 1,
+          exportedAt: "2026-07-03T10:00:00.000Z",
+          docs: [{ name: "Poster", pages: [xml], titles: [""], activePage: 0 }],
+          brands: [{ id: "br_bad", name: "Bad", colors: [], fonts: {}, prompts: [42], createdAt: 1, active: true }],
+        })
+      )
+    ).toThrow("Brand 1 prompt 1 must be a string");
   });
 
   it("reports validation errors for malformed brand assets", () => {

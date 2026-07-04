@@ -8,12 +8,15 @@ import {
   getActiveBrandId,
   getBrand,
   listBrands,
+  mergeBrands,
+  normalizeBrandPrompts,
   normalizeHex,
   onBrandsChanged,
   renameBrand,
   setActiveBrand,
   setBrandColors,
   setBrandFonts,
+  setBrandPrompts,
 } from "../src/library/brands.js";
 
 const LS_KEY = "youzign-next:brands";
@@ -54,6 +57,20 @@ describe("brand color normalization", () => {
     expect(normalizeHex("#12")).toBeNull();
     expect(normalizeHex("#abcd")).toBeNull();
     expect(normalizeHex("not-a-color")).toBeNull();
+  });
+});
+
+describe("brand prompt normalization", () => {
+  it("keeps at most two trimmed prompts and clamps them to 50 words", () => {
+    const long = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
+    expect(normalizeBrandPrompts(["  first prompt  ", long, "third"])).toEqual([
+      "first prompt",
+      Array.from({ length: 50 }, (_, i) => `word${i}`).join(" "),
+    ]);
+  });
+
+  it("drops empty prompts and caps very long text near storage limits", () => {
+    expect(normalizeBrandPrompts(["   ", "x".repeat(500)])).toEqual(["x".repeat(400)]);
   });
 });
 
@@ -120,12 +137,22 @@ describe("brand storage", () => {
     setBrandColors(brand.id, ["fff", "#FFFFFF", "#000000", "nope"]);
     setBrandFonts(brand.id, { body: "Roboto" });
     setBrandFonts(brand.id, { heading: undefined });
+    setBrandPrompts(brand.id, ["  purple accents  ", "soft gradients"]);
 
     expect(getBrand(brand.id)).toMatchObject({
       name: "Launch",
       colors: ["#ffffff", "#000000"],
       fonts: { body: "Roboto" },
+      prompts: ["purple accents", "soft gradients"],
     });
+  });
+
+  it("persists prompt replacements and removes prompts when saved empty", () => {
+    const brand = createBrand({ name: "Brand", prompts: ["purple accents"] });
+
+    expect(getBrand(brand.id)?.prompts).toEqual(["purple accents"]);
+    setBrandPrompts(brand.id, ["", "   "]);
+    expect(getBrand(brand.id)?.prompts).toBeUndefined();
   });
 
   it("makes the first brand active and preserves it when adding another", () => {
@@ -164,6 +191,7 @@ describe("brand storage", () => {
             name: "Saved",
             colors: ["ABCDEF"],
             fonts: { heading: "Inter", body: "Roboto" },
+            prompts: ["purple and electric blue accents"],
             createdAt: 123,
           },
         ],
@@ -177,6 +205,7 @@ describe("brand storage", () => {
         name: "Saved",
         colors: ["#abcdef"],
         fonts: { heading: "Inter", body: "Roboto" },
+        prompts: ["purple and electric blue accents"],
         createdAt: 123,
       },
     ]);
@@ -198,6 +227,25 @@ describe("brand storage", () => {
 
     expect(listBrands().map((brand) => brand.id)).toEqual(["good"]);
     expect(getActiveBrandId()).toBeNull();
+  });
+
+  it("merges imported brands with prompts", () => {
+    mergeBrands(
+      [
+        {
+          id: "br_imported",
+          name: "Imported",
+          colors: [],
+          fonts: {},
+          prompts: ["  purple accents  ", "soft gradients", "ignored"],
+          createdAt: 1,
+        },
+      ],
+      { activeId: "br_imported" }
+    );
+
+    expect(getActiveBrandId()).toBe("br_imported");
+    expect(getBrand("br_imported")?.prompts).toEqual(["purple accents", "soft gradients"]);
   });
 
   it("recovers from corrupt JSON", () => {
