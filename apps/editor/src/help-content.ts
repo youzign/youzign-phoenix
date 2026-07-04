@@ -115,6 +115,29 @@ export const sections: HelpSection[] = [
     ],
   },
   {
+    id: "brand-kit",
+    title: "Brand Kit",
+    blocks: [
+      { type: "shot-ref", file: "brand-kit.png", caption: "Brand tab with brands, palette, fonts, and saved assets." },
+      {
+        type: "paragraph",
+        text: "A brand stores reusable colors, heading and body fonts, and logo or image assets. The Brand tab can start a brand from the current design's colors, create a blank brand, rename or delete brands, and switch which brand is active.",
+      },
+      {
+        type: "paragraph",
+        text: "Palette controls add, remove, reorder, and edit brand colors. The active brand's colors appear at the top of every color popover so fills, borders, shadows, backgrounds, and other color controls can reuse them with one click.",
+      },
+      {
+        type: "paragraph",
+        text: "Heading and body font choices are pinned as Brand fonts at the top of the font picker. Brand uploads accept PNG, JPG, WEBP, and SVG files, store them locally, and insert them onto the canvas from the Brand tab.",
+      },
+      {
+        type: "paragraph",
+        text: "You can keep multiple brands in the browser, with one active at a time. Backup export and import carries brands and their brand assets so the Brand Kit round-trips with local designs.",
+      },
+    ],
+  },
+  {
     id: "ai-tools",
     title: "A.I. Tools",
     blocks: [
@@ -191,7 +214,7 @@ export const sections: HelpSection[] = [
       { type: "shot-ref", file: "backup.png", caption: "Backup tab for local export and import." },
       {
         type: "paragraph",
-        text: "The Backup tab exports every local design into a JSON bundle and imports either a Youzign backup bundle or a single XML design. This is the portability path for the local-first OSS app.",
+        text: "The Backup tab exports every local design, brand, and brand asset into a JSON bundle and imports either a Youzign backup bundle or a single XML design. This is the portability path for the local-first OSS app.",
       },
       {
         type: "paragraph",

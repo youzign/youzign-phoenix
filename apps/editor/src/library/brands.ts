@@ -267,6 +267,29 @@ export function getActiveBrand(): Brand | undefined {
   return state.activeId ? state.brands.find((brand) => brand.id === state.activeId) : undefined;
 }
 
+export function mergeBrands(
+  imported: readonly Brand[],
+  opts?: { activeId?: string | null }
+): void {
+  const state = readState();
+  const byId = new Map(state.brands.map((brand) => [brand.id, brand]));
+  for (const brand of imported) {
+    byId.set(brand.id, {
+      id: brand.id,
+      name: brand.name,
+      colors: normalizeColors(brand.colors),
+      fonts: { ...brand.fonts },
+      createdAt: brand.createdAt,
+    });
+  }
+  const brands = [...byId.values()];
+  const activeId =
+    state.activeId ??
+    (opts?.activeId && brands.some((brand) => brand.id === opts.activeId) ? opts.activeId : null);
+  writeState({ brands, activeId });
+  notify();
+}
+
 export function setBrandColors(id: string, colors: string[]): void {
   const state = readState();
   if (!state.brands.some((brand) => brand.id === id)) return;
