@@ -114,3 +114,94 @@ export function applyAlphaMatte(
   }
   return out;
 }
+
+/**
+ * In-place Gaussian blur of an RGBA buffer, approximated by three box-blur
+ * passes (Kutskir's method — indistinguishable from true Gaussian at these
+ * radii). `sigma` matches CSS `blur(<px>)` semantics (standard deviation), so
+ * results track `ctx.filter = "blur(...)"` where that exists. Needed because
+ * WebKit (Safari / the desktop app's WKWebView) never implemented
+ * CanvasRenderingContext2D.filter — there it silently no-ops.
+ */
+export function gaussianBlurRGBA(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  sigma: number
+): void {
+  if (sigma <= 0 || width <= 0 || height <= 0) return;
+  const n = width * height;
+  const src = new Float32Array(n);
+  const tmp = new Float32Array(n);
+  const boxes = boxesForGauss(sigma, 3);
+  for (let ch = 0; ch < 4; ch++) {
+    for (let i = 0; i < n; i++) src[i] = data[i * 4 + ch];
+    for (const size of boxes) {
+      const r = (size - 1) / 2;
+      boxBlurPass(src, tmp, width, height, Math.min(r, Math.floor((width - 1) / 2)), true);
+      boxBlurPass(tmp, src, width, height, Math.min(r, Math.floor((height - 1) / 2)), false);
+    }
+    for (let i = 0; i < n; i++) data[i * 4 + ch] = src[i];
+  }
+}
+
+/** Box sizes (odd widths) whose n passes best approximate a Gaussian of stddev sigma. */
+function boxesForGauss(sigma: number, n: number): number[] {
+  const wIdeal = Math.sqrt((12 * sigma * sigma) / n + 1);
+  let wl = Math.floor(wIdeal);
+  if (wl % 2 === 0) wl--;
+  const wu = wl + 2;
+  const mIdeal = (12 * sigma * sigma - n * wl * wl - 4 * n * wl - 3 * n) / (-4 * wl - 4);
+  const m = Math.round(mIdeal);
+  const sizes: number[] = [];
+  for (let i = 0; i < n; i++) sizes.push(i < m ? wl : wu);
+  return sizes;
+}
+
+/** One running-sum box-blur pass, horizontal or vertical, with clamped edges. */
+function boxBlurPass(
+  src: Float32Array,
+  dst: Float32Array,
+  width: number,
+  height: number,
+  r: number,
+  horizontal: boolean
+): void {
+  if (r <= 0) {
+    dst.set(src);
+    return;
+  }
+  const lines = horizontal ? height : width;
+  const len = horizontal ? width : height;
+  const stride = horizontal ? 1 : width;
+  const iarr = 1 / (r + r + 1);
+  for (let i = 0; i < lines; i++) {
+    const base = horizontal ? i * width : i;
+    let ti = base;
+    let li = base;
+    let ri = base + r * stride;
+    const fv = src[base];
+    const lv = src[base + (len - 1) * stride];
+    let val = (r + 1) * fv;
+    for (let j = 0; j < r; j++) val += src[base + j * stride];
+    for (let j = 0; j <= r; j++) {
+      val += src[ri] - fv;
+      ri += stride;
+      dst[ti] = val * iarr;
+      ti += stride;
+    }
+    for (let j = r + 1; j < len - r; j++) {
+      val += src[ri] - src[li];
+      ri += stride;
+      li += stride;
+      dst[ti] = val * iarr;
+      ti += stride;
+    }
+    for (let j = len - r; j < len; j++) {
+      val += lv - src[li];
+      li += stride;
+      dst[ti] = val * iarr;
+      ti += stride;
+    }
+  }
+}

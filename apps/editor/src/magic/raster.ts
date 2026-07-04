@@ -8,6 +8,7 @@ import {
   maskThresholdAlpha,
   maskBounds,
   applyAlphaMatte,
+  gaussianBlurRGBA,
   type MaskBounds,
 } from "@youzign/editor-core";
 
@@ -211,13 +212,25 @@ export async function blurBackgroundComposite(
   c.height = h;
   const ctx = c.getContext("2d");
   if (!ctx) throw new RasterError("Canvas unavailable.");
-  // Blurred background (full image scaled to the cutout resolution).
-  ctx.filter = `blur(${Math.max(0, blurPx)}px)`;
-  ctx.drawImage(img, 0, 0, w, h);
-  ctx.filter = "none";
-  // Sharp subject on top.
-  ctx.drawImage(cut, 0, 0, w, h);
+  const px = Math.max(0, blurPx);
   try {
+    // Blurred background (full image scaled to the cutout resolution).
+    // WebKit (the desktop app's WKWebView) has no ctx.filter — it silently
+    // no-ops there, so fall back to the pure-JS Gaussian on the pixel buffer.
+    if (typeof ctx.filter === "string") {
+      ctx.filter = `blur(${px}px)`;
+      ctx.drawImage(img, 0, 0, w, h);
+      ctx.filter = "none";
+    } else {
+      ctx.drawImage(img, 0, 0, w, h);
+      if (px > 0) {
+        const id = ctx.getImageData(0, 0, w, h);
+        gaussianBlurRGBA(id.data, w, h, px);
+        ctx.putImageData(id, 0, 0);
+      }
+    }
+    // Sharp subject on top.
+    ctx.drawImage(cut, 0, 0, w, h);
     return c.toDataURL("image/png");
   } catch {
     throw new RasterError("Image is cross-origin protected and can't be read.");
