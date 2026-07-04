@@ -479,6 +479,10 @@ function HelpBlockView({ block }: { block: HelpBlock }) {
 
 function HelpManual() {
   const active = useActiveHelpSection();
+  const scrollToSection = (event: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    event.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <section className="grid gap-8 lg:grid-cols-[240px_minmax(0,760px)] xl:grid-cols-[260px_minmax(0,820px)]">
@@ -490,6 +494,7 @@ function HelpManual() {
               <a
                 key={section.id}
                 href={`#${section.id}`}
+                onClick={(event) => scrollToSection(event, section.id)}
                 className={`block rounded-lg px-2.5 py-2 text-[12px] font-medium transition-colors duration-150 ${
                   active === section.id
                     ? "bg-white/[0.07] text-neutral-100"
