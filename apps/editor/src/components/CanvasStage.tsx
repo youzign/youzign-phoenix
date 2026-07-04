@@ -15,6 +15,7 @@ import {
   resizeTextCorner,
   resizeTextSide,
   edgeCropRect,
+  HANDLE_SIGN,
   fullSourceCanvasBounds,
   fullSourceRectToCanvasGeom,
   snapRotation,
@@ -44,6 +45,7 @@ type IdItem = Item & { _uid?: number };
 const GRID_MINOR = 8;
 const GRID_MAJOR = 64;
 const SNAP_PX = 6;
+const TEXT_CHROME_OUTSET_PX = 6;
 
 type HandleId = Corner | Edge;
 const EDGES: Edge[] = ["n", "s", "e", "w"];
@@ -65,6 +67,9 @@ interface Drag {
   fullNatural?: { w: number; h: number };
   // text resize starts from the original model values for stable live preview
   textItem?: TextItem;
+  // Canvas-space handle anchor at gesture start. Resize math receives this
+  // virtual pointer plus drag delta so off-center grabs do not resize on grab.
+  handleStart?: { x: number; y: number };
 }
 
 interface Marquee {
@@ -102,6 +107,38 @@ function canvasBoxOf(design: Design, uid: number): SelBox | undefined {
   if (!loc) return undefined;
   const local = itemBox(loc.item as any);
   return loc.group ? childBoxInCanvas(loc.group as any, local) : local;
+}
+
+function rotateOffset(x: number, y: number, deg: number) {
+  const r = (deg * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  return { x: x * c - y * s, y: x * s + y * c };
+}
+
+function handleAnchor(box: SelBox, handle: HandleId): { x: number; y: number } {
+  const [sx, sy] = HANDLE_SIGN[handle];
+  const offset = rotateOffset((sx * box.w) / 2, (sy * box.h) / 2, box.rotation);
+  return { x: box.cx + offset.x, y: box.cy + offset.y };
+}
+
+function paddedChromeBox(box: SelBox, outset: number): SelBox {
+  return { ...box, w: box.w + outset * 2, h: box.h + outset * 2 };
+}
+
+function textResizeSnapshot(item: TextItem, box: SelBox, handle?: HandleId): TextItem {
+  const snapshot = { ...item } as TextItem;
+  if ((handle === "e" || handle === "w") && !item.wrapping) {
+    const width = Math.max(1, box.w);
+    const localCenter = rotateOffset(box.cx - item.xpos, box.cy - item.ypos, -item.rotation);
+    const worldCenter = rotateOffset(localCenter.x, 0, item.rotation);
+    snapshot.xpos = item.xpos + worldCenter.x;
+    snapshot.ypos = item.ypos + worldCenter.y;
+    snapshot.textAreaWidth = width;
+    snapshot.mcWidth = width;
+    snapshot.textAreaxpos = -width / 2;
+  }
+  return snapshot;
 }
 
 export function CanvasStage() {
@@ -249,15 +286,31 @@ export function CanvasStage() {
         setLiveCrop(edgeCropRect(d.imageItem, d.handle as Edge, p, 8, bounds));
       } else if (d.mode === "resize" && d.handle) {
         const isCorner = d.handle.length === 2;
+        const virtual =
+          d.handleStart && isCorner
+            ? {
+                x: d.handleStart.x + (p.x - d.startCanvas.x),
+                y: d.handleStart.y + (p.y - d.startCanvas.y),
+              }
+            : p;
         const patch = d.textItem
           ? isCorner
-            ? resizeTextCorner(d.textItem, b, d.handle as Corner, p)
+            ? resizeTextCorner(d.textItem, b, d.handle as Corner, virtual)
             : resizeTextSide(d.textItem, d.handle as "e" | "w", d.startCanvas, p)
           : isCorner
             // Corner: proportional BY DEFAULT, Shift unlocks free resize (Canva).
             // Edge: single-axis stretch.
-            ? resizeCorner(b, d.handle as Corner, p, !shift)
-            : resizeEdge(b, d.handle as Edge, p);
+            ? resizeCorner(b, d.handle as Corner, virtual, !shift)
+            : resizeEdge(
+                b,
+                d.handle as Edge,
+                d.handleStart
+                  ? {
+                      x: d.handleStart.x + (p.x - d.startCanvas.x),
+                      y: d.handleStart.y + (p.y - d.startCanvas.y),
+                    }
+                  : p
+              );
         livePatch(d.uid, patch);
       }
     };
@@ -421,13 +474,18 @@ export function CanvasStage() {
       return;
     }
     beginHistory();
+    const startCanvas = toCanvas(e.clientX, e.clientY);
     dragRef.current = {
       mode,
       handle,
       startBox: box,
-      startCanvas: toCanvas(e.clientX, e.clientY),
+      startCanvas,
       uid,
-      textItem: isPlainText && mode === "resize" ? ({ ...(loc!.item as TextItem) } as TextItem) : undefined,
+      handleStart: mode === "resize" && handle ? handleAnchor(box, handle) : undefined,
+      textItem:
+        isPlainText && mode === "resize"
+          ? textResizeSnapshot(loc!.item as TextItem, box, handle)
+          : undefined,
     };
   };
 
@@ -672,6 +730,9 @@ export function CanvasStage() {
               const showHandles = selectedIsTopLevel && (!isText || isPlainText) && !locked;
               const showRotate = selectedIsTopLevel && !locked;
               const isImageSel = singleItem?.type === "image";
+              const chromeBox = isText
+                ? paddedChromeBox(singleBox, TEXT_CHROME_OUTSET_PX / zoom)
+                : singleBox;
               const handleFill: CSSProperties = {
                 background: "#fff",
                 border: "1.5px solid var(--accent)",
@@ -709,7 +770,7 @@ export function CanvasStage() {
                 </div>
               );
               return (
-                <div style={{ ...boxToStyle(singleBox), pointerEvents: "none" }}>
+                <div style={{ ...boxToStyle(chromeBox), pointerEvents: "none" }}>
                   <div
                     className="absolute inset-0"
                     style={{
