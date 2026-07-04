@@ -146,6 +146,7 @@ export const sections: HelpSection[] = [
     title: "A.I. Tools",
     blocks: [
       { type: "shot-ref", file: "ai-tools.png", caption: "Image magic tools and fal.ai-powered actions." },
+      { type: "shot-ref", file: "remove-bg.png", caption: "Local Remove bg applied to a portrait cutout on the canvas." },
       {
         type: "paragraph",
         text: "Remove bg is free and runs on your device with the bundled U2-Netp ONNX model. It replaces the selected image source with a PNG cutout without sending the image to fal.ai.",
