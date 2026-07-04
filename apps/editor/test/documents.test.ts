@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parse } from "@youzign/designstring";
 import {
+  documentRecordFromXml,
   documentMetaLine,
   editorDocumentFromRecord,
   migrationRecordsFromStorage,
@@ -70,6 +71,19 @@ describe("document record shaping", () => {
     expect(doc.pages).toHaveLength(1);
     expect(doc.pages[0].title).toBe("Page");
     expect(doc.pages[0].design.canvasHeight).toBe(1002);
+  });
+
+  it("creates a dashboard record from imported XML through the shared parser", () => {
+    const rec = documentRecordFromXml("  Sample design  ", xml, 7000);
+
+    expect(rec.name).toBe("Sample design");
+    expect(rec.width).toBe(1200);
+    expect(rec.height).toBe(1002);
+    expect(rec.activePage).toBe(0);
+    expect(rec.pages).toHaveLength(1);
+    expect(rec.pages[0]).toContain('canvas_width="1200"');
+    expect(rec.createdAt).toBe(7000);
+    expect(rec.updatedAt).toBe(7000);
   });
 });
 

@@ -427,6 +427,7 @@ function BrandPalette({ brand }: { brand: Brand }) {
               <ColorSwatch
                 compact
                 showBrandRow={false}
+                title="Click to edit, move or remove"
                 value={color}
                 onChange={(hex) => replace(colors.map((c, i) => (i === index ? hex : c)))}
                 actions={

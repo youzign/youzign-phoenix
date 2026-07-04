@@ -20,6 +20,7 @@ import {
   onDocumentsChanged,
   putDocument,
   shapeDocumentRecord,
+  documentRecordFromXml,
   sortDocuments,
   type DocumentSortOrder,
   type DocumentRecord,
@@ -228,11 +229,10 @@ function NewDesignModal({ onClose }: { onClose: () => void }) {
     if (!file) return;
     setBusy(true);
     try {
-      const doc = documentFromXml(await file.text());
-      const rec = shapeDocumentRecord({
-        name: file.name.replace(/\.xml$/i, "") || "Imported design",
-        doc,
-      });
+      const rec = documentRecordFromXml(
+        file.name.replace(/\.xml$/i, "") || "Imported design",
+        await file.text()
+      );
       await putDocument(rec);
       window.location.hash = editorHash(rec.id);
     } finally {
@@ -579,10 +579,7 @@ function BackupPanel({ docs, onRefresh }: { docs: DocumentRecord[]; onRefresh: (
       const text = await file.text();
       let imported = 0;
       if (file.name.toLowerCase().endsWith(".xml")) {
-        const rec = shapeDocumentRecord({
-          name: file.name.replace(/\.xml$/i, "") || "Imported design",
-          doc: documentFromXml(text),
-        });
+        const rec = documentRecordFromXml(file.name.replace(/\.xml$/i, "") || "Imported design", text);
         await putDocument(rec);
         imported = 1;
       } else {
@@ -666,6 +663,8 @@ export function Dashboard({ tab = "designs" }: { tab?: DashboardTab }) {
   const [page, setPage] = useState(1);
   const [updateInfo, setUpdateInfo] = useState<VersionInfo | null>(null);
   const [updateOpen, setUpdateOpen] = useState(false);
+  const [starterXml, setStarterXml] = useState<string | null | undefined>(undefined);
+  const [starterBusy, setStarterBusy] = useState(false);
 
   const refresh = async () => setDocs(await allDocuments());
 
@@ -678,6 +677,18 @@ export function Dashboard({ tab = "designs" }: { tab?: DashboardTab }) {
     void fetchUpdateInfo().then(setUpdateInfo);
   }, []);
 
+  useEffect(() => {
+    if (tab !== "designs" || docs.length !== 0 || starterXml !== undefined) return;
+    const controller = new AbortController();
+    fetch("/starter/youzign-starter.xml", { signal: controller.signal })
+      .then((res) => (res.ok ? res.text() : null))
+      .then((text) => setStarterXml(text?.trim() ? text : null))
+      .catch((err) => {
+        if ((err as { name?: string }).name !== "AbortError") setStarterXml(null);
+      });
+    return () => controller.abort();
+  }, [docs.length, starterXml, tab]);
+
   const quick = QUICK_PRESETS.map((id) => CANVAS_PRESETS.find((p) => p.id === id)).filter(Boolean) as CanvasPreset[];
   const sortedDocs = useMemo(() => sortDocuments(docs, sortOrder), [docs, sortOrder]);
   const pages = pageCount(sortedDocs.length, DASHBOARD_PAGE_SIZE);
@@ -687,6 +698,20 @@ export function Dashboard({ tab = "designs" }: { tab?: DashboardTab }) {
     [sortedDocs, currentPage]
   );
   const docCountLabel = `${docs.length} ${docs.length === 1 ? "design" : "designs"}`;
+
+  const createStarterDesign = async () => {
+    if (!starterXml || starterBusy) return;
+    setStarterBusy(true);
+    try {
+      const rec = documentRecordFromXml("Sample design", starterXml);
+      await putDocument(rec);
+      window.location.hash = editorHash(rec.id);
+    } catch {
+      setStarterXml(null);
+    } finally {
+      setStarterBusy(false);
+    }
+  };
 
   useEffect(() => {
     setPage(1);
@@ -804,6 +829,32 @@ export function Dashboard({ tab = "designs" }: { tab?: DashboardTab }) {
           <section>
             <div className="mb-3 text-[13px] font-medium text-neutral-300">Start a new design</div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {starterXml && (
+                <button
+                  className="group flex h-36 flex-col overflow-hidden rounded-xl border border-[var(--accent)]/35 bg-[#202024] text-left transition-colors duration-150 hover:border-[var(--accent)]/70 hover:bg-white/[0.06]"
+                  onClick={() => void createStarterDesign()}
+                  disabled={starterBusy}
+                  data-testid="starter-design-card"
+                >
+                  <span className="relative flex min-h-0 flex-1 items-center justify-center self-stretch bg-[#151518]">
+                    <span className="relative block h-16 w-16 overflow-hidden rounded-md bg-[#f6f0e8] shadow-lg ring-1 ring-black/20">
+                      <span className="absolute inset-x-0 top-0 h-5 bg-[#222225]" />
+                      <span className="absolute left-2 top-7 h-6 w-9 rounded-sm bg-[#e85d3f]" />
+                      <span className="absolute bottom-2 right-2 h-5 w-7 rounded-sm bg-[#2b8a7e]" />
+                      <span className="absolute left-2 top-2 h-2 w-9 rounded-full bg-white/85" />
+                    </span>
+                    <span className="absolute right-2 top-2 rounded-md bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                      Sample
+                    </span>
+                  </span>
+                  <span className="block p-3">
+                    <span className="block truncate text-[13px] font-medium text-neutral-100">
+                      {starterBusy ? "Opening sample..." : "Try a sample design"}
+                    </span>
+                    <span className="mt-1 block text-[11px] tabular-nums text-neutral-500">1080×1080 · editable XML</span>
+                  </span>
+                </button>
+              )}
               {quick.map((p) => (
                 <button
                   key={p.id}

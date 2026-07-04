@@ -219,6 +219,7 @@ export function CanvasStage() {
   const dragRef = useRef<Drag | null>(null);
   const inlineCommitRef = useRef<(() => void) | null>(null);
   const marqueeRef = useRef<{ x0: number; y0: number } | null>(null);
+  const workspacePointerRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [guides, setGuides] = useState<SnapLines>({ v: [], h: [] });
   const [liveCrop, setLiveCrop] = useState<CropRect | null>(null);
@@ -621,10 +622,29 @@ export function CanvasStage() {
     );
   };
 
+  const onWorkspacePointerDown = (e: RPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || e.currentTarget !== e.target) {
+      workspacePointerRef.current = null;
+      return;
+    }
+    workspacePointerRef.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
+  };
+
+  const onWorkspacePointerUp = (e: RPointerEvent<HTMLDivElement>) => {
+    const start = workspacePointerRef.current;
+    workspacePointerRef.current = null;
+    if (!start || start.pointerId !== e.pointerId || e.currentTarget !== e.target) return;
+    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 4) return;
+    select(null);
+  };
+
   return (
     <div className="flex h-full w-full flex-col bg-[#141417]">
       <div
         className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-10"
+        data-testid="editor-workspace"
+        onPointerDown={onWorkspacePointerDown}
+        onPointerUp={onWorkspacePointerUp}
         onDragEnter={(e) => {
           if (isFileDrag(e)) {
             e.preventDefault();
