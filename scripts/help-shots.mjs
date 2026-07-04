@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const outDir = path.resolve(root, "apps/editor/public/help");
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const URL = "http://localhost:5211/#/";
+const URL = "http://localhost:5211/?e2e#/";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log("[help-shots]", ...a);
 
@@ -112,14 +112,25 @@ async function clickButtonText(text) {
 }
 
 async function openEditorWithImage() {
-  const imagePath = path.join(os.tmpdir(), "youzign-help-shot-seed.png");
-  makePng(imagePath, 960, 540);
+  // The modal's file input was replaced by native (Tauri) pickers, so seed the
+  // design from a preset and inject the demo photo through the store instead.
   await page.click('[data-testid="new-design"]');
   await page.waitForSelector('[data-testid="new-design-modal"]');
-  const input = await page.$('[data-testid="image-file-input"]');
-  await input.uploadFile(imagePath);
+  await page.click('[data-testid="preset-grid"] button');
   await page.waitForFunction(() => location.hash.startsWith("#/d/"), { timeout: 10000 });
-  await page.waitForFunction(() => window.__editor?.getState()?.design?.items?.length === 1, { timeout: 10000 });
+  await page.evaluate(() => {
+    const c = document.createElement("canvas");
+    c.width = 960;
+    c.height = 540;
+    const g = c.getContext("2d");
+    const grad = g.createLinearGradient(0, 0, 960, 540);
+    grad.addColorStop(0, "#4f46e5");
+    grad.addColorStop(1, "#0ea5e9");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 960, 540);
+    window.__editor.getState().addPhoto({ source: c.toDataURL("image/png"), width: 960, height: 540 });
+  });
+  await page.waitForFunction(() => window.__editor?.getState()?.design?.items?.length >= 1, { timeout: 10000 });
   await sleep(700);
   await page.mouse.click(720, 455);
   await sleep(300);
