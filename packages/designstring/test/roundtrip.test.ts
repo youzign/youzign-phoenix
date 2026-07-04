@@ -7,7 +7,7 @@ import { parse, serialize } from "../src/index.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixtureDir = resolve(__dirname, "../../../apps/editor/src/fixtures");
 
-const fixtures = ["mountains-input.xml", "mountains-output.xml"];
+const fixtures = ["mountains-input.xml", "mountains-output.xml", "fidelity-filter.xml"];
 
 describe("round-trip parse/serialize", () => {
   for (const name of fixtures) {
@@ -25,8 +25,21 @@ describe("round-trip parse/serialize", () => {
       expect(s2).toBe(s1);
     });
 
+    if (name === "fidelity-filter.xml") {
+      it(`${name}: untouched XML serializes byte-stable`, () => {
+        expect(serialize(parse(xml))).toBe(xml);
+      });
+    }
+
     it(`${name}: parses the expected structure`, () => {
       const d = parse(xml);
+      if (name === "fidelity-filter.xml") {
+        expect(d.canvasWidth).toBe(800);
+        expect(d.canvasHeight).toBe(600);
+        expect(d.items.map((i) => i.type)).toEqual(["image", "filter"]);
+        expect(d.items[1]).toMatchObject({ type: "filter", filterid: 8, opacity: 1 });
+        return;
+      }
       expect(d.bgType).toBe("color");
       expect(d.bgColor).toBe(16513009);
       expect(d.canvasWidth).toBe(1200);

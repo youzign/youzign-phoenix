@@ -130,6 +130,12 @@ export interface FilterItem extends RawCarrier {
   type: "filter";
   filterid: number;
   opacity: number;
+  adjBrightness: number;
+  adjContrast: number;
+  adjSaturation: number;
+  adjHue: number;
+  adjWarmth: number;
+  adjVignette: number;
 }
 
 export type Item =

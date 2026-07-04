@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { signedIntToHex, type Design, type FilterItem } from "@youzign/designstring";
 import { backgroundCss } from "./background.js";
 import { ItemView } from "./items.js";
-import { filterRecipe, VIGNETTE_BACKGROUND } from "./filters.js";
+import { adjustmentFilter, adjustmentLayers, filterRecipe, VIGNETTE_BACKGROUND } from "./filters.js";
 
 export interface DesignCanvasProps {
   design: Design;
@@ -26,6 +26,12 @@ export function DesignCanvas({ design, zoom = 1 }: DesignCanvasProps) {
     filterItem && filterItem.filterid > 1
       ? filterRecipe(filterItem.filterid, filterItem.opacity)
       : undefined;
+  const adjFilter = filterItem ? adjustmentFilter(filterItem) : undefined;
+  const filterLayers = [
+    ...(recipe?.layers ?? []),
+    ...(filterItem ? adjustmentLayers(filterItem) : []),
+  ];
+  const canvasFilter = [recipe?.canvasFilter, adjFilter].filter(Boolean).join(" ") || undefined;
 
   const canvasStyle: CSSProperties = {
     position: "relative",
@@ -33,7 +39,7 @@ export function DesignCanvas({ design, zoom = 1 }: DesignCanvasProps) {
     height: design.canvasHeight,
     overflow: "hidden",
     ...backgroundCss(design),
-    filter: recipe?.canvasFilter,
+    filter: canvasFilter,
     border:
       design.borderWidth > 0
         ? `${design.borderWidth}px solid ${signedIntToHex(design.borderColor)}`
@@ -56,7 +62,7 @@ export function DesignCanvas({ design, zoom = 1 }: DesignCanvasProps) {
           {items.map((item, i) => (
             <ItemView key={i} item={item} />
           ))}
-          {recipe?.layers.map((layer, i) => (
+          {filterLayers.map((layer, i) => (
             <div
               key={`filterLayer${i}`}
               className="yz-filter-layer"
@@ -65,7 +71,7 @@ export function DesignCanvas({ design, zoom = 1 }: DesignCanvasProps) {
                 inset: 0,
                 zIndex: 9999,
                 pointerEvents: "none",
-                backgroundImage: VIGNETTE_BACKGROUND,
+                background: layer.background ?? VIGNETTE_BACKGROUND,
                 backgroundRepeat: "no-repeat",
                 backgroundSize: "100% 100%",
                 mixBlendMode: layer.blendMode as CSSProperties["mixBlendMode"],
