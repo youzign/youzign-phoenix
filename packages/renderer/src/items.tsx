@@ -152,7 +152,7 @@ function TextItemView({ item }: { item: TextItem }) {
     width: item.textAreaWidth,
     height: item.textAreaHeight,
     fontSize: item.size,
-    lineHeight: `${item.textAreaHeight}px`, // vertically center single line
+    lineHeight: item.wrapping ? `${item.size * 1.2}px` : `${item.textAreaHeight}px`,
     fontFamily: `"${item.font}", sans-serif`,
     fontWeight: item.bold ? 700 : 400,
     fontStyle: item.italic ? "italic" : "normal",
@@ -160,7 +160,7 @@ function TextItemView({ item }: { item: TextItem }) {
       .filter(Boolean)
       .join(" ") || "none",
     textAlign: (item.alignment as CSSProperties["textAlign"]) || "left",
-    whiteSpace: "pre",
+    whiteSpace: item.wrapping ? "pre-wrap" : "pre",
     opacity: item.opacity,
     filter: effectFilter(item),
     mixBlendMode: blendModeCss(item) as CSSProperties["mixBlendMode"],

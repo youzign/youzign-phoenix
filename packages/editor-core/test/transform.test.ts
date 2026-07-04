@@ -1,8 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { resizeCorner, resizeEdge, edgeCropRect, snapRotation, normalizeAngle } from "../src/transform.js";
+import {
+  resizeCorner,
+  resizeEdge,
+  resizeTextCorner,
+  resizeTextSide,
+  edgeCropRect,
+  snapRotation,
+  normalizeAngle,
+} from "../src/transform.js";
 import type { SelBox } from "../src/geometry.js";
+import { createTextItem, patchItem } from "../src/index.js";
+import { parse } from "@youzign/designstring";
 
 const box: SelBox = { cx: 100, cy: 100, w: 100, h: 50, rotation: 0 };
+const EMPTY = '<data canvas_width="800" canvas_height="600" bg_color="-1" bg_type="color"></data>';
 
 describe("resizeCorner", () => {
   it("pins the opposite corner (se drag grows toward pointer)", () => {
@@ -49,6 +60,74 @@ describe("resizeEdge", () => {
     expect(r.width).toBeCloseTo(100);
     expect(r.height).toBeCloseTo(75); // south(125) - 50
     expect(r.ypos + r.height / 2).toBeCloseTo(125); // south pinned
+  });
+});
+
+describe("text resize handles", () => {
+  it("corner scale multiplies font and wrap width by the same factor", () => {
+    const d = parse(EMPTY);
+    const item = createTextItem(d, 100, 100, { content: "Scale", size: 20, width: 200 });
+    const r = resizeTextCorner(item, box, "se", { x: 200, y: 150 });
+    expect(r.size).toBeCloseTo(30);
+    expect(r.textAreaWidth).toBeCloseTo(300);
+    expect(r.mcWidth).toBeCloseTo(300);
+    expect(r.xpos).toBeCloseTo(125);
+    expect(r.ypos).toBeCloseTo(112.5);
+  });
+
+  it("right side pill changes width and keeps the left edge anchored", () => {
+    const d = parse(EMPTY);
+    const item = createTextItem(d, 100, 100, { content: "Wrap", size: 20, width: 200 });
+    const r = resizeTextSide(item, "e", { x: 200, y: 100 }, { x: 250, y: 100 });
+    expect(r.textAreaWidth).toBeCloseTo(250);
+    expect(r.mcWidth).toBeCloseTo(250);
+    expect(r.xpos! - r.mcWidth! / 2).toBeCloseTo(0);
+    expect(r.wrapping).toBe(true);
+  });
+
+  it("left side pill changes width and keeps the right edge anchored", () => {
+    const d = parse(EMPTY);
+    const item = createTextItem(d, 100, 100, { content: "Wrap", size: 20, width: 200 });
+    const r = resizeTextSide(item, "w", { x: 0, y: 100 }, { x: 50, y: 100 });
+    expect(r.textAreaWidth).toBeCloseTo(150);
+    expect(r.mcWidth).toBeCloseTo(150);
+    expect(r.xpos! + r.mcWidth! / 2).toBeCloseTo(200);
+    expect(r.textAreaxpos).toBeCloseTo(-75);
+  });
+
+  it("side drags operate along the rotated local x-axis", () => {
+    const d = parse(EMPTY);
+    const item = createTextItem(d, 100, 100, { content: "Rotate", size: 20, width: 200 });
+    item.rotation = 90;
+    const r = resizeTextSide(item, "e", { x: 100, y: 200 }, { x: 100, y: 250 });
+    expect(r.mcWidth).toBeCloseTo(250);
+    expect(r.xpos).toBeCloseTo(100);
+    expect(r.ypos).toBeCloseTo(125);
+  });
+
+  it("height re-derives from wrapped content after width changes", () => {
+    const d = parse(EMPTY);
+    const item = createTextItem(d, 100, 100, {
+      content: "Alpha Beta Gamma Delta",
+      size: 20,
+      width: 240,
+      alignment: "left",
+    });
+    const startHeight = item.textAreaHeight;
+    patchItem(item as any, resizeTextSide(item, "w", { x: 0, y: 100 }, { x: 190, y: 100 }));
+    expect(item.wrapping).toBe(true);
+    expect(item.textAreaHeight).toBeGreaterThan(startHeight);
+    expect(item.mcHeight).toBe(item.textAreaHeight);
+    expect(item.textAreaypos).toBeCloseTo(-item.textAreaHeight / 2);
+  });
+
+  it("clamps side width and corner font size", () => {
+    const d = parse(EMPTY);
+    const item = createTextItem(d, 100, 100, { content: "Min", size: 20, width: 200 });
+    const side = resizeTextSide(item, "e", { x: 200, y: 100 }, { x: -1000, y: 100 });
+    expect(side.mcWidth).toBeGreaterThanOrEqual(12);
+    const corner = resizeTextCorner(item, box, "se", { x: 50, y: 75 });
+    expect(corner.size).toBeGreaterThanOrEqual(4);
   });
 });
 
