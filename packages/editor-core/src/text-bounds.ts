@@ -54,6 +54,26 @@ function splitWrappedLine(line: string, maxWidth: number, measure: (s: string) =
   return out.length ? out : [line];
 }
 
+function rotate(x: number, y: number, deg: number) {
+  const r = (deg * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  return { x: x * c - y * s, y: x * s + y * c };
+}
+
+function textMatrixCenter(
+  item: CommonItemFields & TextFields,
+  left: number,
+  top: number,
+  localCx: number,
+  localCy: number,
+  sx: number,
+  sy: number
+) {
+  const r = rotate(localCx * sx, localCy * sy, item.rotation);
+  return { cx: left + r.x, cy: top + r.y };
+}
+
 export function wrappedTextLines(
   item: CommonItemFields & TextFields,
   measurer: TextMeasurer = fallbackMeasure
@@ -98,7 +118,12 @@ export function measuredTextBox(
   if (item.wrapping) {
     const w = item.mcWidth || item.textAreaWidth * sx;
     const h = item.mcHeight || item.textAreaHeight * sy;
-    return { cx: left + w / 2, cy: top + h / 2, w, h, rotation: item.rotation };
+    return {
+      ...textMatrixCenter(item, left, top, item.textAreaWidth / 2, item.textAreaHeight / 2, sx, sy),
+      w,
+      h,
+      rotation: item.rotation,
+    };
   }
 
   const font = textFontCss(item);
@@ -143,8 +168,7 @@ export function measuredTextBox(
   const w = Math.max(1, (maxX - minX) * sx);
   const h = Math.max(1, (maxY - minY) * sy);
   return {
-    cx: left + ((minX + maxX) / 2) * sx,
-    cy: top + ((minY + maxY) / 2) * sy,
+    ...textMatrixCenter(item, left, top, (minX + maxX) / 2, (minY + maxY) / 2, sx, sy),
     w,
     h,
     rotation: item.rotation,
