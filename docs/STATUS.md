@@ -1,8 +1,13 @@
 # Youzign OSS — Status & Working Agreements
 *Updated 2026-07-04 afternoon (Brand Kit merged). This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
 
-## NEXT UP: Bertrand's pre-wrap updates + fresh .app build
-Brand Kit v1 is DONE and merged to main (see below). Bertrand mentioned "a couple updates to add before wrapping this build" — still waiting on what they are. After those: `pnpm -r build` → tauri build (foreground, full logs) → fingerprint per protocol → hand over.
+## NEXT UP: Bertrand retests the polish wave
+Brand Kit v1 + the polish wave (below) are merged to main; fresh fingerprinted .app handed over 2026-07-04 ~13:30. Waiting on Bertrand's retest verdict.
+
+## 2026-07-04 Brand Kit polish wave (merged to main, 332 tests + WebKit-verified) — Bertrand's feedback round
+- **Palette UX fix** (`15d228a`): ColorSwatch popover now PORTALS to document.body (fixed, viewport-clamped, flips at edges) — was clipped behind the left icon rail from the Brand tab; outside-click close handles the portal. Palette chips are clean 32px targets (no ×/‹› overlay chrome); Move ←/→ + Remove live in the popover footer via new ColorSwatch `actions` prop; `showBrandRow` prop suppresses the brand row while editing the brand itself.
+- **nano-banana t2i + brand prompts** (`094b15f`): `FAL_MODEL` = `google/nano-banana-2-lite` (live-validated: POST fal.run, body `{prompt, aspect_ratio}` with enum 1:1/16:9/9:16/4:5/…; images[] response same shape). Brands hold up to 2 prompts (≤50 words, clamped), edited in Brand tab, surfaced as append-chips under the Create prompt textarea (only when a fal key is connected — panel is gated), round-trip Backup.
+- **Fonts expansion** (`feat/fonts-expansion` merge): GOOGLE_FONTS 40 → 289 (Inter included; only 400+700-shipping families). "Add ‹name› from Google Fonts" row in FontPicker validates via CSS2 fetch, persists to localStorage (`library/custom-fonts.ts`), merges into picker; preview loading capped to first 40 filtered families. WebKit-verified incl. live add of Grandstander + not-found error path.
 
 ## 2026-07-04 Brand Kit v1 (merged to main `c6189ab`, 323 tests + WebKit-verified)
 - **Feature per docs/BRAND-KIT-SPEC.md, all 4 steps**: `library/brands.ts` (named brands, one active, localStorage; hex normalize/dedupe; listeners) + brandId-tagged uploads; Brand tab in left rail (empty state seeds palette from the CURRENT design via `collectDesignColors` — presets-over-search honored; palette/fonts/assets editors); Brand swatch row atop the shared ColorSwatch popover + pinned "Brand fonts" in FontPicker (bypass sweep: nothing else picks colors); Backup bundle carries brands+brandAssets (backward-compatible, merge-by-id import, active preserved); Help "Brand Kit" section + regenerated shots (`brand-kit.png`).
