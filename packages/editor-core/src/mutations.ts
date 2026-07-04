@@ -22,6 +22,7 @@ import {
   isNoFill,
   type ShapeKind,
 } from "./shapes.js";
+import { derivedTextAreaHeight } from "./text-bounds.js";
 
 let uidSeq = 1;
 /** Non-serialized stable identity for selection tracking across z-order edits. */
@@ -50,6 +51,14 @@ const NUM_FIELDS: Record<string, string> = {
   size: "size",
   scaleX: "scaleX",
   scaleY: "scaleY",
+  scalex: "scalex",
+  scaley: "scaley",
+  textAreaWidth: "textAreaWidth",
+  textAreaHeight: "textAreaHeight",
+  mcWidth: "mcWidth",
+  mcHeight: "mcHeight",
+  textAreaxpos: "textAreaxpos",
+  textAreaypos: "textAreaypos",
   // effect fields (legacy per-item attributes)
   shadowDistance: "shadow_distance",
   shadowAngle: "shadow_angle",
@@ -85,6 +94,8 @@ const BOOL_FIELDS: Record<string, string> = {
   isInvert: "isInvert",
   isCornerRadiusIndividual: "isCornerRadiusIndividual",
   isNoFill: "isNoFill",
+  wrapping: "wrapping",
+  scaleUsed: "scaleUsed",
 };
 const STR_FIELDS: Record<string, string> = {
   alignment: "alignment",
@@ -105,6 +116,8 @@ export interface ItemPatch {
   size?: number;
   scaleX?: number;
   scaleY?: number;
+  scalex?: number;
+  scaley?: number;
   hFlip?: boolean;
   vFlip?: boolean;
   bold?: boolean;
@@ -147,14 +160,35 @@ export interface ItemPatch {
   // image
   source?: string;
   cropped?: boolean;
+  // legacy text-area geometry
+  wrapping?: boolean;
+  scaleUsed?: boolean;
+  textAreaWidth?: number;
+  textAreaHeight?: number;
+  mcWidth?: number;
+  mcHeight?: number;
+  textAreaxpos?: number;
+  textAreaypos?: number;
+}
+
+function syncTextAreaHeight(item: TextItem): void {
+  const h = derivedTextAreaHeight(item as any);
+  item.textAreaHeight = h;
+  item.mcHeight = h;
+  item.textAreaypos = -h / 2;
+  setRaw(item, "textAreaHeight", String(h));
+  setRaw(item, "mcHeight", String(h));
+  setRaw(item, "textAreaypos", String(item.textAreaypos));
 }
 
 /** Apply a typed patch to an item, mutating in place and syncing rawAttrs. */
 export function patchItem(item: Item & Record<string, any>, patch: ItemPatch): void {
+  let shouldSyncTextHeight = false;
   for (const [k, v] of Object.entries(patch)) {
     if (v === undefined) continue;
     if (k === "content") {
       item.content = v as string;
+      shouldSyncTextHeight = true;
       continue;
     }
     if (k in NUM_FIELDS) {
@@ -167,6 +201,22 @@ export function patchItem(item: Item & Record<string, any>, patch: ItemPatch): v
       item[k] = v as any;
       setRaw(item as RawCarrier, STR_FIELDS[k], String(v));
     }
+    if (
+      item.type === "text" &&
+      (k === "font" ||
+        k === "fontType" ||
+        k === "size" ||
+        k === "bold" ||
+        k === "italic" ||
+        k === "wrapping" ||
+        k === "textAreaWidth" ||
+        k === "mcWidth")
+    ) {
+      shouldSyncTextHeight = true;
+    }
+  }
+  if (shouldSyncTextHeight && item.type === "text") {
+    syncTextAreaHeight(item as TextItem);
   }
 }
 

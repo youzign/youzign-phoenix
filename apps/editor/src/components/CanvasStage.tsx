@@ -12,6 +12,8 @@ import {
   currentCropCanvasRect,
   resizeCorner,
   resizeEdge,
+  resizeTextCorner,
+  resizeTextSide,
   edgeCropRect,
   fullSourceCanvasBounds,
   fullSourceRectToCanvasGeom,
@@ -29,7 +31,7 @@ import {
   type CropRect,
   type ImageCropMemory,
 } from "@youzign/editor-core";
-import type { Design, ImageItem, Item } from "@youzign/designstring";
+import type { Design, ImageItem, Item, TextItem } from "@youzign/designstring";
 import { useEditor } from "../store.js";
 import { ingestFiles } from "../library/uploads.js";
 import { Icon } from "./ui.js";
@@ -61,6 +63,8 @@ interface Drag {
   // image edge-crop
   imageItem?: ImageItem;
   fullNatural?: { w: number; h: number };
+  // text resize starts from the original model values for stable live preview
+  textItem?: TextItem;
 }
 
 interface Marquee {
@@ -244,12 +248,16 @@ export function CanvasStage() {
             : undefined;
         setLiveCrop(edgeCropRect(d.imageItem, d.handle as Edge, p, 8, bounds));
       } else if (d.mode === "resize" && d.handle) {
-        // Corner: proportional BY DEFAULT, Shift unlocks free resize (Canva).
-        // Edge: single-axis stretch.
         const isCorner = d.handle.length === 2;
-        const patch = isCorner
-          ? resizeCorner(b, d.handle as Corner, p, !shift)
-          : resizeEdge(b, d.handle as Edge, p);
+        const patch = d.textItem
+          ? isCorner
+            ? resizeTextCorner(d.textItem, b, d.handle as Corner, p)
+            : resizeTextSide(d.textItem, d.handle as "e" | "w", d.startCanvas, p)
+          : isCorner
+            // Corner: proportional BY DEFAULT, Shift unlocks free resize (Canva).
+            // Edge: single-axis stretch.
+            ? resizeCorner(b, d.handle as Corner, p, !shift)
+            : resizeEdge(b, d.handle as Edge, p);
         livePatch(d.uid, patch);
       }
     };
@@ -385,6 +393,7 @@ export function CanvasStage() {
     // Image edge handles CROP (Canva); everything else resizes.
     const loc = locate(design, uid);
     const isImage = loc?.item.type === "image";
+    const isPlainText = loc?.item.type === "text";
     const isEdge = handle !== undefined && handle.length === 1;
     if (mode === "resize" && isEdge && isImage) {
       const imageItem = loc!.item as unknown as ImageItem;
@@ -418,6 +427,7 @@ export function CanvasStage() {
       startBox: box,
       startCanvas: toCanvas(e.clientX, e.clientY),
       uid,
+      textItem: isPlainText && mode === "resize" ? ({ ...(loc!.item as TextItem) } as TextItem) : undefined,
     };
   };
 
@@ -481,6 +491,7 @@ export function CanvasStage() {
   const singleItem = single !== null ? locate(design, single)?.item : undefined;
   const isText =
     singleItem && (singleItem.type === "text" || singleItem.type === "text-curved");
+  const isPlainText = singleItem?.type === "text";
 
   const boxToStyle = (box: SelBox): CSSProperties => ({
     position: "absolute",
@@ -654,9 +665,11 @@ export function CanvasStage() {
                 w: "ew-resize",
               };
               const corners: HandleId[] = ["nw", "ne", "se", "sw"];
-              // Resize/rotate handles only for a single TOP-LEVEL, non-text item.
+              const textSides: HandleId[] = ["e", "w"];
+              const nonTextEdges: HandleId[] = EDGES;
+              // Resize/rotate handles only for a single TOP-LEVEL item.
               const locked = single !== null && isLocked(single);
-              const showHandles = selectedIsTopLevel && !isText && !locked;
+              const showHandles = selectedIsTopLevel && (!isText || isPlainText) && !locked;
               const showRotate = selectedIsTopLevel && !locked;
               const isImageSel = singleItem?.type === "image";
               const handleFill: CSSProperties = {
@@ -737,8 +750,8 @@ export function CanvasStage() {
                     </div>
                   )}
                   {showHandles && corners.map(renderHandle)}
-                  {/* Edge handles: image = crop-from-edge, others = stretch. */}
-                  {showHandles && EDGES.map(renderHandle)}
+                  {/* Edge handles: image = crop-from-edge, plain text = L/R wrap pills, others = stretch. */}
+                  {showHandles && (isPlainText ? textSides : nonTextEdges).map(renderHandle)}
                   {showHandles && isImageSel && (
                     <div
                       style={{
@@ -1580,14 +1593,14 @@ function InlineTextEditor({
     pointerEvents: "auto",
     fontFamily: `"${item.font}", sans-serif`,
     fontSize: item.size * zoom,
-    lineHeight: `${box.h * zoom}px`,
+    lineHeight: item.wrapping ? `${item.size * 1.2 * zoom}px` : `${box.h * zoom}px`,
     fontWeight: item.bold ? 700 : 400,
     fontStyle: item.italic ? "italic" : "normal",
     textAlign: item.alignment,
     color: "#111",
     background: "rgba(255,255,255,0.92)",
     outline: "2px solid #6366f1",
-    whiteSpace: "pre",
+    whiteSpace: item.wrapping ? "pre-wrap" : "pre",
     overflow: "hidden",
     boxSizing: "border-box",
   };

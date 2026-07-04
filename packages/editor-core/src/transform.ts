@@ -6,6 +6,8 @@
 // overlay draws. Extracted here so the (fiddly) math is unit-testable.
 
 import type { SelBox } from "./geometry.js";
+import type { ItemPatch } from "./mutations.js";
+import type { TextItem } from "@youzign/designstring";
 
 export type Corner = "nw" | "ne" | "se" | "sw";
 export type Edge = "n" | "s" | "e" | "w";
@@ -24,12 +26,25 @@ export const HANDLE_SIGN: Record<Handle, [number, number]> = {
 };
 
 const MIN_SIZE = 8;
+const MIN_TEXT_FONT_SIZE = 4;
 
 function rot(x: number, y: number, deg: number) {
   const r = (deg * Math.PI) / 180;
   const c = Math.cos(r);
   const s = Math.sin(r);
   return { x: x * c - y * s, y: x * s + y * c };
+}
+
+function localDelta(
+  start: { x: number; y: number },
+  p: { x: number; y: number },
+  rotation: number
+) {
+  return rot(p.x - start.x, p.y - start.y, -rotation);
+}
+
+function textMinWidth(item: Pick<TextItem, "size">): number {
+  return Math.max(4, item.size * 0.6);
 }
 
 export interface ResizePatch {
@@ -103,6 +118,86 @@ export function resizeEdge(
     height: nh,
     xpos: b.cx + world.x,
     ypos: b.cy + world.y,
+  };
+}
+
+export interface TextTransformPatch extends ItemPatch {
+  wrapping?: boolean;
+  scaleUsed?: boolean;
+  textAreaWidth?: number;
+  textAreaHeight?: number;
+  mcWidth?: number;
+  mcHeight?: number;
+  textAreaxpos?: number;
+  textAreaypos?: number;
+}
+
+/**
+ * Canva-style text corner scale: font size and wrap width scale by the same
+ * factor, and the opposite measured-selection corner remains pinned.
+ */
+export function resizeTextCorner(
+  item: TextItem,
+  b: SelBox,
+  corner: Corner,
+  p: { x: number; y: number }
+): TextTransformPatch {
+  const resized = resizeCorner(b, corner, p, true);
+  const rawScale = b.w > 0 ? resized.width / b.w : b.h > 0 ? resized.height / b.h : 1;
+  const minScale = Math.max(
+    MIN_TEXT_FONT_SIZE / Math.max(item.size, 0.0001),
+    textMinWidth(item) / Math.max(item.textAreaWidth, 0.0001)
+  );
+  const scale = Math.max(minScale, rawScale);
+  const [sx, sy] = HANDLE_SIGN[corner];
+  const fixedLocal = { x: (-sx * b.w) / 2, y: (-sy * b.h) / 2 };
+  const fixedWorld = rot(fixedLocal.x, fixedLocal.y, b.rotation);
+  const fixed = { x: b.cx + fixedWorld.x, y: b.cy + fixedWorld.y };
+  const originFromFixed = rot(item.xpos - fixed.x, item.ypos - fixed.y, -b.rotation);
+  const scaledOrigin = rot(originFromFixed.x * scale, originFromFixed.y * scale, b.rotation);
+
+  return {
+    xpos: fixed.x + scaledOrigin.x,
+    ypos: fixed.y + scaledOrigin.y,
+    size: item.size * scale,
+    textAreaWidth: item.textAreaWidth * scale,
+    mcWidth: item.mcWidth * scale,
+    textAreaxpos: item.textAreaxpos * scale,
+    textAreaypos: item.textAreaypos * scale,
+    wrapping: item.wrapping,
+    scaleUsed: true,
+  };
+}
+
+/**
+ * Canva-style text side pills: only left/right handles exist; they change wrap
+ * width along the item's local x-axis. The opposite edge stays anchored.
+ */
+export function resizeTextSide(
+  item: TextItem,
+  edge: Extract<Edge, "e" | "w">,
+  start: { x: number; y: number },
+  p: { x: number; y: number }
+): TextTransformPatch {
+  const d = localDelta(start, p, item.rotation);
+  const currentWidth = item.mcWidth || item.textAreaWidth;
+  const sx = item.textAreaWidth ? currentWidth / item.textAreaWidth : 1;
+  const signedDelta = edge === "e" ? d.x : -d.x;
+  const newMcWidth = Math.max(textMinWidth(item), currentWidth + signedDelta);
+  const newTextAreaWidth = newMcWidth / (sx || 1);
+  const centerDelta = edge === "e"
+    ? (newMcWidth - currentWidth) / 2
+    : (currentWidth - newMcWidth) / 2;
+  const world = rot(centerDelta, 0, item.rotation);
+
+  return {
+    xpos: item.xpos + world.x,
+    ypos: item.ypos + world.y,
+    textAreaWidth: newTextAreaWidth,
+    mcWidth: newMcWidth,
+    textAreaxpos: -newTextAreaWidth / 2,
+    wrapping: true,
+    scaleUsed: true,
   };
 }
 

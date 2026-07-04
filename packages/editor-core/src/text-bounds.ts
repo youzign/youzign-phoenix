@@ -17,6 +17,8 @@ export function textFontCss(item: Pick<TextFields, "italic" | "bold" | "size" | 
   return `${style}${weight}${item.size}px "${item.font}", sans-serif`;
 }
 
+let sharedCanvasContext: CanvasRenderingContext2D | null | undefined;
+
 function fallbackMeasure(text: string, font: string): TextMeasureResult {
   if (typeof document === "undefined") {
     const size = Number(font.match(/(\d+(?:\.\d+)?)px/)?.[1] ?? 16);
@@ -26,8 +28,10 @@ function fallbackMeasure(text: string, font: string): TextMeasureResult {
       actualBoundingBoxDescent: size * 0.2,
     };
   }
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
+  if (sharedCanvasContext === undefined) {
+    sharedCanvasContext = document.createElement("canvas").getContext("2d");
+  }
+  const ctx = sharedCanvasContext;
   if (!ctx) return { width: 0 };
   ctx.font = font;
   return ctx.measureText(text);
@@ -50,6 +54,39 @@ function splitWrappedLine(line: string, maxWidth: number, measure: (s: string) =
   return out.length ? out : [line];
 }
 
+export function wrappedTextLines(
+  item: CommonItemFields & TextFields,
+  measurer: TextMeasurer = fallbackMeasure
+): string[] {
+  const font = textFontCss(item);
+  const measure = (text: string) => measurer(text || " ", font);
+  const rawLines = (item.content || " ").split(/\r?\n/);
+  return rawLines.flatMap((line) =>
+    item.wrapping
+      ? splitWrappedLine(line || " ", item.textAreaWidth, (s) => measure(s).width)
+      : [line || " "]
+  );
+}
+
+export function derivedTextAreaHeight(
+  item: CommonItemFields & TextFields,
+  measurer: TextMeasurer = fallbackMeasure
+): number {
+  const font = textFontCss(item);
+  const lines = wrappedTextLines(item, measurer);
+  const lineHeight = Math.max(1, item.size * 1.2);
+  let glyphHeight = item.size;
+  for (const line of lines) {
+    const m = measurer(line || " ", font);
+    glyphHeight = Math.max(
+      glyphHeight,
+      (m.actualBoundingBoxAscent ?? item.size * 0.8) +
+        (m.actualBoundingBoxDescent ?? item.size * 0.2)
+    );
+  }
+  return Math.max(glyphHeight, lines.length * lineHeight);
+}
+
 export function measuredTextBox(
   item: CommonItemFields & TextFields,
   measurer: TextMeasurer = fallbackMeasure
@@ -60,10 +97,7 @@ export function measuredTextBox(
   const top = item.ypos + item.textAreaypos * sy;
   const font = textFontCss(item);
   const measure = (text: string) => measurer(text || " ", font);
-  const rawLines = (item.content || " ").split(/\r?\n/);
-  const lines = rawLines.flatMap((line) =>
-    item.wrapping ? splitWrappedLine(line || " ", item.textAreaWidth, (s) => measure(s).width) : [line || " "]
-  );
+  const lines = wrappedTextLines(item, measurer);
   const lineHeight = lines.length > 1 || item.wrapping
     ? Math.max(item.size * 1.2, item.textAreaHeight / Math.max(1, lines.length))
     : item.textAreaHeight;
