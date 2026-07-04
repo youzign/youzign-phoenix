@@ -41,7 +41,7 @@ export const sections: HelpSection[] = [
       },
       {
         type: "paragraph",
-        text: "Corner handles resize proportionally by default. Hold Shift while using a corner handle for free resize. Edge pill handles stretch shapes and other non-image items; on images, edge handles crop inward and can be dragged back out before the crop is committed.",
+        text: "Corner handles resize proportionally by default. Text corners scale the font and text box width together, while text side pills change only the wrap width and let the height reflow. Edge pill handles stretch shapes and other non-image items; on images, edge handles crop inward and can be dragged back out before the crop is committed.",
       },
       {
         type: "paragraph",
