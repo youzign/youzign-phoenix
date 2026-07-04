@@ -8,6 +8,7 @@ export interface Brand {
   name: string;
   colors: string[];
   fonts: { heading?: string; body?: string };
+  prompts?: string[];
   createdAt: number;
 }
 
@@ -49,6 +50,24 @@ function normalizeColors(colors: string[]): string[] {
     out.push(normalized);
   }
   return out;
+}
+
+function clampPromptWords(prompt: string): string {
+  const words = prompt.trim().split(/\s+/).filter(Boolean);
+  return words.slice(0, 50).join(" ").slice(0, 400).trim();
+}
+
+export function normalizeBrandPrompts(prompts: string[]): string[] {
+  return prompts
+    .filter((prompt): prompt is string => typeof prompt === "string")
+    .map(clampPromptWords)
+    .filter(Boolean)
+    .slice(0, 2);
+}
+
+function withPrompts<T extends Omit<Brand, "prompts">>(brand: T, prompts: string[]): T & Pick<Brand, "prompts"> {
+  const normalized = normalizeBrandPrompts(prompts);
+  return normalized.length ? { ...brand, prompts: normalized } : brand;
 }
 
 function isSentinelNumber(value: number): boolean {
@@ -147,13 +166,19 @@ function validBrand(value: unknown): Brand | null {
   }
   const fonts = validFonts(input.fonts);
   if (!fonts) return null;
-  return {
-    id: input.id,
-    name: input.name,
-    colors: normalizeColors(input.colors.filter((c): c is string => typeof c === "string")),
-    fonts,
-    createdAt: input.createdAt,
-  };
+  const prompts = Array.isArray(input.prompts)
+    ? normalizeBrandPrompts(input.prompts.filter((p): p is string => typeof p === "string"))
+    : [];
+  return withPrompts(
+    {
+      id: input.id,
+      name: input.name,
+      colors: normalizeColors(input.colors.filter((c): c is string => typeof c === "string")),
+      fonts,
+      createdAt: input.createdAt,
+    },
+    prompts
+  );
 }
 
 function readState(): BrandState {
@@ -214,15 +239,19 @@ export function createBrand(init: {
   name: string;
   colors?: string[];
   fonts?: Brand["fonts"];
+  prompts?: string[];
 }): Brand {
   const state = readState();
-  const brand: Brand = {
-    id: newId(),
-    name: init.name.trim() || "Untitled brand",
-    colors: normalizeColors(init.colors ?? []),
-    fonts: { ...init.fonts },
-    createdAt: Date.now(),
-  };
+  const brand: Brand = withPrompts(
+    {
+      id: newId(),
+      name: init.name.trim() || "Untitled brand",
+      colors: normalizeColors(init.colors ?? []),
+      fonts: { ...init.fonts },
+      createdAt: Date.now(),
+    },
+    init.prompts ?? []
+  );
   const next = {
     brands: [...state.brands, brand],
     activeId: state.brands.length === 0 ? brand.id : state.activeId,
@@ -274,13 +303,19 @@ export function mergeBrands(
   const state = readState();
   const byId = new Map(state.brands.map((brand) => [brand.id, brand]));
   for (const brand of imported) {
-    byId.set(brand.id, {
-      id: brand.id,
-      name: brand.name,
-      colors: normalizeColors(brand.colors),
-      fonts: { ...brand.fonts },
-      createdAt: brand.createdAt,
-    });
+    byId.set(
+      brand.id,
+      withPrompts(
+        {
+          id: brand.id,
+          name: brand.name,
+          colors: normalizeColors(brand.colors),
+          fonts: { ...brand.fonts },
+          createdAt: brand.createdAt,
+        },
+        brand.prompts ?? []
+      )
+    );
   }
   const brands = [...byId.values()];
   const activeId =
@@ -306,6 +341,17 @@ export function setBrandFonts(id: string, fonts: Partial<Brand["fonts"]>): void 
   if (!state.brands.some((brand) => brand.id === id)) return;
   const brands = state.brands.map((brand) =>
     brand.id === id ? { ...brand, fonts: { ...brand.fonts, ...fonts } } : brand
+  );
+  writeState({ ...state, brands });
+  notify();
+}
+
+export function setBrandPrompts(id: string, prompts: string[]): void {
+  const state = readState();
+  if (!state.brands.some((brand) => brand.id === id)) return;
+  const nextPrompts = normalizeBrandPrompts(prompts);
+  const brands = state.brands.map((brand) =>
+    brand.id === id ? withPrompts({ ...brand, prompts: undefined }, nextPrompts) : brand
   );
   writeState({ ...state, brands });
   notify();

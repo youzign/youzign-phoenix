@@ -3,7 +3,7 @@
 // `generate()` performs the fetch. The key is read from localStorage settings
 // and passed in by the caller — never bundled.
 //
-// v1 default model is flux/schnell: fast, cheap, good enough for layout comps.
+// Text-to-image uses Google's nano-banana 2 lite endpoint on fal.
 // fal's HTTP API: POST https://fal.run/<model>  with  Authorization: Key <key>.
 
 /** A single generated image, normalized to the fields the canvas needs. */
@@ -14,23 +14,21 @@ export interface GenResult {
   height: number;
 }
 
-/** Aspect presets matched to common canvas uses. Dimensions are flux-friendly
- *  (multiples of 32, ~1MP) so schnell renders them without upscaling. */
+/** Aspect presets matched to common canvas uses. */
 export interface AspectPreset {
   id: "square" | "landscape" | "portrait";
   label: string;
-  width: number;
-  height: number;
+  aspect_ratio: "1:1" | "16:9" | "9:16";
 }
 
 export const ASPECT_PRESETS: AspectPreset[] = [
-  { id: "square", label: "Square", width: 1024, height: 1024 },
-  { id: "landscape", label: "Landscape", width: 1344, height: 768 },
-  { id: "portrait", label: "Portrait", width: 768, height: 1344 },
+  { id: "square", label: "Square", aspect_ratio: "1:1" },
+  { id: "landscape", label: "Landscape", aspect_ratio: "16:9" },
+  { id: "portrait", label: "Portrait", aspect_ratio: "9:16" },
 ];
 
 /** Default fal model slug (used to build the endpoint URL). */
-export const FAL_MODEL = "fal-ai/flux/schnell";
+export const FAL_MODEL = "google/nano-banana-2-lite";
 
 /** Image-to-image edit model: Google's nano-banana 2 lite edit endpoint on fal.
  *  Accepts a prompt + an `image_urls` array of reference images. Base64 data
@@ -45,18 +43,14 @@ export const FAL_KEY_URL = "https://fal.ai/dashboard/keys";
 
 export interface FalRequest {
   prompt: string;
-  image_size: { width: number; height: number };
-  num_images: number;
-  enable_safety_checker: boolean;
+  aspect_ratio: AspectPreset["aspect_ratio"];
 }
 
 /** Pure request-payload builder (unit-tested). */
 export function buildFalRequest(prompt: string, preset: AspectPreset): FalRequest {
   return {
     prompt: prompt.trim(),
-    image_size: { width: preset.width, height: preset.height },
-    num_images: 1,
-    enable_safety_checker: true,
+    aspect_ratio: preset.aspect_ratio,
   };
 }
 
@@ -148,5 +142,5 @@ export async function generate(
     signal,
   });
   if (!res.ok) throw new Error(`fal ${res.status}`);
-  return mapFalResponse(await res.json(), body.image_size);
+  return mapFalResponse(await res.json());
 }

@@ -133,6 +133,10 @@ export const sections: HelpSection[] = [
       },
       {
         type: "paragraph",
+        text: "Brand prompts save up to two short reusable style notes and appear as chips in the Create tab so active-brand language can be appended to image prompts.",
+      },
+      {
+        type: "paragraph",
         text: "You can keep multiple brands in the browser, with one active at a time. Backup export and import carries brands and their brand assets so the Brand Kit round-trips with local designs.",
       },
     ],
@@ -172,7 +176,7 @@ export const sections: HelpSection[] = [
       },
       {
         type: "tip",
-        text: "fal.ai keys are stored in browser localStorage for this app and are never serialized into design XML or backup files.",
+        text: "The Create tab uses Google nano-banana 2 lite for text-to-image. fal.ai keys are stored in browser localStorage for this app and are never serialized into design XML or backup files.",
       },
     ],
   },

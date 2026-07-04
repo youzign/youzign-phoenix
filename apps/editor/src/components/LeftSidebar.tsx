@@ -47,6 +47,7 @@ import {
   collectDesignColors,
   createBrand,
   deleteBrand,
+  getActiveBrand,
   getActiveBrandId,
   listBrands,
   onBrandsChanged,
@@ -54,6 +55,7 @@ import {
   setActiveBrand,
   setBrandColors,
   setBrandFonts,
+  setBrandPrompts,
   type Brand,
 } from "../library/brands.js";
 import {
@@ -377,6 +379,7 @@ function BrandPanel() {
 
       <BrandPalette brand={activeBrand} />
       <BrandFonts brand={activeBrand} />
+      <BrandPrompts brand={activeBrand} />
       <BrandAssets brand={activeBrand} />
     </div>
   );
@@ -479,6 +482,68 @@ function BrandFonts({ brand }: { brand: Brand }) {
           <span className="text-[11px] text-neutral-500">Body</span>
           <FontPicker value={brand.fonts.body ?? ""} onChange={(family) => pick("body", family)} />
         </label>
+      </div>
+    </div>
+  );
+}
+
+function wordCount(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function BrandPrompts({ brand }: { brand: Brand }) {
+  const [drafts, setDrafts] = useState<string[]>(brand.prompts?.length ? brand.prompts : [""]);
+  const savedPromptsKey = (brand.prompts ?? []).join("\n");
+
+  useEffect(() => {
+    setDrafts(brand.prompts?.length ? brand.prompts : [""]);
+  }, [brand.id, savedPromptsKey]);
+
+  const save = () => setBrandPrompts(brand.id, drafts);
+  const update = (index: number, value: string) => {
+    setDrafts((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
+  const addPrompt = () => setDrafts((prev) => (prev.length >= 2 ? prev : [...prev, ""]));
+
+  return (
+    <div className="mb-5">
+      <div className="mb-2 flex items-center justify-between">
+        <SectionLabel>Prompts</SectionLabel>
+        {drafts.length < 2 && (
+          <button
+            type="button"
+            onClick={addPrompt}
+            className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.05] px-2.5 py-1 text-[11px] font-semibold text-neutral-300 transition-colors duration-150 hover:bg-white/[0.09] hover:text-neutral-100"
+          >
+            <Icon name="plus" size={13} />
+            Add prompt
+          </button>
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        {drafts.slice(0, 2).map((draft, index) => {
+          const count = wordCount(draft);
+          return (
+            <label key={index} className="flex flex-col gap-1">
+              <textarea
+                value={draft}
+                onChange={(e) => update(index, e.target.value)}
+                onBlur={save}
+                rows={2}
+                data-testid={`brand-prompt-${index}`}
+                placeholder="e.g. purple and electric blue accents, soft gradients"
+                className="resize-none rounded-lg bg-white/[0.05] px-2.5 py-2 text-[12px] leading-relaxed text-neutral-100 placeholder:text-neutral-500 outline-none focus:bg-white/[0.08] focus:ring-1 focus:ring-[var(--accent)]/70"
+              />
+              <span className={`self-end text-[10px] ${count > 50 ? "text-amber-300" : "text-neutral-600"}`}>
+                {count}/50 words
+              </span>
+            </label>
+          );
+        })}
       </div>
     </div>
   );
@@ -1339,8 +1404,8 @@ function FalConnect({ onSaved }: { onSaved: () => void }) {
       <div>
         <p className="text-[13px] font-medium text-neutral-200">Connect fal.ai</p>
         <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
-          Add a fal.ai API key to generate images with FLUX. Bring your own key —
-          it stays in this browser only, and you pay fal directly.
+          Add a fal.ai API key to generate images with Google nano-banana 2 lite.
+          Bring your own key — it stays in this browser only, and you pay fal directly.
         </p>
       </div>
       <input
@@ -1406,7 +1471,7 @@ interface EditRef {
 }
 
 /** Connected state: a Generate / Edit mode toggle over a shared session-results
- *  grid. Generate = text-to-image (FLUX); Edit = image-to-image composition with
+ *  grid. Generate = text-to-image (nano-banana 2 lite); Edit = image-to-image composition with
  *  up to ten reference images (nano-banana 2 lite edit). */
 function FalGenerate({ onDisconnect }: { onDisconnect: () => void }) {
   const [mode, setMode] = useState<GenMode>("generate");
@@ -1547,12 +1612,20 @@ interface ModeProps {
 function GenerateControls({ busy, onStart, onResults, onError }: ModeProps) {
   const [prompt, setPrompt] = useState("");
   const [preset, setPreset] = useState<AspectPreset>(ASPECT_PRESETS[0]);
+  const [, setBrandRev] = useState(0);
+
+  useEffect(() => onBrandsChanged(() => setBrandRev((r) => r + 1)), []);
+
+  const brandPrompts = getActiveBrand()?.prompts ?? [];
 
   const run = () => {
     const p = prompt.trim();
-    if (!p || busy) return;
+    if (p.length < 3 || busy) return;
     onStart();
     generate(p, preset, getKey("fal")).then(onResults).catch(onError);
+  };
+  const appendBrandPrompt = (brandPrompt: string) => {
+    setPrompt((prev) => (prev.trim() ? `${prev.trimEnd()}, ${brandPrompt}` : brandPrompt));
   };
 
   return (
@@ -1565,8 +1638,29 @@ function GenerateControls({ busy, onStart, onResults, onError }: ModeProps) {
         }}
         placeholder="Describe an image… e.g. a minimal indigo gradient poster background"
         rows={3}
+        data-testid="generate-prompt"
         className="resize-none rounded-lg bg-white/[0.05] px-2.5 py-2 text-[13px] leading-relaxed text-neutral-100 placeholder:text-neutral-500 outline-none focus:bg-white/[0.08] focus:ring-1 focus:ring-[var(--accent)]/70"
       />
+
+      {brandPrompts.length > 0 && (
+        <div className="mt-2">
+          <SectionLabel>Brand</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            {brandPrompts.map((brandPrompt, index) => (
+              <button
+                key={`${brandPrompt}-${index}`}
+                type="button"
+                onClick={() => appendBrandPrompt(brandPrompt)}
+                title={brandPrompt}
+                data-testid={`brand-prompt-chip-${index}`}
+                className="max-w-full truncate rounded-md bg-white/[0.05] px-2 py-1 text-left text-[11px] font-medium text-neutral-300 transition-colors duration-150 hover:bg-white/[0.09] hover:text-neutral-100"
+              >
+                {brandPrompt}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-2.5 flex gap-1">
         {ASPECT_PRESETS.map((p) => (
@@ -1586,7 +1680,7 @@ function GenerateControls({ busy, onStart, onResults, onError }: ModeProps) {
 
       <button
         onClick={run}
-        disabled={!prompt.trim() || busy}
+        disabled={prompt.trim().length < 3 || busy}
         className="mt-2.5 inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-2 text-[12.5px] font-semibold text-white transition-colors duration-150 hover:brightness-110 disabled:opacity-30"
       >
         {busy ? (
