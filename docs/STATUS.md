@@ -1,8 +1,30 @@
 # Youzign OSS — Status & Working Agreements
 *Updated 2026-07-04 evening (Canvas Filters + text-rotation pivot merged). This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
 
-## NEXT UP: pick from the open queue
-No single spec'd feature queued. Open items, roughly in order: (1) Bertrand's next feedback wave on the fresh .app; (2) DB dump extraction (`gzip -t` + pull save_editor_design/wp_terms/wp_term_taxonomy/wp_posts/wp_postmeta from the 2.7GB local gzip — see memory `dns-db-rescue-state`) → golden-image fidelity harness (milestone 5); (3) landing `vercel --prod` deploy still pending Bertrand; (4) filter polish nits below.
+## NEXT UP (new chat): SHIP SPRINT — Windows build + download funnel (leads → downloads → testimonials)
+Bertrand 2026-07-04 evening: editor is **shippable** (filters reviewed: "works great"). This sprint turns the landing page into a lead-gen funnel: Youzign = free lifetime gift that captures emails + testimonials feeding Dezygn/APA nurture. Landing deployed + verified live (www.youzign.com, hero-editor.png). Main pushed through `5556e12`.
+
+**Resume line:** "Youzign — resume. Read docs/STATUS.md; run the SHIP SPRINT per NEXT UP."
+
+### 1. Windows (+Linux) installers — tag and verify, the CI already exists
+`.github/workflows/release.yml` is fully wired: push tag `v*` → matrix builds macOS universal (`--target universal-apple-darwin`), Windows x64 MSVC, Ubuntu 22.04, uploads to a GitHub Release (contents: write). **Do:** push tag `v1.0.0` on main (needs Bertrand or an allowlisted push), watch the Action (`gh run watch`), record the EXACT asset filenames, then use stable links `https://github.com/youzign/youzign-phoenix/releases/latest/download/<asset>` everywhere. Caveats to handle on the thanks page: Windows binary is UNSIGNED (SmartScreen "More info → Run anyway" helper note) and macOS is un-notarized (right-click → Open note).
+
+### 2. Landing download flow — email capture (Resend)
+Landing = static `landing/` dir, Vercel project `youzign-landing` (aliased www.youzign.com). Vercel auto-serves `landing/api/*.js` as serverless functions — no framework needed.
+- **Download CTA → email modal** (name optional, email required; honest copy: "we'll email you the download link + product updates"). Submit → `POST /api/subscribe` → redirect `/thanks.html?platform=mac|win|linux` (UA-preselect).
+- **`landing/api/subscribe.js`**: upsert contact into a Resend **Audience** ("Youzign Downloads") via Resend Contacts API + send a "Your Youzign download" email (Resend send API) with the release links. Bertrand HAS a Resend account; `RESEND_API_KEY` + `RESEND_AUDIENCE_ID` go in **Vercel project env vars** (app-key convention — NOT committed, not ~/.zshrc). Domain sending: verify youzign.com sending domain in Resend first (SPF/DKIM DNS on GoDaddy — mail is on Purelymail, add Resend records alongside; see memory `dns-db-rescue-state`).
+- **Soft gate**: thanks page delivers the downloads regardless — email is the ask, not a ransom (better conversion, and the emailed links make the address self-verifying).
+
+### 3. Thank-you page (`landing/thanks.html`)
+- Download buttons for all 3 platforms (latest/download links), platform preselected from query param, SmartScreen/Gatekeeper helper notes.
+- **Testimonial ask**: "Love the new Youzign? Add yours to our Wall of Love →" linking `https://forms.endorsal.io/form/5df0c2d94264b34634388361`. Optionally embed the Endorsal slideshow widget as social proof: `<div id='ndrsl-5df1203b4264b346343884f7' class='ndrsl-widget'></div>`.
+- **Share block**: prefilled `mailto:` + X/Twitter intent + Facebook sharer ("Youzign is back — free forever").
+
+### 4. Wall of Love on the homepage (Endorsal — account is live, content EXISTS)
+Endorsal property `5df0c2d94264b34634388360`. The account already holds **231 legacy testimonials** (export reviewed at `/Users/dezygn/Downloads/Testimonials.csv` — approved+featured flags set, so widgets render immediately; CSV contains emails = PII, do NOT commit it to this public repo). **Do:** add the Endorsal tracking snippet (script loading `https://cdn.endorsal.io/widgets/widget.min.js`, then `NDRSL.init("5df0c2d94264b34634388360")`) to `index.html` + `thanks.html`, and the wall widget `<div id='ndrsl-wol-5df11fc14264b346343884f4' class='ndrsl-widget'></div>` as a homepage section. Exact snippet is in Bertrand's 2026-07-04 message (or Endorsal dashboard).
+
+### 5. Protocol + verification
+Codex builds (modal, api/subscribe, thanks.html, endorsal embeds); orchestrator reviews + verifies END-TO-END on a Vercel **preview deploy**: real email through /api/subscribe → contact appears in Resend audience + email arrives → thanks page renders widgets (Endorsal is third-party JS — check it loads over the CSP/no-CSP of the landing) → downloads actually download. Then `vercel --prod`. Screenshot evidence per house style. Strategy context: every download = a lead tagged source=youzign, nurture toward Dezygn + APA (that's the point of the funnel).
 
 ## 2026-07-04 evening wave (merged to main, 352 tests + WebKit-verified)
 - **Canvas Filters UI shipped** (merge `8a978eb`, branch feat/canvas-filters): Bertrand's direction = modern pack, NOT the 2016 filters. 13 new presets ids 16–28 (Vivid, Fresco, Nordic, Golden, Peach, Calypso, Film, Retro Pop, Mono, Noir, Street, Dream, Lomo 2.0) added to `filterRecipe()` alongside untouched legacy 1–15 (old designs render identically; legacy id shows as a "Legacy — name" tile when present). **Adjust sliders** (Brightness/Contrast/Saturation/Hue/Warmth/Vignette) live as `adj_*` attrs on the SAME single `<item type="filter">` — written to rawAttrs only when non-neutral, removed at neutral → untouched designs stay byte-stable (round-trip test extended). New `packages/editor-core/src/canvas-filter.ts` mutations (`setCanvasFilter/Alpha/Adjustment/reset`, "Original"+neutral ⇒ item deleted); Filter section in CanvasPanel (preset grid w/ demo-portrait thumbnails + intensity slider + Adjust block, SliderCommit = commit-on-release, one undo step per drag). `FilterLayer` gained `background?` for solid overlay layers (Film/Dream lift, warmth tint). Help "Filters" section + `filters.png` shot (help-shots.mjs `makeFiltersShot`).
