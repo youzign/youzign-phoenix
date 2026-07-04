@@ -451,7 +451,12 @@ export function ColorSwatch({
                     title={hex}
                     aria-label={`Brand color ${hex}`}
                     data-brand-color-swatch={hex}
-                    onClick={() => {
+                    onClick={(e) => {
+                      // Closing the popover unmounts this button mid-dispatch; an
+                      // ancestor <label> (PropertiesPanel Field) would then forward
+                      // the click to its first labelable control (e.g. the "No fill"
+                      // checkerboard). preventDefault cancels that forwarding.
+                      e.preventDefault();
                       onChange(hex);
                       setOpen(false);
                     }}
