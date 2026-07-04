@@ -1,5 +1,13 @@
 # Youzign OSS — Status & Working Agreements
-*Updated 2026-07-04 night (SHIP SPRINT + update path done; next: email announcements Sunday). This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
+*Updated 2026-07-04 late night (LEGACY EMAIL BLAST SENT via Elastic Email; funnel + v1.0.2 live). This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
+
+## SENT 2026-07-04 ~19:46 UTC: legacy announcement email — LIVE via Elastic Email
+Bertrand pulled the send forward from Sunday to Friday night. Campaign "In progress" in Elastic Email at send time; he sent it himself from the Elastic Email dashboard (the legacy list lives THERE, not Resend — Resend plan/upgrade questions are moot for the blast; his Elastic Email API key wasn't working as of 2026-07-04, dashboard sends fine).
+- **Copy**: `docs/emails/01-legacy-announcement.{md,html}` (Opus-drafted per the copywriting carve-out, Fable-reviewed against sources; anchored on "the design editor you bought for life, now free for everyone, forever" + "A promise kept, 12 years later"; zero em dashes; one no-pitch Dezygn P.S.; `{unsubscribe}` merge tag; single CTA → www.youzign.com).
+- **Still queued: `docs/emails/02-reminder.md`** — short non-opener follow-up (~90 words, 3 subjects), send a few days after the blast (~Tue-Wed 2026-07-08±).
+- **Metrics loop (Bertrand checks 2026-07-05)**: funnel signups land in the **Resend audience "Youzign Downloads"** (`7f9b0780-72a4-4f98-89e5-85c129c12a4a`) — that count = email→download conversions. Also watch Elastic Email campaign stats (delivered/opens/clicks) and GitHub release download counts.
+- **Known copy risks flagged pre-send**: body says archive import "landing soon" (blocked on AWS $442 reinstatement — keep that moving); reply address is support@youzign.com (confirm it receives on Purelymail).
+- **DB dump VERIFIED COMPLETE** (same session): `/Users/dezygn/Downloads/youzign-db-backup (1).sql.gz` (2.6GB) ends with `-- Dump completed on 2026-07-04 7:45:57`; all 74 tables incl. the 5 rescue targets. **wp_users ≈ 273,936 rows** (full user base incl. free signups; `wp_users_oldone` ≈ 9k is an old backup table) and **`deals_licenses`** exists for segmenting the ~20k actual buyers. The email list is recoverable from the dump if Elastic Email ever fails. 5-table extract for the fidelity corpus still pending.
 
 ## SHIPPED 2026-07-04 late evening: v1.0.2 release + download funnel LIVE (main `9295f16`)
 The whole SHIP SPRINT landed in one session and is live-verified on **www.youzign.com**:
@@ -10,10 +18,10 @@ The whole SHIP SPRINT landed in one session and is live-verified on **www.youzig
 - **Verification evidence**: 16/16 local harness + 5/5 prod checks PASS; 2 real emails "Your Youzign download 🎁" delivered to admin@youzign.com; Resend contact present. Harness scripts + screenshots: session scratchpad `c8ee48ab…/scratchpad/{verify-funnel.mjs,prod-verify.mjs,shots/}`.
 - **Ops traps this session**: `codex exec` from background Bash hangs forever reading stdin — always `< /dev/null` (memory `codex-background-stdin-hang`); Codex sandbox can't launch Chrome or reach localhost (Claude runs harnesses, Codex writes them); Vercel preview deploys are SSO-protected (verify via `vercel dev`/direct function drive + prod).
 
-## NEXT UP (new chat): EMAIL ANNOUNCEMENTS — write Sat, send Sunday 2026-07-06
-Bertrand 2026-07-04 late: next session writes the launch announcement emails and sends them off on Sunday. Everything below is what that chat needs.
+## ~~NEXT UP: EMAIL ANNOUNCEMENTS~~ ✅ DONE EARLY — sent 2026-07-04 (see "SENT" section above)
+Superseded: the blast went out Friday night via **Elastic Email** (not Resend — Resend only holds the funnel-signup audience). Kept below for the audience/deliverability reference. Remaining from this sprint: send `docs/emails/02-reminder.md` to non-openers ~2026-07-08, check metrics 07-05.
 
-**Resume line:** "Youzign — resume. Read docs/STATUS.md; run the EMAIL ANNOUNCEMENTS sprint per NEXT UP."
+**Next session resume line:** "Youzign — resume. Read docs/STATUS.md; check blast metrics + send reminder to non-openers."
 
 ### What's being announced
 Youzign v1.0.2 is live and free: www.youzign.com (funnel: modal → email → thanks page w/ installers for mac/win/linux). Positioning = the kept lifetime promise (memory `youzign-positioning`): bought-for-life customers get it back, free forever, open source, local-first, no accounts. In-app blue-dot update path is live and explained on thanks.html + in the download email. Strategy: every download = lead nurtured toward Dezygn + APA.
