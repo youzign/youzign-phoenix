@@ -1,8 +1,19 @@
 # Youzign OSS — Status & Working Agreements
 *Updated 2026-07-04 afternoon (Brand Kit merged). This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
 
-## NEXT UP: Bertrand retests feedback wave 2; landing deploy pending his go
-All of Bertrand's 2026-07-04 pm feedback (9 items) shipped & merged; fresh .app ~15:45. OPEN: (a) landing hero swapped+committed but `vercel --prod` blocked by permission classifier — Bertrand must say "deploy the landing" or run it himself; (b) his retest verdict.
+## NEXT UP (new chat): Canvas Filters UI — the forgotten feature
+**The gap:** `packages/renderer/src/filters.ts` faithfully ports ALL 15 legacy canvas filters (PanelFilters.ts `updateFilter()` recipes: original, grayscale, sepia, vignette, lomo, orton, polaroid, retro, vintage, adventure, ignite, blonde, sense, turquoise, cool). A design carries at most ONE `<item type="filter">` with `filterid` (1–15) + `opacity` (=legacy filterAlpha 0..1); `filterRecipe(filterid, alpha)` → canvas-wide CSS filter + up to 2 radial-vignette overlay layers. Legacy designs RENDER their filter today — but there is **zero editor UI and zero store support**: no mutations in `apps/editor/src/store.ts`, nothing in PropertiesPanel. Users can't add/change/remove a filter. (CanvasStage already excludes `type === "filter"` items from selection/marquee — correct, keep it non-selectable.)
+
+**Build (one Codex brief, likely two):**
+1. **Store + core mutations**: `setCanvasFilter(filterid: number | null, alpha: number)` — upsert/remove the single filter item (editor-core mutation + unit tests; check how legacy serializes the item's other attrs — copy an existing fixture's filter item shape). Undo = one step. Removing = delete the item (filterid 1 "original" ≈ none; decide whether id 1 or absence is the "off" state by checking legacy semantics).
+2. **UI**: canvas-level, so put it with Background/Canvas controls in PropertiesPanel's no-selection state — a "Filter" section: preset GRID with live mini-previews (render a small shared thumbnail — e.g. the demo portrait — with each recipe's CSS filter applied; cheap: one `<img>` + CSS filter per tile, vignette layers can be approximated or skipped on tiles) + name labels, selected state, and an **intensity slider** (alpha, default legacy 1? check PanelFilters default) shown when a filter ≠ original is active. Presets-over-search: grid always populated, "Original" first = off.
+3. **Fidelity**: recipes are already exact — the UI must only write `filterid`/`opacity` the way legacy XML does (verify round-trip: parse → edit → serialize keeps byte-stable attrs for untouched fields). Export (PNG/JPG/PDF) must bake the filter — CHECK export path applies filterRecipe (it may already; verify with a pixel assert).
+4. **Protocol**: per `webkit-verify-protocol` memory — Codex `--full-auto` implements + writes WebKit harness (orchestrator runs it): assert grayscale filter actually desaturates exported/rendered pixels (positive case), slider changes intensity, remove restores. Help tab entry + help-shots addition per working agreement. `pnpm -r build` before harness; fingerprint before handoff.
+
+**Resume line for the new chat:** "Youzign — resume. Read docs/STATUS.md; build the Canvas Filters UI per NEXT UP."
+
+## Recently shipped (2026-07-04 pm)
+All of Bertrand's feedback wave 2 (9 items) shipped & merged; fresh .app ~16:41 (`index-CNW-V_4-.js`); main pushed to origin. OPEN: landing hero swapped+committed but `vercel --prod` blocked by permission classifier — Bertrand deploys himself or says "deploy the landing".
 
 ## 2026-07-04 feedback wave 2 (merged to main, 336 tests + WebKit-verified)
 - **Rotated-text chrome bug FIXED** (`4c30bc8`): chrome drifted from glyphs under rotation — `measuredTextBox` added local bounds to left/top while the renderer rotates about the text-matrix origin (coincide at 0°, diverge with angle). Chrome now transforms through the same origin. Evidence: center deltas <0.13px at 0/30/75° + side-pill-then-rotate; side-pill-e2e 5/5 no regression. (Codex's harness had 2 script bugs — offscreen text-measurer div matched, and found-branch flags missing — orchestrator patched the SCRIPT, fix was good.)
