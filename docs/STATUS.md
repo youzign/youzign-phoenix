@@ -1,6 +1,9 @@
 # Youzign OSS — Status & Working Agreements
 *Updated 2026-07-04 afternoon. This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
 
+## NEXT UP (new chat): Brand Kit v1
+Bertrand confirmed blur ✅ + text handles ✅ in the 11:32 build. Next feature: **simple brand-kit system** — named brands with colors/fonts/assets, brand colors one click away in every color picker. Full spec + build order in `docs/BRAND-KIT-SPEC.md` (read it first). Bertrand also mentioned "a couple updates to add before wrapping this build" — ask him what they are at the start of the new chat.
+
 ## 2026-07-04 afternoon wave (merged to main, 304/304 tests) — verified-handoff era
 - **Blur FIXED + verified in real WebKit**: ctx.filter is a silent no-op in WKWebView → pure-JS Gaussian fallback (`gaussianBlurRGBA` in editor-core/magic.ts, CSS sigma semantics). Proof: Playwright-WebKit checkerboard isolate = 99.5% high-freq reduction; portrait preview shows real halo. Bertrand confirmed working in the .app.
 - **Text-handle fixes (merge `b02b973`)**: delta-based virtual-pointer resize (off-center grabs can't jump — Codex), 6px text chrome outset (Codex), zero-delta side-resize guard (Codex), fresh-text mcHeight seeded via syncTextAreaHeight not size*1.35 (was a 13% first-touch pop), fonts.load()-driven chrome re-measure (WebKit never fires loadingdone; fonts.check lies — stale chrome WAS Bertrand's "artifacts on glyph tops"). Verified: selection rect pixel-identical across grabs.
