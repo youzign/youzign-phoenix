@@ -129,7 +129,7 @@ export const sections: HelpSection[] = [
       },
       {
         type: "paragraph",
-        text: "Heading and body font choices are pinned as Brand fonts at the top of the font picker. Brand uploads accept PNG, JPG, WEBP, and SVG files, store them locally, and insert them onto the canvas from the Brand tab.",
+        text: "Heading and body font choices are pinned as Brand fonts at the top of the font picker, and any Google Font can be added by name from the picker. Brand uploads accept PNG, JPG, WEBP, and SVG files, store them locally, and insert them onto the canvas from the Brand tab.",
       },
       {
         type: "paragraph",

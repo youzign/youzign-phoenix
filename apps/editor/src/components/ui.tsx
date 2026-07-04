@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { GOOGLE_FONTS } from "@youzign/editor-core";
+import { GOOGLE_FONTS, googleFontsHref } from "@youzign/editor-core";
 import { ensureGoogleFonts } from "../fonts.js";
 import { getActiveBrand, type Brand } from "../library/brands.js";
+import { addCustomFont, listCustomFonts, onCustomFontsChanged } from "../library/custom-fonts.js";
 
 /* ------------------------------------------------------------------ *
  * Icons — inline lucide-style SVG paths (stroke, no external dep).
@@ -567,13 +568,19 @@ export function FontPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [brandFonts, setBrandFonts] = useState<Brand["fonts"]>({});
+  const [customFonts, setCustomFonts] = useState<string[]>(() => listCustomFonts());
+  const [addError, setAddError] = useState("");
+  const [addingFont, setAddingFont] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const families =
-    value && !GOOGLE_FONTS.includes(value) ? [value, ...GOOGLE_FONTS] : GOOGLE_FONTS;
-  const filtered = families.filter((f) =>
-    f.toLowerCase().includes(query.trim().toLowerCase())
+  const families = Array.from(new Set([...GOOGLE_FONTS, ...customFonts, ...(value ? [value] : [])])).sort((a, b) =>
+    a.localeCompare(b)
   );
+  const queryTrim = query.trim();
+  const filtered = families.filter((f) =>
+    f.toLowerCase().includes(queryTrim.toLowerCase())
+  );
+  const canAddFont = queryTrim.length > 0 && !families.some((f) => f === queryTrim);
   const brandFontRows = [
     brandFonts.heading ? { label: "Heading", family: brandFonts.heading } : null,
     brandFonts.body ? { label: "Body", family: brandFonts.body } : null,
@@ -585,8 +592,13 @@ export function FontPicker({
     setBrandFonts(getActiveBrand()?.fonts ?? {});
   }, [open]);
 
+  useEffect(() => onCustomFontsChanged(() => setCustomFonts(listCustomFonts())), []);
+
   useEffect(() => {
-    if (open) ensureGoogleFonts([...brandFontFamilies, ...filtered]);
+    // Preview loading is capped so a 300-family list does not request a huge
+    // Google Fonts stylesheet on every search keystroke. The scroll list still
+    // shows every matching family; selected/hovered fonts load on demand.
+    if (open) ensureGoogleFonts([...brandFontFamilies, ...filtered.slice(0, 40)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, query, brandFonts.heading, brandFonts.body]);
 
@@ -599,14 +611,42 @@ export function FontPicker({
     return () => window.removeEventListener("mousedown", onDown);
   }, [open]);
 
+  const addGoogleFont = async () => {
+    const family = queryTrim;
+    if (!family || addingFont) return;
+    setAddingFont(true);
+    setAddError("");
+    try {
+      // Use the exact user capitalization. Google Fonts family matching is
+      // strict enough that changing case can make an otherwise valid name fail.
+      const href = googleFontsHref([family]);
+      if (!href) return;
+      const res = await fetch(href);
+      if (!res.ok) {
+        setAddError("Not found on Google Fonts");
+        return;
+      }
+      addCustomFont(family);
+      ensureGoogleFonts([family]);
+      onChange(family);
+      setOpen(false);
+    } catch {
+      setAddError("Not found on Google Fonts");
+    } finally {
+      setAddingFont(false);
+    }
+  };
+
   return (
     <div ref={rootRef} className="relative">
       <button
+        data-testid="font-picker"
         className="flex w-full items-center justify-between rounded-md bg-white/[0.05] px-2.5 py-2 text-[13px] text-neutral-100 transition-colors duration-150 hover:bg-white/[0.09]"
         style={{ fontFamily: `"${value}", sans-serif` }}
         onClick={() => {
           setOpen((o) => !o);
           setQuery("");
+          setAddError("");
         }}
       >
         <span className="truncate">{value || "Select font"}</span>
@@ -648,9 +688,13 @@ export function FontPicker({
           <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2.5 py-2">
             <Icon name="search" size={15} className="shrink-0 text-neutral-500" />
             <input
+              data-testid="font-picker-search"
               autoFocus
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setAddError("");
+              }}
               placeholder="Search fonts…"
               className="w-full bg-transparent text-[13px] text-neutral-100 outline-none placeholder:text-neutral-500"
             />
@@ -661,11 +705,14 @@ export function FontPicker({
               return (
                 <li key={f}>
                   <button
+                    data-testid="font-option"
                     className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-[14px] transition-colors duration-100 ${
                       cur ? "bg-[var(--accent-soft)] text-white" : "text-neutral-200 hover:bg-white/[0.06]"
                     }`}
                     style={{ fontFamily: `"${f}", sans-serif` }}
+                    onMouseEnter={() => ensureGoogleFonts([f])}
                     onClick={() => {
+                      ensureGoogleFonts([f]);
                       onChange(f);
                       setOpen(false);
                     }}
@@ -678,6 +725,27 @@ export function FontPicker({
             })}
             {filtered.length === 0 && (
               <li className="px-2.5 py-2.5 text-[12px] text-neutral-500">No matches</li>
+            )}
+            {canAddFont && (
+              <li className="border-t border-white/[0.06] pt-1">
+                <button
+                  type="button"
+                  data-testid="font-add-row"
+                  className="flex w-full items-center gap-2 px-2.5 py-2 text-left text-[13px] font-medium text-cyan-200 transition-colors duration-100 hover:bg-cyan-400/10 disabled:cursor-wait disabled:opacity-60"
+                  disabled={addingFont}
+                  onClick={addGoogleFont}
+                >
+                  <Icon name="plus" size={14} className="shrink-0" />
+                  <span className="min-w-0 truncate">
+                    {addingFont ? "Checking Google Fonts..." : `Add "${queryTrim}" from Google Fonts`}
+                  </span>
+                </button>
+                {addError && (
+                  <div data-testid="font-add-error" className="px-2.5 pb-2 text-[12px] text-red-300">
+                    {addError}
+                  </div>
+                )}
+              </li>
             )}
           </ul>
         </div>
