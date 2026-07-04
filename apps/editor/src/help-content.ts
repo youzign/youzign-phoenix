@@ -232,6 +232,20 @@ export const sections: HelpSection[] = [
     ],
   },
   {
+    id: "updates",
+    title: "Updates",
+    blocks: [
+      {
+        type: "paragraph",
+        text: "Youzign checks for new versions when you open the dashboard. When an update is available, a blue dot appears on the Youzign logo in the top left — click it to see what's new and download the update.",
+      },
+      {
+        type: "paragraph",
+        text: "Updating is a reinstall: download the new installer from the update panel, run it, and it replaces the app. Your designs, uploads, brands, and settings are stored on your computer, not inside the app, so they are untouched by updates. If you ever switch machines, use Backup to move everything.",
+      },
+    ],
+  },
+  {
     id: "backup-portability",
     title: "Backup & Portability",
     blocks: [

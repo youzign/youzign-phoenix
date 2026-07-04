@@ -52,7 +52,8 @@ function emailHtml(downloads) {
         </div>
         <p style="margin:0 0 10px;color:#9aa7b5;font-size:14px;line-height:1.6;">Windows may show SmartScreen because this is a brand-new unsigned app. Click <strong style="color:#eef2f7;">More info</strong>, then <strong style="color:#eef2f7;">Run anyway</strong>.</p>
         <p style="margin:0 0 22px;color:#9aa7b5;font-size:14px;line-height:1.6;">On macOS, if Gatekeeper blocks the first launch, right-click the app and choose <strong style="color:#eef2f7;">Open</strong>.</p>
-        <p style="margin:0;color:#c8d2de;font-size:15px;line-height:1.6;">P.S. If Youzign helped you in the old days, or you like the new one, you can add a short testimonial here: <a href="${TESTIMONIAL_URL}" style="color:#0aa5f5;">${TESTIMONIAL_URL}</a></p>
+        <p style="margin:0 0 10px;color:#c8d2de;font-size:15px;line-height:1.6;">P.S. If Youzign helped you in the old days, or you like the new one, you can add a short testimonial here: <a href="${TESTIMONIAL_URL}" style="color:#0aa5f5;">${TESTIMONIAL_URL}</a></p>
+        <p style="margin:0;color:#9aa7b5;font-size:14px;line-height:1.6;">Updates are automatic to spot: when a new Youzign version ships, a blue dot appears on the logo inside the app. We'll also email you when something big lands.</p>
       </div>
     </div>
   `;
