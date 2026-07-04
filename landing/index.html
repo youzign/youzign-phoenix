@@ -75,6 +75,7 @@
     background: linear-gradient(180deg, var(--blue), var(--blue-deep));
     color: #fff; text-decoration: none; font-weight: 700; font-size: 16px;
     padding: 15px 28px; border-radius: 14px;
+    border: 0; cursor: pointer; font-family: inherit;
     box-shadow: 0 8px 28px rgba(10, 165, 245, 0.35);
     transition: transform 0.15s, box-shadow 0.15s;
   }
@@ -101,6 +102,58 @@
   }
   .shot img { display: block; width: 100%; height: auto; }
 
+  .love {
+    border-top: 1px solid var(--line);
+    padding: 44px 0 52px;
+  }
+  .love h2 {
+    font-size: clamp(28px, 3.2vw, 40px); line-height: 1.12;
+    font-weight: 800; letter-spacing: -0.03em; margin-bottom: 22px;
+  }
+  .love-widget {
+    min-height: 280px; border: 1px solid var(--line); border-radius: 16px;
+    background: rgba(21, 26, 33, 0.48); overflow: hidden;
+  }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 20;
+    display: none; align-items: center; justify-content: center;
+    padding: 24px; background: rgba(5, 8, 12, 0.72);
+    backdrop-filter: blur(12px);
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    width: min(460px, 100%);
+    background: rgba(21, 26, 33, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(10, 165, 245, 0.08);
+    padding: 24px;
+  }
+  .modal-head { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; margin-bottom: 18px; }
+  .modal h2 { font-size: 26px; line-height: 1.15; letter-spacing: -0.025em; }
+  .modal-close {
+    width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04); color: var(--muted); cursor: pointer;
+    font-size: 22px; line-height: 1; font-family: inherit;
+  }
+  .modal-close:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.22); }
+  .modal label { display: block; color: var(--text); font-size: 13px; font-weight: 600; margin: 14px 0 8px; }
+  .modal input {
+    width: 100%; border: 1px solid var(--line); border-radius: 12px;
+    background: rgba(255, 255, 255, 0.045); color: var(--text);
+    font: inherit; padding: 13px 14px; outline: none;
+  }
+  .modal input:focus { border-color: rgba(10, 165, 245, 0.7); box-shadow: 0 0 0 3px rgba(10, 165, 245, 0.15); }
+  .modal .microcopy { color: var(--muted); font-size: 13.5px; line-height: 1.55; margin: 14px 0 18px; }
+  .modal .download { width: 100%; justify-content: center; }
+  .modal .download[disabled] { opacity: 0.72; cursor: wait; transform: none; }
+  .skip-link {
+    display: block; margin-top: 16px; text-align: center;
+    color: var(--muted); font-size: 13.5px; text-decoration: none;
+  }
+  .skip-link:hover { color: var(--text); }
+
   footer.site {
     border-top: 1px solid var(--line);
     padding: 16px 0; font-size: 13px; color: var(--muted);
@@ -112,6 +165,10 @@
     main { grid-template-columns: 1fr; gap: 36px; padding-bottom: 32px; }
     .shot { order: -1; }
     ul.points { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    .wrap { width: min(100% - 28px, 1180px); }
+    .modal { padding: 20px; }
   }
 </style>
 </head>
@@ -135,11 +192,11 @@
           and the app is yours to keep. That's what lifetime should have meant all along.
         </p>
         <div class="cta-row">
-          <a class="download" href="#download" id="download-btn" style="pointer-events:none; opacity:.6; cursor:default;" aria-disabled="true">
+          <button class="download" type="button" id="download-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Launching today — check back soon
-          </a>
-          <div class="platforms"><span>macOS · Windows · Linux</span><br />Free. No sign-up.</div>
+            Download free
+          </button>
+          <div class="platforms"><span>macOS · Windows · Linux</span><br />Free forever.</div>
         </div>
         <ul class="points">
           <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span><b>Open-source desktop app</b> — inspect it, fork it, trust it</span></li>
@@ -156,6 +213,11 @@
       </figure>
     </main>
 
+    <section class="love" aria-label="Wall of Love">
+      <h2>Loved by 20,000+ designers since 2014</h2>
+      <div id="ndrsl-wol-5df11fc14264b346343884f4" class="ndrsl-widget love-widget"></div>
+    </section>
+
     <footer class="site">
       <div class="wrap">
         <span>© Youzign — made with love (and kept promises)</span>
@@ -163,5 +225,92 @@
       </div>
     </footer>
   </div>
+  <div class="modal-backdrop" id="download-modal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="download-title">
+      <div class="modal-head">
+        <h2 id="download-title">Get Youzign — free forever</h2>
+        <button class="modal-close" type="button" aria-label="Close download form" id="modal-close">×</button>
+      </div>
+      <form id="download-form">
+        <label for="email">Email address</label>
+        <input id="email" name="email" type="email" required autocomplete="email" />
+        <label for="name">Name <span style="color:var(--muted);font-weight:500;">optional</span></label>
+        <input id="name" name="name" type="text" autocomplete="name" />
+        <p class="microcopy">We'll email you the download link, plus occasional product updates. Unsubscribe anytime.</p>
+        <button class="download" type="submit" id="submit-download">Email me the download</button>
+      </form>
+      <a class="skip-link" id="skip-download" href="/thanks.html?platform=mac&skipped=1">or skip straight to the downloads →</a>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const modal = document.getElementById("download-modal");
+      const openButton = document.getElementById("download-btn");
+      const closeButton = document.getElementById("modal-close");
+      const form = document.getElementById("download-form");
+      const submit = document.getElementById("submit-download");
+      const skip = document.getElementById("skip-download");
+      const email = document.getElementById("email");
+
+      function detectPlatform() {
+        const value = `${navigator.platform || ""} ${navigator.userAgent || ""}`.toLowerCase();
+        if (value.includes("win")) return "win";
+        if (value.includes("linux") || value.includes("x11")) return "linux";
+        if (value.includes("mac")) return "mac";
+        return "mac";
+      }
+
+      const platform = detectPlatform();
+      skip.href = `/thanks.html?platform=${encodeURIComponent(platform)}&skipped=1`;
+
+      function openModal() {
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        window.setTimeout(() => email.focus(), 0);
+      }
+
+      function closeModal() {
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+      }
+
+      openButton.addEventListener("click", openModal);
+      closeButton.addEventListener("click", closeModal);
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) closeModal();
+      });
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && modal.classList.contains("open")) closeModal();
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+
+        submit.disabled = true;
+        submit.textContent = "Sending…";
+
+        const payload = {
+          email: email.value.trim(),
+          name: document.getElementById("name").value.trim(),
+          platform
+        };
+
+        try {
+          const response = await fetch("/api/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const result = await response.json().catch(() => ({}));
+          const emailSent = response.ok && result.ok && result.emailSent !== false;
+          window.location.href = `/thanks.html?platform=${encodeURIComponent(platform)}${emailSent ? "" : "&mailerr=1"}`;
+        } catch (error) {
+          window.location.href = `/thanks.html?platform=${encodeURIComponent(platform)}&mailerr=1`;
+        }
+      });
+    }());
+  </script>
+  <script src="https://cdn.endorsal.io/widgets/widget.min.js" async onload="window.NDRSL && window.NDRSL.init && window.NDRSL.init('5df0c2d94264b34634388360')"></script>
 </body>
 </html>
