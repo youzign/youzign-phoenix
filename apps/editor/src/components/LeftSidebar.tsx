@@ -432,7 +432,7 @@ function BrandPalette({ brand }: { brand: Brand }) {
                       type="button"
                       disabled={index === 0}
                       onClick={() => move(index, -1)}
-                      className="rounded-md px-1.5 py-1 text-[11px] font-medium text-neutral-300 transition-colors duration-150 hover:bg-white/[0.08] hover:text-neutral-100 disabled:pointer-events-none disabled:opacity-35"
+                      className="whitespace-nowrap rounded-md px-1.5 py-1 text-[11px] font-medium text-neutral-300 transition-colors duration-150 hover:bg-white/[0.08] hover:text-neutral-100 disabled:pointer-events-none disabled:opacity-35"
                     >
                       ← Move
                     </button>
@@ -440,14 +440,14 @@ function BrandPalette({ brand }: { brand: Brand }) {
                       type="button"
                       disabled={index === colors.length - 1}
                       onClick={() => move(index, 1)}
-                      className="rounded-md px-1.5 py-1 text-[11px] font-medium text-neutral-300 transition-colors duration-150 hover:bg-white/[0.08] hover:text-neutral-100 disabled:pointer-events-none disabled:opacity-35"
+                      className="whitespace-nowrap rounded-md px-1.5 py-1 text-[11px] font-medium text-neutral-300 transition-colors duration-150 hover:bg-white/[0.08] hover:text-neutral-100 disabled:pointer-events-none disabled:opacity-35"
                     >
                       Move →
                     </button>
                     <button
                       type="button"
                       onClick={() => replace(colors.filter((_, i) => i !== index))}
-                      className="rounded-md px-1.5 py-1 text-[11px] font-medium text-red-300 transition-colors duration-150 hover:bg-red-500/15 hover:text-red-200"
+                      className="whitespace-nowrap rounded-md px-1.5 py-1 text-[11px] font-medium text-red-300 transition-colors duration-150 hover:bg-red-500/15 hover:text-red-200"
                     >
                       Remove
                     </button>
