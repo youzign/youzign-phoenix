@@ -1,6 +1,9 @@
 # Youzign OSS — Status & Working Agreements
 *Updated 2026-07-05 morning (first post-blast metrics: 94 downloads, first 5★ testimonial). This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
 
+## METRICS (running log)
+- **2026-07-06 Sunday ~18:00: TOTAL 139** — Windows .exe **111** (+35), macOS .dmg **22** (+10), Linux AppImage **6** (+0) vs Saturday morning. +45 downloads in ~35h; email 3 "Everything new" went out Saturday 07-05. Windows share ~80% holding steady.
+
 ## METRICS 2026-07-05 morning (~14h after blast): 94 downloads + first testimonial
 - **GitHub release downloads (v1.0.2), by platform:** Windows .exe **76**, macOS .dmg **12**, Linux AppImage **6** — TOTAL **94**. Zero on .rpm/.deb/.msi/updater tar.gz. Windows ≈81%, consistent with the legacy base. Check anytime with **`scripts/check-downloads.sh`** (gh api releases, per-asset counts + total; recreated 2026-07-05 after the original script was lost — it lives in the repo now).
 - **First organic testimonial** landed in Endorsal: James Juris (cameraman330@gmail.com), 5★, "Love the new downloadable version of Youzign. Thank you." — a legacy user echoing the positioning ("downloadable") unprompted, within ~24h of the blast. Already feeds the wall of love on www.youzign.com. Bertrand skipped a personal reply. **Added to the hero** (caption strip under the editor screenshot in `landing/index.html`, avatar mirrored to `landing/assets/james-juris.jpg`, email never shown). Dump lookup confirmed he's wp_users id **2675, registered 2015-02-18, JVZoo one-time buyer** (his registration email differs from the Endorsal one; matched via his uploads' post_author + design content) → cite reads "Youzigner since 2015".
