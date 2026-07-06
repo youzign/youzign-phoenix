@@ -8,34 +8,56 @@
 <link rel="icon" type="image/png" href="assets/logo.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
 <style>
   :root {
     --blue: #0aa5f5;
     --blue-deep: #0784c6;
-    --ink: #0e1116;
-    --panel: #151a21;
-    --text: #eef2f7;
-    --muted: #9aa7b5;
+    --violet: #7c5cff;
+    --pink: #ff5ea8;
+    --ink: #06080c;
+    --panel: #10151d;
+    --text: #f2f6fb;
+    --muted: #93a1b3;
     --line: rgba(255, 255, 255, 0.08);
+    --grad: linear-gradient(92deg, #35b6ff 0%, #7c5cff 55%, #ff5ea8 110%);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { min-height: 100%; }
   body {
     font-family: "Inter", system-ui, sans-serif;
     background:
-      radial-gradient(1200px 700px at 78% 18%, rgba(10, 165, 245, 0.14), transparent 60%),
-      radial-gradient(900px 600px at 12% 90%, rgba(10, 165, 245, 0.08), transparent 55%),
+      radial-gradient(1100px 640px at 50% -10%, rgba(10, 165, 245, 0.13), transparent 62%),
       var(--ink);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
+  ::selection { background: rgba(10, 165, 245, 0.35); }
   .wrap { width: min(1180px, 100% - 48px); margin-inline: auto; }
-  header.site {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 20px 0;
+  .serif { font-family: "Instrument Serif", Georgia, serif; font-style: italic; font-weight: 400; letter-spacing: -0.01em; }
+  .grad-text {
+    background: var(--grad);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; color: var(--text); text-decoration: none; }
+  .grain {
+    position: fixed; inset: -50%; z-index: 90; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.05;
+  }
+  .dots {
+    position: absolute; inset: 0 0 auto 0; height: 560px; pointer-events: none;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.065) 1px, transparent 1.5px);
+    background-size: 26px 26px;
+    mask-image: radial-gradient(ellipse 85% 90% at 50% 0%, black 35%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 85% 90% at 50% 0%, black 35%, transparent 100%);
+  }
+
+  header.site {
+    position: relative; z-index: 2;
+    display: flex; align-items: center; justify-content: space-between; padding: 18px 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; letter-spacing: -0.01em; color: var(--text); text-decoration: none; }
   .brand img { width: 30px; height: 30px; }
   .gh {
     display: inline-flex; align-items: center; gap: 8px;
@@ -44,78 +66,116 @@
     transition: color 0.15s, border-color 0.15s;
   }
   .gh:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.22); }
-  main { padding: 42px 0 56px; }
+
+  main { position: relative; z-index: 1; padding: 44px 0 56px; }
   .kicker {
     display: inline-flex; align-items: center; gap: 8px;
-    font-size: 13px; font-weight: 600; color: var(--blue);
+    font-size: 13px; font-weight: 700; color: var(--blue);
     background: rgba(10, 165, 245, 0.1); border: 1px solid rgba(10, 165, 245, 0.25);
-    padding: 6px 12px; border-radius: 999px; margin-bottom: 22px;
+    padding: 6px 13px; border-radius: 999px; margin-bottom: 22px;
   }
   h1 {
-    font-size: clamp(34px, 4.4vw, 54px); line-height: 1.06;
-    font-weight: 800; letter-spacing: -0.03em; margin-bottom: 18px;
+    font-size: clamp(36px, 4.8vw, 64px); line-height: 1.04;
+    font-weight: 850; letter-spacing: -0.04em; margin-bottom: 16px;
   }
+  h1 .serif { letter-spacing: -0.02em; }
   .sub {
     font-size: 17px; line-height: 1.65; color: var(--muted);
-    max-width: 58ch; margin-bottom: 34px;
+    max-width: 58ch; margin-bottom: 38px;
   }
+
   .download-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 0 0 44px; align-items: stretch; }
   .download-card {
-    border: 1px solid var(--line); border-radius: 16px; background: rgba(21, 26, 33, 0.82);
-    padding: 20px; min-height: 245px; display: flex; flex-direction: column; justify-content: space-between;
-    box-shadow: 0 18px 52px rgba(0, 0, 0, 0.22);
+    border: 1px solid var(--line); border-radius: 20px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.008));
+    padding: 22px; min-height: 245px; display: flex; flex-direction: column; justify-content: space-between;
+    transition: border-color 0.2s, transform 0.2s;
   }
+  .download-card:hover { border-color: rgba(255, 255, 255, 0.2); }
   .download-card.primary {
-    border-color: rgba(10, 165, 245, 0.55); background: linear-gradient(180deg, rgba(10, 165, 245, 0.18), rgba(21, 26, 33, 0.94));
-    transform: translateY(-8px); box-shadow: 0 18px 58px rgba(10, 165, 245, 0.22);
+    border-color: rgba(10, 165, 245, 0.55);
+    background: linear-gradient(180deg, rgba(10, 165, 245, 0.16), rgba(16, 21, 29, 0.94));
+    transform: translateY(-8px);
+    box-shadow: 0 22px 64px rgba(10, 165, 245, 0.22), 0 0 0 1px rgba(10, 165, 245, 0.1);
   }
-  .platform-label { color: var(--text); font-size: 20px; font-weight: 800; margin-bottom: 10px; }
-  .platform-note { color: var(--muted); font-size: 13.5px; line-height: 1.5; margin: 0 0 18px; }
+  .platform-label { color: var(--text); font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 10px; }
+  .platform-note { color: var(--muted); font-size: 13.5px; line-height: 1.55; margin: 0 0 18px; }
   .platform-note strong, code { color: var(--text); }
-  .update-note { color: var(--muted); font-size: 13.5px; line-height: 1.55; max-width: 68ch; margin: -20px 0 44px; }
+  .update-note { color: var(--muted); font-size: 13.5px; line-height: 1.6; max-width: 68ch; margin: -20px 0 10px; }
   code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
   .button {
     display: inline-flex; align-items: center; justify-content: center; gap: 10px;
     color: #fff; text-decoration: none; font-weight: 700; font-size: 15px;
-    padding: 13px 18px; border-radius: 14px; border: 1px solid var(--line);
+    padding: 13px 18px; border-radius: 13px; border: 1px solid var(--line);
     background: rgba(255, 255, 255, 0.04);
     transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
   }
   .primary .button, .button.blue {
     background: linear-gradient(180deg, var(--blue), var(--blue-deep));
     border-color: transparent;
-    box-shadow: 0 8px 28px rgba(10, 165, 245, 0.35);
+    box-shadow: 0 8px 28px rgba(10, 165, 245, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   }
   .button:hover { transform: translateY(-1px); border-color: rgba(255, 255, 255, 0.22); }
-  .section {
-    border-top: 1px solid var(--line);
-    padding: 42px 0;
-  }
-  h2 { font-size: clamp(26px, 3vw, 36px); line-height: 1.16; letter-spacing: -0.025em; margin-bottom: 12px; }
-  .section p { color: var(--muted); font-size: 16px; line-height: 1.65; max-width: 68ch; }
+
+  .section { border-top: 1px solid var(--line); padding: 46px 0; }
+  h2 { font-size: clamp(26px, 3vw, 38px); line-height: 1.12; font-weight: 850; letter-spacing: -0.03em; margin-bottom: 12px; }
+  .section > p, .section .lead { color: var(--muted); font-size: 16px; line-height: 1.65; max-width: 68ch; }
   .section a { color: var(--blue); }
-  .wall { min-height: 240px; margin-top: 24px; border: 1px solid var(--line); border-radius: 16px; background: rgba(21, 26, 33, 0.48); overflow: hidden; }
-  .share-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
-  footer.site {
-    border-top: 1px solid var(--line);
-    padding: 16px 0; font-size: 13px; color: var(--muted);
+
+  /* while-it-downloads magic strip */
+  .mp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 24px; }
+  .m-tile {
+    position: relative; overflow: hidden;
+    background: rgba(255, 255, 255, 0.028); border: 1px solid var(--line);
+    border-radius: 15px; padding: 16px 16px 17px;
+    transition: border-color 0.2s, transform 0.2s;
   }
+  .m-tile:hover { border-color: rgba(124, 92, 255, 0.45); transform: translateY(-2px); }
+  .m-tile .mi {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: rgba(10, 165, 245, 0.12); border: 1px solid rgba(10, 165, 245, 0.22);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .m-tile .mi svg { width: 17px; height: 17px; stroke: var(--blue); }
+  .m-tile:nth-child(4n+2) .mi { background: rgba(124, 92, 255, 0.12); border-color: rgba(124, 92, 255, 0.25); }
+  .m-tile:nth-child(4n+2) .mi svg { stroke: var(--violet); }
+  .m-tile:nth-child(4n+3) .mi { background: rgba(255, 94, 168, 0.1); border-color: rgba(255, 94, 168, 0.22); }
+  .m-tile:nth-child(4n+3) .mi svg { stroke: var(--pink); }
+  .m-tile b { display: block; font-size: 14.5px; font-weight: 750; letter-spacing: -0.015em; margin: 11px 0 3px; }
+  .m-tile span { font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+
+  .wall { min-height: 240px; margin-top: 24px; border: 1px solid var(--line); border-radius: 18px; background: rgba(16, 21, 29, 0.48); overflow: hidden; }
+  .share-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+
+  footer.site { border-top: 1px solid var(--line); padding: 20px 0; font-size: 13px; color: var(--muted); position: relative; z-index: 1; }
   footer.site .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   footer.site a { color: var(--muted); }
+
+  .rise { animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .rise.d1 { animation-delay: 0.08s; } .rise.d2 { animation-delay: 0.16s; } .rise.d3 { animation-delay: 0.24s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(20px); } }
+
   @media (max-width: 900px) {
     .download-grid { grid-template-columns: 1fr; }
+    .download-card { min-height: 0; gap: 6px; }
     .download-card.primary { transform: none; }
+    .mp-grid { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 480px) {
     .wrap { width: min(100% - 28px, 1180px); }
     header.site { align-items: flex-start; gap: 14px; }
     .gh { padding-inline: 10px; }
     main { padding-top: 28px; }
-    .download-card { min-height: 220px; }
+    .mp-grid { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 </style>
 </head>
 <body>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="dots" aria-hidden="true"></div>
   <div class="wrap">
     <header class="site">
       <a class="brand" href="/"><img src="assets/logo.png" alt="" />youzign</a>
@@ -126,11 +186,11 @@
     </header>
 
     <main>
-      <span class="kicker">✦ Free forever</span>
-      <h1>You're in. Download Youzign 🎉</h1>
-      <p class="sub" id="hero-sub">We've also emailed you the links so you can install on any machine.</p>
+      <span class="kicker rise">✦ Free forever</span>
+      <h1 class="rise d1">You're in. Download <span class="serif grad-text">Youzign</span> 🎉</h1>
+      <p class="sub rise d2" id="hero-sub">We've also emailed you the links so you can install on any machine.</p>
 
-      <section class="download-grid" id="download-grid" aria-label="Download Youzign">
+      <section class="download-grid rise d3" id="download-grid" aria-label="Download Youzign">
         <article class="download-card" data-platform="mac">
           <div>
             <h2 class="platform-label">macOS</h2>
@@ -155,8 +215,55 @@
       </section>
       <p class="update-note">Youzign checks for updates automatically. When a new version is out you'll see a blue dot on the logo inside the app — download the new installer, run it over the old one, and your designs stay exactly where they are (they live on your computer, not in the app).</p>
 
+      <section class="section" aria-label="What's new inside">
+        <h2>While it downloads: <span class="serif grad-text">the magic stuff</span></h2>
+        <p class="lead">All new in this Youzign. The AI runs on your device or at cost with your own key.</p>
+        <div class="mp-grid">
+          <div class="m-tile">
+            <span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg></span>
+            <b>Background removal</b>
+            <span>Free, unlimited, on your device.</span>
+          </div>
+          <div class="m-tile">
+            <span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg></span>
+            <b>Magic Eraser</b>
+            <span>Brush over something and it is gone.</span>
+          </div>
+          <div class="m-tile">
+            <span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></span>
+            <b>Magic Edit</b>
+            <span>Brush an area, type what should be there.</span>
+          </div>
+          <div class="m-tile">
+            <span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/></svg></span>
+            <b>Magic Grab</b>
+            <span>Lift a subject onto its own layer.</span>
+          </div>
+          <div class="m-tile">
+            <span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg></span>
+            <b>Magic Expand</b>
+            <span>Extend a photo past its edges.</span>
+          </div>
+          <div class="m-tile">
+            <span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></span>
+            <b>Upscale &amp; Enhance</b>
+            <span>Small image in, sharp large one out.</span>
+          </div>
+          <div class="m-tile">
+            <span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7s6 6.3 6 10.3a6 6 0 0 1-12 0c0-4 6-10.3 6-10.3z"/></svg></span>
+            <b>Magic Blur</b>
+            <span>Clean depth behind your subject.</span>
+          </div>
+          <div class="m-tile">
+            <span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z"/></svg></span>
+            <b>AI image generation</b>
+            <span>Your own key, images at cost.</span>
+          </div>
+        </div>
+      </section>
+
       <section class="section">
-        <h2>Been with Youzign since the old days?</h2>
+        <h2>Been with Youzign since <span class="serif grad-text">the old days</span>?</h2>
         <p>Love the new one? <a href="https://forms.endorsal.io/form/5df0c2d94264b34634388361" target="_blank" rel="noopener">Add yours to our Wall of Love →</a></p>
         <div id="ndrsl-5df1203b4264b346343884f7" class="ndrsl-widget wall"></div>
       </section>
