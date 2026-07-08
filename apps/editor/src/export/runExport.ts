@@ -42,6 +42,31 @@ function exportNode(index?: number): HTMLElement | null {
   );
 }
 
+async function ensureExportFonts(nodes: HTMLElement[]): Promise<void> {
+  const fonts = (document as unknown as { fonts?: FontFaceSet }).fonts;
+  if (!fonts?.load) return;
+
+  const specs = new Set<string>();
+  for (const node of nodes) {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const text = walker.currentNode;
+      if (!text.textContent?.trim()) continue;
+      const element = text.parentElement;
+      if (!element) continue;
+      const style = getComputedStyle(element);
+      if (style.display === "none" || style.visibility === "hidden") continue;
+      if (!style.fontFamily || !style.fontSize || style.fontSize === "0px") continue;
+      specs.add(
+        `${style.fontStyle || "normal"} ${style.fontWeight || "400"} ${style.fontSize} ${style.fontFamily}`
+      );
+    }
+  }
+
+  await Promise.all([...specs].map((spec) => fonts.load(spec).catch(() => null)));
+  await fonts.ready;
+}
+
 /**
  * Capture the live `.yz-canvas` node and download it in the requested format.
  * Returns the produced data URL (handy for tests / verification).
@@ -51,9 +76,19 @@ export async function runExport(opts: ExportOptions): Promise<string | null> {
   const indices = opts.pageIndices?.length ? opts.pageIndices : [undefined];
   const filename = exportFilename(opts.designName, format);
   const style = captureStyle(transparent, format);
+  const captureNodes = indices.map((index) => ({ index, node: exportNode(index) }));
 
-  const capture = async (index: number | undefined, fmt: "png" | "jpg") => {
-    const node = exportNode(index);
+  await ensureExportFonts(
+    captureNodes
+      .map((entry) => entry.node)
+      .filter((node): node is HTMLElement => !!node)
+  );
+
+  const capture = async (
+    entry: { index: number | undefined; node: HTMLElement | null },
+    fmt: "png" | "jpg"
+  ) => {
+    const { index, node } = entry;
     if (!node) return null;
     const page = index === undefined ? undefined : opts.pages?.[index];
     const width = page?.canvasWidth ?? canvasWidth;
@@ -66,8 +101,9 @@ export async function runExport(opts: ExportOptions): Promise<string | null> {
 
   if (format === "png") {
     let first: string | null = null;
-    for (const index of indices) {
-      const url = await capture(index, "png");
+    for (const entry of captureNodes) {
+      const index = entry.index;
+      const url = await capture(entry, "png");
       if (!url) continue;
       if (!first) first = url;
       await saveDataUrl(
@@ -80,8 +116,9 @@ export async function runExport(opts: ExportOptions): Promise<string | null> {
 
   if (format === "jpg") {
     let first: string | null = null;
-    for (const index of indices) {
-      const url = await capture(index, "jpg");
+    for (const entry of captureNodes) {
+      const index = entry.index;
+      const url = await capture(entry, "jpg");
       if (!url) continue;
       if (!first) first = url;
       await saveDataUrl(
@@ -97,12 +134,13 @@ export async function runExport(opts: ExportOptions): Promise<string | null> {
   const firstLayout = pdfLayout(firstPage?.canvasWidth ?? canvasWidth, firstPage?.canvasHeight ?? canvasHeight);
   const pdf = new jsPDF({ orientation: firstLayout.orientation, unit: firstLayout.unit, format: firstLayout.format, compress: true });
   let firstUrl: string | null = null;
-  for (let i = 0; i < indices.length; i++) {
-    const index = indices[i];
+  for (let i = 0; i < captureNodes.length; i++) {
+    const entry = captureNodes[i];
+    const index = entry.index;
     const page = index === undefined ? undefined : opts.pages?.[index];
     const width = page?.canvasWidth ?? canvasWidth;
     const height = page?.canvasHeight ?? canvasHeight;
-    const url = await capture(index, "jpg");
+    const url = await capture(entry, "jpg");
     if (!url) continue;
     if (!firstUrl) firstUrl = url;
     const layout = pdfLayout(width, height);

@@ -115,6 +115,83 @@ export function applyAlphaMatte(
   return out;
 }
 
+/** Auto-detect the dominant background color by sampling the image's border pixels. */
+export function sampleBorderColor(
+  rgba: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number
+): { r: number; g: number; b: number } {
+  if (width <= 0 || height <= 0) return { r: 0, g: 0, b: 0 };
+
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let count = 0;
+  const addPixel = (x: number, y: number) => {
+    const o = (y * width + x) * 4;
+    r += rgba[o];
+    g += rgba[o + 1];
+    b += rgba[o + 2];
+    count++;
+  };
+
+  for (let x = 0; x < width; x++) {
+    addPixel(x, 0);
+    if (height > 1) addPixel(x, height - 1);
+  }
+  for (let y = 1; y < height - 1; y++) {
+    addPixel(0, y);
+    if (width > 1) addPixel(width - 1, y);
+  }
+
+  return {
+    r: Math.round(r / count),
+    g: Math.round(g / count),
+    b: Math.round(b / count),
+  };
+}
+
+/**
+ * Return a new RGBA buffer where pixels close to `target` are made transparent,
+ * with a soft alpha ramp over the outer half of the tolerance band.
+ */
+export function keyColorAlpha(
+  rgba: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  target: { r: number; g: number; b: number },
+  tolerance: number
+): Uint8ClampedArray {
+  const n = width * height;
+  const out = new Uint8ClampedArray(rgba.length);
+  out.set(rgba);
+  const t = Math.max(0, Math.min(255, tolerance));
+  const inner = t * 0.5;
+  const ramp = Math.max(1, t - inner);
+  const tr = Math.max(0, Math.min(255, target.r));
+  const tg = Math.max(0, Math.min(255, target.g));
+  const tb = Math.max(0, Math.min(255, target.b));
+
+  for (let i = 0; i < n; i++) {
+    const o = i * 4;
+    const dr = rgba[o] - tr;
+    const dg = rgba[o + 1] - tg;
+    const db = rgba[o + 2] - tb;
+    const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+    const alpha = rgba[o + 3];
+
+    if (t === 0) {
+      if (dist === 0) out[o + 3] = 0;
+    } else if (dist <= inner) {
+      out[o + 3] = 0;
+    } else if (dist < t) {
+      out[o + 3] = Math.round(alpha * ((dist - inner) / ramp));
+    }
+  }
+
+  return out;
+}
+
 /**
  * In-place Gaussian blur of an RGBA buffer, approximated by three box-blur
  * passes (Kutskir's method — indistinguishable from true Gaussian at these

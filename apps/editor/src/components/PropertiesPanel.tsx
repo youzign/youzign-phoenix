@@ -54,6 +54,15 @@ const EXPAND_RATIOS: { ratio: MagicExpandRatio; label: string; title: string }[]
 
 const MODERN_FILTER_IDS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28] as const;
 
+function rgbFromHex(hex: string): { r: number; g: number; b: number } {
+  const clean = hex.replace("#", "");
+  return {
+    r: parseInt(clean.slice(0, 2), 16),
+    g: parseInt(clean.slice(2, 4), 16),
+    b: parseInt(clean.slice(4, 6), 16),
+  };
+}
+
 const ADJUST_SLIDERS: {
   key: CanvasAdjustmentKey;
   label: string;
@@ -1124,9 +1133,18 @@ export function PropertiesPanel() {
   const setShapeNoFill = useEditor((s) => s.setSelectedShapeNoFill);
   const setTextNoFill = useEditor((s) => s.setSelectedTextNoFill);
   const removeBg = useEditor((s) => s.removeBg);
+  const makeImageColorTransparent = useEditor((s) => s.makeImageColorTransparent);
+  const fitCanvasToImage = useEditor((s) => s.fitCanvasToImage);
   const bgProcessingUids = useEditor((s) => s.bgProcessingUids);
   const bgStage = useEditor((s) => s.bgStage);
   const bgError = useEditor((s) => s.bgError);
+  const [colorKeyTolerance, setColorKeyTolerance] = useState(40);
+  const [colorKeyHex, setColorKeyHex] = useState("#3b6fd4");
+  const [colorKeyAuto, setColorKeyAuto] = useState(true);
+
+  useEffect(() => {
+    setColorKeyAuto(true);
+  }, [(item as any)?._uid]);
 
   if (selectedCount === 0) {
     return <CanvasPanel />;
@@ -1286,6 +1304,13 @@ export function PropertiesPanel() {
               <Icon name="crop" size={15} /> Crop image
             </button>
             <button
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-2 text-[12.5px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.1] hover:text-white disabled:opacity-50"
+              onClick={() => fitCanvasToImage(any._uid)}
+              disabled={bgBusy}
+            >
+              <Icon name="crop" size={15} /> Fit to image
+            </button>
+            <button
               className="inline-flex items-center justify-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-2 text-[12.5px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.1] hover:text-white disabled:cursor-progress disabled:opacity-70"
               onClick={() => removeBg(any._uid)}
               disabled={bgBusy}
@@ -1300,6 +1325,67 @@ export function PropertiesPanel() {
                 </>
               )}
             </button>
+          </div>
+          <div className="flex flex-col gap-1.5 rounded-md bg-white/[0.025] p-2">
+            <button
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-2 text-[12.5px] font-medium text-neutral-200 transition-colors duration-150 hover:bg-white/[0.1] hover:text-white disabled:cursor-progress disabled:opacity-70"
+              onClick={() =>
+                makeImageColorTransparent(
+                  any._uid,
+                  colorKeyAuto ? undefined : rgbFromHex(colorKeyHex),
+                  colorKeyTolerance
+                )
+              }
+              disabled={bgBusy}
+            >
+              {bgBusy && bgStage === "key" ? (
+                <>
+                  <Spinner /> Keying…
+                </>
+              ) : (
+                <>
+                  <Icon name="droplet" size={15} /> Color transparency
+                </>
+              )}
+            </button>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min={0}
+                max={128}
+                step={1}
+                value={colorKeyTolerance}
+                onChange={(e) => setColorKeyTolerance(Number(e.target.value))}
+                className="yz-range min-w-0 flex-1"
+                disabled={bgBusy}
+                aria-label="Color transparency tolerance"
+              />
+              <span className="w-7 text-right text-[10px] tabular-nums text-neutral-500">
+                {colorKeyTolerance}
+              </span>
+              <input
+                type="color"
+                value={colorKeyHex}
+                onChange={(e) => {
+                  setColorKeyHex(e.target.value);
+                  setColorKeyAuto(false);
+                }}
+                className="h-7 w-8 rounded border border-white/10 bg-transparent"
+                disabled={bgBusy}
+                aria-label="Transparent color"
+              />
+              <button
+                type="button"
+                onClick={() => setColorKeyAuto(true)}
+                disabled={bgBusy || colorKeyAuto}
+                className="rounded-md bg-white/[0.05] px-2 py-1 text-[10px] font-medium text-neutral-300 hover:bg-white/[0.1] disabled:opacity-50"
+              >
+                Auto
+              </button>
+            </div>
+            <p className="text-[10px] leading-relaxed text-neutral-500">
+              Removes one color while keeping the rest. Runs on your device.
+            </p>
           </div>
           {bgError && bgError.uid === any._uid ? (
             <p className="text-[10px] leading-relaxed text-rose-400">{bgError.message}</p>
