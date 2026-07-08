@@ -19,6 +19,8 @@
 // actually resizes, so untouched designs stay byte-stable.
 
 import type { Design, Item, RawCarrier } from "@youzign/designstring";
+import { clampCanvasDim } from "./canvas-presets.js";
+import { itemBox } from "./geometry.js";
 import { setRaw } from "./mutations.js";
 
 function round2(n: number): number {
@@ -52,6 +54,28 @@ export function setCanvasSize(
     design.dpi = dpi;
     setRaw(design, "dpi", String(dpi));
   }
+}
+
+/**
+ * Resize the canvas to match a single item's on-canvas box, centering that item
+ * in the new canvas. Transparency/background attrs are intentionally untouched.
+ */
+export function fitCanvasToItem(design: Design, uid: string | number): void {
+  const item = design.items.find((it) => (it as Record<string, any>)._uid === uid);
+  if (!item) return;
+
+  const box = itemBox(item as Item & Record<string, any>);
+  if (!(box.w > 0) || !(box.h > 0)) return;
+
+  // Rotated items have a larger axis-aligned footprint than w x h. This first
+  // pass preserves the item's own box dimensions and does not compute an AABB.
+  const newW = clampCanvasDim(round2(box.w));
+  const newH = clampCanvasDim(round2(box.h));
+  setCanvasSize(design, newW, newH);
+
+  const it = item as RawCarrier & Record<string, any>;
+  setNum(it, "xpos", "xpos", newW / 2);
+  setNum(it, "ypos", "ypos", newH / 2);
 }
 
 /** Fields that carry px-based effect lengths, scaled with the item. */

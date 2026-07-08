@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { removeBackground, BgRemovalError } from "./bg/removeBackground.js";
+import { makeColorTransparent } from "./bg/colorKey.js";
 import { getKey } from "./library/settings.js";
 import {
   eraseRegion,
@@ -46,6 +47,7 @@ import {
   type ShapePreset,
   fitToCanvas,
   resizeDesign,
+  fitCanvasToItem,
   type ResizeOptions,
   setBackgroundColor,
   setTransparent,
@@ -231,6 +233,11 @@ interface EditorState {
 
   // background removal (local, in-worker)
   removeBg: (uid: number) => Promise<void>;
+  makeImageColorTransparent: (
+    uid: number,
+    target: { r: number; g: number; b: number } | undefined,
+    tolerance: number
+  ) => Promise<void>;
   clearBgError: () => void;
 
   // magic suite
@@ -283,6 +290,7 @@ interface EditorState {
   isLocked: (uid: number) => boolean;
 
   resize: (newW: number, newH: number, opts: ResizeOptions) => void;
+  fitCanvasToImage: (uid: number) => void;
   // canvas background (design-level attrs)
   setBgColor: (hex: string) => void;
   setBgTransparent: (transparent: boolean) => void;
@@ -526,6 +534,35 @@ export const useEditor = create<EditorState>((set, get) => {
           err instanceof BgRemovalError
             ? err.message
             : "Background removal failed on this device.";
+        set({ bgError: { uid, message } });
+      } finally {
+        set((s) => ({
+          bgProcessingUids: s.bgProcessingUids.filter((u) => u !== uid),
+          bgStage: null,
+        }));
+      }
+    },
+    makeImageColorTransparent: async (uid, target, tolerance) => {
+      const item = findByUid(get().design, uid);
+      if (!item || item.type !== "image") return;
+      const source = (item as any).source as string;
+      if (get().bgProcessingUids.includes(uid)) return;
+      set((s) => ({
+        bgProcessingUids: [...s.bgProcessingUids, uid],
+        bgStage: "key",
+        bgError: null,
+      }));
+      try {
+        const png = await makeColorTransparent(source, target, tolerance);
+        commit((d) => {
+          const it = findByUid(d, uid);
+          if (it && it.type === "image") applySource(it as any, png);
+        });
+      } catch (err) {
+        const message =
+          err instanceof BgRemovalError
+            ? err.message
+            : "Color transparency failed on this device.";
         set({ bgError: { uid, message } });
       } finally {
         set((s) => ({
@@ -1028,6 +1065,7 @@ export const useEditor = create<EditorState>((set, get) => {
 
     resize: (newW, newH, opts) =>
       commit((d) => resizeDesign(d, newW, newH, opts)),
+    fitCanvasToImage: (uid) => commit((d) => fitCanvasToItem(d, uid)),
     setBgColor: (hex) => commit((d) => setBackgroundColor(d, hex)),
     setBgTransparent: (transparent) => commit((d) => setTransparent(d, transparent)),
     applyGradientPreset: (index) => commit((d) => setGradientPreset(d, index)),
