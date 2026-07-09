@@ -41,6 +41,9 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
+      - name: Validate release metadata
+        run: node scripts/check-release-contract.mjs
+
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |

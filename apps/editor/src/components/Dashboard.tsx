@@ -738,15 +738,22 @@ export function Dashboard({ tab = "designs" }: { tab?: DashboardTab }) {
             onClick={() => updateInfo && setUpdateOpen((v) => !v)}
             aria-label={updateInfo ? "Youzign update available" : "Youzign"}
             aria-expanded={updateInfo ? updateOpen : undefined}
+            data-testid="update-logo"
           >
             <img src="/brand/youzign-logo.png" alt="Youzign" className="h-7 w-7" />
             {updateInfo && (
-              <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--accent)] ring-2 ring-[#1c1c1f]" />
+              <span
+                className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--accent)] ring-2 ring-[#1c1c1f]"
+                data-testid="update-dot"
+              />
             )}
           </button>
           <span className="text-[14px] font-semibold text-neutral-100">youzign</span>
           {updateInfo && updateOpen && (
-            <div className="absolute left-0 top-9 z-30 w-72 rounded-lg border border-white/10 bg-[#242428] p-3 shadow-2xl">
+            <div
+              className="absolute left-0 top-9 z-30 w-72 rounded-lg border border-white/10 bg-[#242428] p-3 shadow-2xl"
+              data-testid="update-panel"
+            >
               <div className="text-[13px] font-semibold text-neutral-100">What's new</div>
               <div className="mt-1 text-[12px] leading-5 text-neutral-400">
                 Youzign {updateInfo.version} is available. You have {APP_VERSION}.
@@ -756,6 +763,7 @@ export function Dashboard({ tab = "designs" }: { tab?: DashboardTab }) {
                 type="button"
                 className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 text-[12px] font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
                 onClick={() => void openExternal(updateInfo.url)}
+                data-testid="download-update"
               >
                 <Icon name="download" size={14} /> Download update
               </button>

@@ -8,6 +8,8 @@
     "dev": "pnpm --filter @youzign/editor dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "release:check": "node scripts/check-release-contract.mjs",
+    "test:update-e2e": "node scripts/e2e-update.mjs",
     "shots": "node scripts/screenshot.mjs"
   },
   "devDependencies": {
