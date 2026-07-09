@@ -9,6 +9,7 @@ import {
   type ExportScale,
 } from "./exportMath.js";
 import { saveBytes, saveDataUrl } from "../native.js";
+import { ensureExportImages } from "./exportReadiness.js";
 
 export interface ExportOptions {
   format: ExportFormat;
@@ -77,12 +78,12 @@ export async function runExport(opts: ExportOptions): Promise<string | null> {
   const filename = exportFilename(opts.designName, format);
   const style = captureStyle(transparent, format);
   const captureNodes = indices.map((index) => ({ index, node: exportNode(index) }));
+  const nodes = captureNodes
+    .map((entry) => entry.node)
+    .filter((node): node is HTMLElement => !!node);
 
-  await ensureExportFonts(
-    captureNodes
-      .map((entry) => entry.node)
-      .filter((node): node is HTMLElement => !!node)
-  );
+  await ensureExportImages(nodes);
+  await ensureExportFonts(nodes);
 
   const capture = async (
     entry: { index: number | undefined; node: HTMLElement | null },

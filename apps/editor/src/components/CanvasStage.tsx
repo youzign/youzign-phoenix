@@ -693,10 +693,8 @@ export function CanvasStage() {
   return (
     <div className="flex h-full w-full flex-col bg-[#141417]">
       <div
-        className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-10"
+        className="min-h-0 flex-1 overflow-auto"
         data-testid="editor-workspace"
-        onPointerDown={onWorkspacePointerDown}
-        onPointerUp={onWorkspacePointerUp}
         onDragEnter={(e) => {
           if (isFileDrag(e)) {
             e.preventDefault();
@@ -712,7 +710,12 @@ export function CanvasStage() {
         onDrop={(e) => void onCanvasDrop(e)}
       >
       <div
-        className="relative shadow-2xl ring-1 ring-white/[0.06]"
+        className="box-border flex h-max min-h-full w-max min-w-full items-center justify-center p-10"
+        onPointerDown={onWorkspacePointerDown}
+        onPointerUp={onWorkspacePointerUp}
+      >
+      <div
+        className="relative shrink-0 shadow-2xl ring-1 ring-white/[0.06]"
         style={{
           width: w,
           height: h,
@@ -1184,6 +1187,7 @@ export function CanvasStage() {
             />
           )}
         </div>
+      </div>
       </div>
       </div>
       <PageStrip />
