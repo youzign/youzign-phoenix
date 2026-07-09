@@ -31,7 +31,7 @@ describe("export font readiness", () => {
     const load = vi.fn().mockResolvedValue([]);
     const textElement = {};
     const textNode = { textContent: "Launch Cover", parentElement: textElement };
-    const canvas = {};
+    const canvas = { querySelectorAll: vi.fn(() => []) };
     vi.stubGlobal("NodeFilter", { SHOW_TEXT: 4 });
     vi.stubGlobal("getComputedStyle", vi.fn(() => ({
       display: "block",
@@ -73,9 +73,9 @@ describe("export font readiness", () => {
       canvasHeight: 400,
     });
 
-    await Promise.resolve();
-
-    expect(load).toHaveBeenCalledWith(expect.stringContaining("Playfair Display"));
+    await vi.waitFor(() => {
+      expect(load).toHaveBeenCalledWith(expect.stringContaining("Playfair Display"));
+    });
     expect(toPng).not.toHaveBeenCalled();
 
     resolveReady();
