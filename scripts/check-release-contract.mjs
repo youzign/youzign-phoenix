@@ -12,7 +12,7 @@ const downloads = readJson("landing/downloads.json");
 const cargo = fs.readFileSync("apps/editor/src-tauri/Cargo.toml", "utf8");
 const cargoLock = fs.readFileSync("apps/editor/src-tauri/Cargo.lock", "utf8");
 const cargoVersion = cargo.match(/^version\s*=\s*"([^"]+)"/m)?.[1];
-const lockedVersion = cargoLock.match(/\[\[package\]\]\nname = "youzign"\nversion = "([^"]+)"/)?.[1];
+const lockedVersion = cargoLock.match(/\[\[package\]\]\r?\nname = "youzign"\r?\nversion = "([^"]+)"/)?.[1];
 const version = app.version;
 const tag = process.env.GITHUB_REF_NAME;
 
