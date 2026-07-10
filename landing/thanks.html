@@ -123,6 +123,23 @@
   .section a { color: var(--blue); }
   .section a.button { color: #fff; }
 
+  .release-notes { display: grid; grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1.6fr); gap: 48px; align-items: start; }
+  .release-version { color: var(--blue); font-size: 13px; font-weight: 800; margin-bottom: 10px; }
+  .release-date { color: var(--muted); font-size: 13px; line-height: 1.55; }
+  .release-date a { display: inline-block; margin-top: 10px; font-weight: 600; }
+  .release-list { list-style: none; border-top: 1px solid var(--line); }
+  .release-list li {
+    display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px;
+    padding: 15px 0; border-bottom: 1px solid var(--line);
+  }
+  .release-list .check {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; margin-top: 1px; border-radius: 50%;
+    color: var(--blue); background: rgba(10, 165, 245, 0.1); font-size: 12px; font-weight: 800;
+  }
+  .release-list b { display: block; font-size: 14.5px; margin-bottom: 3px; }
+  .release-list p { color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+
   /* while-it-downloads magic strip */
   .mp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 24px; }
   .m-tile {
@@ -160,6 +177,7 @@
     .download-grid { grid-template-columns: 1fr; }
     .download-card { min-height: 0; gap: 6px; }
     .download-card.primary { transform: none; }
+    .release-notes { grid-template-columns: 1fr; gap: 24px; }
     .mp-grid { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 480px) {
@@ -215,6 +233,39 @@
         </article>
       </section>
       <p class="update-note">Youzign checks for updates automatically. When a new version is out you'll see a blue dot on the logo inside the app — download the new installer, run it over the old one, and your designs stay exactly where they are (they live on your computer, not in the app).</p>
+
+      <section class="section release-notes" aria-labelledby="release-title">
+        <div>
+          <p class="release-version">VERSION 1.0.3</p>
+          <h2 id="release-title">What's new</h2>
+          <p class="release-date">
+            Released 10 July 2026.<br />
+            <a href="https://github.com/youzign/youzign-phoenix/releases/tag/v1.0.3" target="_blank" rel="noopener">View the full release</a>
+          </p>
+        </div>
+        <ul class="release-list">
+          <li>
+            <span class="check" aria-hidden="true">✓</span>
+            <div><b>More reliable exports</b><p>Youzign now waits for fonts and images to finish loading before it creates your download.</p></div>
+          </li>
+          <li>
+            <span class="check" aria-hidden="true">✓</span>
+            <div><b>Better tall designs</b><p>Long Reel and Story canvases reopen at the right position and export without unwanted blank space.</p></div>
+          </li>
+          <li>
+            <span class="check" aria-hidden="true">✓</span>
+            <div><b>Color transparency</b><p>Remove one chosen background color while keeping the important colors in your image.</p></div>
+          </li>
+          <li>
+            <span class="check" aria-hidden="true">✓</span>
+            <div><b>Fit to image</b><p>Resize the canvas to match a selected image in one click while preserving transparency.</p></div>
+          </li>
+          <li>
+            <span class="check" aria-hidden="true">✓</span>
+            <div><b>Clearer update notifications</b><p>The blue dot on the Youzign logo now gives you a more dependable path to the latest installer.</p></div>
+          </li>
+        </ul>
+      </section>
 
       <section class="section" aria-label="What's new inside">
         <h2>While it downloads: <span class="serif grad-text">the magic stuff</span></h2>
