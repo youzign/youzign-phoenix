@@ -14,7 +14,16 @@ Youzign currently notifies users about updates; it does not patch itself in plac
 4. Commit the release metadata before tagging. Create and push the exact tag `vX.Y.Z`. The tag is required: `.github/workflows/release.yml` only runs for `v*` tag pushes, and CI rejects a tag that does not match the committed app version.
 5. Wait for all three release jobs. They upload a universal macOS DMG, Windows NSIS EXE and MSI, and Linux AppImage, DEB, and RPM to a GitHub **draft** release.
 6. Inspect the draft assets, then publish the draft. Publishing is required for `/releases/latest` and `/releases/latest/download/...` to resolve to the new version. Do not deploy the new update metadata before the release is published.
-7. Deploy `landing/` to production and verify `/version.json`, `/downloads.json`, the three download redirects, and the update panel from an older installed build.
+7. Deploy `landing/` to production. There is NO git integration: pushing `main` does not
+   deploy the site (learned the hard way shipping 1.0.4). Deploy with the Vercel CLI:
+   ```
+   cd landing
+   vercel link --yes --project youzign-landing --scope youzign   # first time only
+   vercel deploy --prod --yes
+   ```
+   Then verify `/version.json`, `/downloads.json`, the three download redirects, and the
+   update panel from an older installed build. Note `version.json` is CDN-cached for up
+   to 5 minutes (`max-age=300`); use a cache-busting query string when verifying.
 
 ## Release notes live in three places
 
