@@ -10,6 +10,12 @@ import {
   type ExportScale,
 } from "../export/exportMath.js";
 
+// Dev/E2E affordance: expose runExport for scripts (mirrors window.__editor
+// in store.ts). Scripts assemble opts from window.__editor.getState().
+if (typeof window !== "undefined" && (import.meta.env.DEV || window.location.search.includes("e2e"))) {
+  (window as any).__runExport = runExport;
+}
+
 const LS_KEY = "youzign-next:export-prefs";
 const FORMATS: { id: ExportFormat; label: string }[] = [
   { id: "png", label: "PNG" },

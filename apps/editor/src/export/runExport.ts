@@ -1,4 +1,3 @@
-import { toPng, toJpeg } from "html-to-image";
 import jsPDF from "jspdf";
 import {
   JPG_QUALITY,
@@ -10,6 +9,7 @@ import {
 } from "./exportMath.js";
 import { saveBytes, saveDataUrl } from "../native.js";
 import { ensureExportImages } from "./exportReadiness.js";
+import { capturePngStable, captureJpegStable } from "./capture.js";
 
 export interface ExportOptions {
   format: ExportFormat;
@@ -96,8 +96,8 @@ export async function runExport(opts: ExportOptions): Promise<string | null> {
     const height = page?.canvasHeight ?? canvasHeight;
     const base = { width, height, pixelRatio: scale, style };
     return fmt === "png"
-      ? toPng(node, base)
-      : toJpeg(node, { ...base, quality: JPG_QUALITY });
+      ? capturePngStable(node, base)
+      : captureJpegStable(node, { ...base, quality: JPG_QUALITY });
   };
 
   if (format === "png") {

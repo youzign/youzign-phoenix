@@ -80,6 +80,9 @@ describe("export font readiness", () => {
 
     resolveReady();
     await expect(exportPromise).resolves.toBe("data:image/png;base64,export");
-    expect(toPng).toHaveBeenCalledTimes(1);
+    // The shared stable-capture helper (capture.ts) calls toPng repeatedly
+    // until two consecutive results match; this mock returns the same value
+    // every time, so it stabilizes on the very first repeat (2 calls).
+    expect(toPng).toHaveBeenCalledTimes(2);
   });
 });

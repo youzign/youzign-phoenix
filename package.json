@@ -10,9 +10,11 @@
     "test": "pnpm -r test",
     "release:check": "node scripts/check-release-contract.mjs",
     "test:update-e2e": "node scripts/e2e-update.mjs",
+    "test:e2e-export": "node scripts/e2e-export-webkit.mjs",
     "shots": "node scripts/screenshot.mjs"
   },
   "devDependencies": {
+    "playwright": "^1.61.1",
     "puppeteer-core": "^23.11.1",
     "typescript": "^5.7.3"
   }
