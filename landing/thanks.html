@@ -123,10 +123,60 @@
   .section a { color: var(--blue); }
   .section a.button { color: #fff; }
 
-  .release-notes { display: grid; grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1.6fr); gap: 48px; align-items: start; }
   .release-version { color: var(--blue); font-size: 13px; font-weight: 800; margin-bottom: 10px; }
   .release-date { color: var(--muted); font-size: 13px; line-height: 1.55; }
-  .release-date a { display: inline-block; margin-top: 10px; font-weight: 600; }
+  .release-date a { font-weight: 600; }
+
+  /* Changelog: one entry per release, newest expanded, older collapsed. */
+  .changelog-intro { color: var(--muted); font-size: 15px; line-height: 1.6; max-width: 62ch; margin: 10px 0 26px; }
+  .release {
+    border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.006));
+  }
+  .release + .release { margin-top: 14px; }
+  .release.latest { border-color: rgba(10, 165, 245, 0.4); }
+  .release-head {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 18px 22px;
+  }
+  details.release > summary.release-head {
+    cursor: pointer; list-style: none; user-select: none;
+    transition: background 0.15s;
+  }
+  details.release > summary.release-head:hover { background: rgba(255, 255, 255, 0.025); }
+  details.release > summary.release-head::-webkit-details-marker { display: none; }
+  .release-head .chev {
+    margin-left: auto; color: var(--muted); transition: transform 0.2s;
+    display: inline-flex; width: 18px; height: 18px;
+  }
+  details[open] > .release-head .chev { transform: rotate(180deg); }
+  .release-head .v { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+  .release-head .when { color: var(--muted); font-size: 13px; }
+  .badge-latest {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.04em; color: #06121b;
+    background: linear-gradient(180deg, var(--blue), var(--blue-deep));
+    padding: 4px 9px; border-radius: 999px;
+  }
+  .release-body { padding: 0 22px 8px; }
+  .release-body .release-date { padding: 0 0 14px; }
+  .release .release-list { border-top: 1px solid var(--line); }
+  .release .release-list li:last-child { border-bottom: 0; }
+
+  /* How to update: one card per platform. */
+  .howto-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 24px; }
+  .howto-card {
+    border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.006));
+  }
+  .howto-card h3 { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 12px; }
+  .howto-card ol { margin: 0; padding-left: 20px; color: var(--muted); font-size: 13.5px; line-height: 1.65; }
+  .howto-card li + li { margin-top: 8px; }
+  .howto-card li b, .howto-note b { color: var(--text); font-weight: 650; }
+  .howto-note {
+    margin-top: 20px; padding: 15px 18px; border-radius: 14px;
+    border: 1px solid rgba(10, 165, 245, 0.28); background: rgba(10, 165, 245, 0.07);
+    color: var(--muted); font-size: 14px; line-height: 1.6; max-width: 76ch;
+  }
   .release-list { list-style: none; border-top: 1px solid var(--line); }
   .release-list li {
     display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px;
@@ -177,7 +227,7 @@
     .download-grid { grid-template-columns: 1fr; }
     .download-card { min-height: 0; gap: 6px; }
     .download-card.primary { transform: none; }
-    .release-notes { grid-template-columns: 1fr; gap: 24px; }
+    .howto-grid { grid-template-columns: 1fr; }
     .mp-grid { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 480px) {
@@ -232,18 +282,47 @@
           <a class="button" href="#" data-download="linux">Download</a>
         </article>
       </section>
-      <p class="update-note">Youzign checks for updates automatically. When a new version is out you'll see a blue dot on the logo inside the app — download the new installer, run it over the old one, and your designs stay exactly where they are (they live on your computer, not in the app).</p>
+      <p class="update-note">Youzign checks for updates automatically. When a new version is out you'll see a blue dot on the logo inside the app. Updating takes a minute and never touches your designs: <a href="#how-to-update">how to update</a>.</p>
 
-      <section class="section release-notes" aria-labelledby="release-title">
-        <div>
-          <p class="release-version">VERSION 1.0.3</p>
-          <h2 id="release-title">What's new</h2>
-          <p class="release-date">
-            Released 10 July 2026.<br />
-            <a href="https://github.com/youzign/youzign-phoenix/releases/tag/v1.0.3" target="_blank" rel="noopener">View the full release</a>
-          </p>
-        </div>
-        <ul class="release-list">
+      <section class="section" aria-labelledby="release-title">
+        <p class="release-version">CHANGELOG</p>
+        <h2 id="release-title">What's new</h2>
+        <p class="changelog-intro">Every Youzign release, newest first. The app tells you when an update is out: a blue dot appears on the Youzign logo in your dashboard.</p>
+
+        <article class="release latest">
+          <div class="release-head">
+            <span class="v">Version 1.0.4</span>
+            <span class="badge-latest">LATEST</span>
+            <span class="when">11 July 2026</span>
+          </div>
+          <div class="release-body">
+            <p class="release-date"><a href="https://github.com/youzign/youzign-phoenix/releases/tag/v1.0.4" target="_blank" rel="noopener">View the full release</a></p>
+            <ul class="release-list">
+              <li>
+                <span class="check" aria-hidden="true">✓</span>
+                <div><b>Photos always make it into your exports</b><p>Fixed a Mac issue where large photos could come out blank in exported PNGs. Youzign now re-checks the snapshot until every photo is fully drawn before saving your file.</p></div>
+              </li>
+              <li>
+                <span class="check" aria-hidden="true">✓</span>
+                <div><b>Design previews stay intact</b><p>Dashboard thumbnails no longer turn blank or broken when you leave a design quickly. An interrupted preview keeps the last good one instead.</p></div>
+              </li>
+              <li>
+                <span class="check" aria-hidden="true">✓</span>
+                <div><b>Paste images with Cmd+V or Ctrl+V</b><p>Copy an image anywhere, paste it in the editor, and it lands on your canvas and in My uploads in one step.</p></div>
+              </li>
+            </ul>
+          </div>
+        </article>
+
+        <details class="release">
+          <summary class="release-head">
+            <span class="v">Version 1.0.3</span>
+            <span class="when">10 July 2026</span>
+            <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+          </summary>
+          <div class="release-body">
+            <p class="release-date"><a href="https://github.com/youzign/youzign-phoenix/releases/tag/v1.0.3" target="_blank" rel="noopener">View the full release</a></p>
+            <ul class="release-list">
           <li>
             <span class="check" aria-hidden="true">✓</span>
             <div><b>More reliable exports</b><p>Youzign now waits for fonts and images to finish loading before it creates your download.</p></div>
@@ -265,6 +344,40 @@
             <div><b>Clearer update notifications</b><p>The blue dot on the Youzign logo now gives you a more dependable path to the latest installer.</p></div>
           </li>
         </ul>
+          </div>
+        </details>
+      </section>
+
+      <section class="section" aria-labelledby="howto-title" id="how-to-update">
+        <h2 id="howto-title">How to update</h2>
+        <p class="lead">Updating takes about a minute. Download the new version above, then:</p>
+        <div class="howto-grid">
+          <div class="howto-card">
+            <h3>macOS</h3>
+            <ol>
+              <li>Quit Youzign if it is running (right-click its Dock icon, <b>Quit</b>).</li>
+              <li>Open the downloaded <b>.dmg</b> and drag Youzign into <b>Applications</b>.</li>
+              <li>When macOS asks, click <b>Replace</b>. Done.</li>
+            </ol>
+          </div>
+          <div class="howto-card">
+            <h3>Windows</h3>
+            <ol>
+              <li>Close Youzign if it is running.</li>
+              <li>Run the downloaded <b>setup .exe</b>. It installs over the old version.</li>
+              <li>If SmartScreen warns, click <b>More info</b>, then <b>Run anyway</b>.</li>
+            </ol>
+          </div>
+          <div class="howto-card">
+            <h3>Linux</h3>
+            <ol>
+              <li>Download the new <b>AppImage</b>.</li>
+              <li>Make it executable: <code>chmod +x</code>.</li>
+              <li>Replace your old AppImage file with it.</li>
+            </ol>
+          </div>
+        </div>
+        <p class="howto-note"><b>Your designs are safe.</b> They live in Youzign's local data on your computer, not inside the app itself, so replacing the app never touches your designs, uploads, or brand kits. Want extra peace of mind? The <b>Backup</b> tab in the app exports everything to a single file first.</p>
       </section>
 
       <section class="section" aria-label="What's new inside">

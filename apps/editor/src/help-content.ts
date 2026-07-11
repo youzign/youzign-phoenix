@@ -232,16 +232,32 @@ export const sections: HelpSection[] = [
     ],
   },
   {
-    id: "updates",
-    title: "Updates",
+    id: "updating",
+    title: "Updating Youzign",
     blocks: [
       {
         type: "paragraph",
-        text: "Youzign checks for new versions when you open the dashboard. When an update is available, a blue dot appears on the Youzign logo in the top left — click it to see what's new and download the update.",
+        text: "Youzign checks for new versions automatically. When one is available, a blue dot appears on the Youzign logo in the dashboard; clicking it takes you to the download page.",
       },
       {
         type: "paragraph",
-        text: "Updating is a reinstall: download the new installer from the update panel, run it, and it replaces the app. Your designs, uploads, brands, and settings are stored on your computer, not inside the app, so they are untouched by updates. If you ever switch machines, use Backup to move everything.",
+        text: "On macOS, download the .dmg, open it, and drag Youzign into Applications; click Replace when macOS asks. If Youzign is running, quit it first by right-clicking the Dock icon and choosing Quit.",
+      },
+      {
+        type: "paragraph",
+        text: "On Windows, download the setup .exe and run it. It installs over the old version. If SmartScreen warns you, click More info, then Run anyway.",
+      },
+      {
+        type: "paragraph",
+        text: "On Linux, download the new AppImage, make it executable with chmod +x, and replace your old file.",
+      },
+      {
+        type: "paragraph",
+        text: "Your designs are never touched by an update. They live in the app's local data on your computer, not inside the app itself, so replacing the app keeps every design, upload, and brand kit exactly as it was.",
+      },
+      {
+        type: "tip",
+        text: "The Backup tab can export a full backup file at any time if you want extra peace of mind before updating.",
       },
     ],
   },
