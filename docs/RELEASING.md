@@ -9,11 +9,40 @@ Youzign currently notifies users about updates; it does not patch itself in plac
    - `apps/editor/src-tauri/Cargo.toml` and the Youzign package entry in `Cargo.lock`
    - `landing/version.json` (version, release notes, and download-page URL)
    - `landing/downloads.json` (version and versioned macOS, Windows, and Linux filenames)
-2. Run `pnpm release:check`, `pnpm test`, and `pnpm build`.
-3. Commit the release metadata before tagging. Create and push the exact tag `vX.Y.Z`. The tag is required: `.github/workflows/release.yml` only runs for `v*` tag pushes, and CI rejects a tag that does not match the committed app version.
-4. Wait for all three release jobs. They upload a universal macOS DMG, Windows NSIS EXE and MSI, and Linux AppImage, DEB, and RPM to a GitHub **draft** release.
-5. Inspect the draft assets, then publish the draft. Publishing is required for `/releases/latest` and `/releases/latest/download/...` to resolve to the new version. Do not deploy the new update metadata before the release is published.
-6. Deploy `landing/` to production and verify `/version.json`, `/downloads.json`, the three download redirects, and the update panel from an older installed build.
+2. Update the release notes in all three places (see "Release notes live in three places" below), including the thanks-page changelog entry.
+3. Run `pnpm release:check`, `pnpm test`, and `pnpm build`, plus `pnpm test:e2e-export` (real-WebKit export/thumbnail e2e). WebKit is what the macOS app actually runs; Chrome-only checks passed for weeks while Mac exports silently dropped photos (v1.0.3, DEZ-72), so the WebKit run is not optional.
+4. Commit the release metadata before tagging. Create and push the exact tag `vX.Y.Z`. The tag is required: `.github/workflows/release.yml` only runs for `v*` tag pushes, and CI rejects a tag that does not match the committed app version.
+5. Wait for all three release jobs. They upload a universal macOS DMG, Windows NSIS EXE and MSI, and Linux AppImage, DEB, and RPM to a GitHub **draft** release.
+6. Inspect the draft assets, then publish the draft. Publishing is required for `/releases/latest` and `/releases/latest/download/...` to resolve to the new version. Do not deploy the new update metadata before the release is published.
+7. Deploy `landing/` to production and verify `/version.json`, `/downloads.json`, the three download redirects, and the update panel from an older installed build.
+
+## Release notes live in three places
+
+| Where | File | Audience |
+| --- | --- | --- |
+| Thanks-page changelog | `landing/thanks.html` | everyone on the download page |
+| Update notification text | `landing/version.json` `notes` field | users seeing the blue dot |
+| GitHub release | the published release for tag `vX.Y.Z` | technical users |
+
+Voice for all three: plain and concrete, what changed for the user, no hype, no em dashes.
+
+### Maintaining the thanks-page changelog
+
+The changelog section on `landing/thanks.html` stacks releases newest-first and holds
+unlimited versions. Never delete an old entry. To add a release:
+
+1. Demote the previous latest: convert its `<article class="release latest">` into a
+   collapsed `<details class="release">` whose `<summary class="release-head">` carries
+   the version, date, and the chevron svg (copy the shape of an existing collapsed entry,
+   for example 1.0.3). Keep its `release-body` (GitHub link + `release-list`) untouched.
+2. Add the new version above it as the expanded `<article class="release latest">` with
+   the `LATEST` badge, release date, GitHub tag link, and a `release-list` of items.
+
+### Keep the update tutorial in sync
+
+The per-platform update instructions exist in two places and must match: the in-app Help
+section "Updating Youzign" (`apps/editor/src/help-content.ts`, id `updating`) and the
+"How to update" section on `landing/thanks.html`.
 
 The current workflow does not sign or notarize builds. macOS Gatekeeper and Windows SmartScreen warnings are therefore expected. The configured updater plugin, signed updater manifest, and `.sig` files are absent because this is a manual reinstall flow; the uploaded macOS app tarball alone is not an operational auto-update channel.
 

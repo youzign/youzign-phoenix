@@ -1,15 +1,15 @@
 {
-  "version": "1.0.3",
+  "version": "1.0.4",
   "mac": {
     "label": "macOS (Universal)",
-    "url": "https://github.com/youzign/youzign-phoenix/releases/latest/download/Youzign_1.0.3_universal.dmg"
+    "url": "https://github.com/youzign/youzign-phoenix/releases/latest/download/Youzign_1.0.4_universal.dmg"
   },
   "win": {
     "label": "Windows 10/11 (x64)",
-    "url": "https://github.com/youzign/youzign-phoenix/releases/latest/download/Youzign_1.0.3_x64-setup.exe"
+    "url": "https://github.com/youzign/youzign-phoenix/releases/latest/download/Youzign_1.0.4_x64-setup.exe"
   },
   "linux": {
     "label": "Linux (AppImage)",
-    "url": "https://github.com/youzign/youzign-phoenix/releases/latest/download/Youzign_1.0.3_amd64.AppImage"
+    "url": "https://github.com/youzign/youzign-phoenix/releases/latest/download/Youzign_1.0.4_amd64.AppImage"
   }
 }
