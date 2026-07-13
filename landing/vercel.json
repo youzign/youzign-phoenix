@@ -1,4 +1,12 @@
 {
+  "redirects": [
+    { "source": "/dashboard", "destination": "/editor", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/editor", "destination": "https://yz-editor-k4x7.vercel.app/editor/index.html" },
+    { "source": "/editor/", "destination": "https://yz-editor-k4x7.vercel.app/editor/index.html" },
+    { "source": "/editor/:path*", "destination": "https://yz-editor-k4x7.vercel.app/editor/:path*" }
+  ],
   "headers": [
     {
       "source": "/version.json",

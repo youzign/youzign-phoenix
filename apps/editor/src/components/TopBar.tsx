@@ -5,6 +5,7 @@ import { ExportMenu } from "./ExportMenu.js";
 import { ResizeMenu } from "./ResizeMenu.js";
 import { dashboardHash } from "../router.js";
 import { pickFiles, saveBlob } from "../native.js";
+import { asset } from "../asset.js";
 
 export function TopBar() {
   const design = useEditor((s) => s.design);
@@ -43,7 +44,7 @@ export function TopBar() {
           className="flex h-7 w-7 items-center justify-center rounded-lg transition-transform duration-150 hover:scale-105"
           aria-label="Back to dashboard"
         >
-          <img src="/brand/youzign-logo.png" alt="Youzign" className="h-7 w-7" />
+          <img src={asset("/brand/youzign-logo.png")} alt="Youzign" className="h-7 w-7" />
         </button>
         <input
           value={name}

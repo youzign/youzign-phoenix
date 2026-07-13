@@ -16,14 +16,18 @@ import {
   maskToAlphaImage,
   compositeAlpha,
 } from "@youzign/editor-core";
+import { asset } from "../asset.js";
 
 // Serve the WASM runtime locally (copied into public/ort/) — fully offline.
-ort.env.wasm.wasmPaths = "/ort/";
+// import.meta.env.BASE_URL is available in bundled module workers just like
+// in the main app, so this respects the app's base path ("/" for Tauri/dev,
+// "/editor/" for the web deployment).
+ort.env.wasm.wasmPaths = asset("/ort/");
 // Single-threaded avoids the cross-origin-isolation (SharedArrayBuffer)
 // requirement, so it works without special COOP/COEP dev headers.
 ort.env.wasm.numThreads = 1;
 
-const MODEL_URL = "/models/u2netp.onnx";
+const MODEL_URL = asset("/models/u2netp.onnx");
 
 let sessionPromise: Promise<{ session: ort.InferenceSession; backend: string }> | null = null;
 

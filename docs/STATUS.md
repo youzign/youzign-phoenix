@@ -1,5 +1,14 @@
 # Youzign OSS — Status & Working Agreements
-*Updated 2026-07-07 Tuesday (editor web deploy for Win7 clients; email 4 bridge SENT; AI Client System cart opens today). This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
+*Updated 2026-07-13 Monday (web editor moved to youzign.com/editor; email 4 bridge SENT; AI Client System cart opens today). This file is the handoff spine for the dedicated Youzign chat — read it plus `dezygn-v3/docs/fable/youzign-resurrection.md` (the decision doc) before any work.*
+
+## NEW 2026-07-13: web editor now at **https://www.youzign.com/editor** (+ /dashboard alias)
+The browser editor left the obscure URL and lives on the real domain. No DNS changes were needed — youzign.com already sits on Vercel; the `youzign-landing` project rewrites `/editor/*` to the `yz-editor-k4x7` project and 307s `/dashboard` → `/editor` (the dashboard is the app's home screen — one app, two doors).
+- **App is base-aware now:** `apps/editor/vite.config.ts` builds with `base: "/editor/"` for web (plain `pnpm -r build`); Tauri builds and `vite dev` keep base `/` (auto-detected via `TAURI_ENV_PLATFORM` / serve command). Runtime public-asset paths (`/ort/` wasm, models, brand logo, demo-portrait, starter XML, help shots) go through the new `apps/editor/src/asset.ts` helper (`import.meta.env.BASE_URL`).
+- **Deploy procedure CHANGED:** use **`pnpm -r build && ./scripts/deploy-web-editor.sh`** — it stages dist under an `editor/` prefix + a root→/editor/ redirect and ships to `yz-editor-k4x7` production. Do NOT deploy raw `apps/editor/dist` at project root anymore (assets are /editor/-prefixed and would 404).
+- **Old URL kept alive on purpose:** `yz-editor-k4x7.vercel.app` 307s to its own `/editor/` — same origin, so the Win7 clients' locally-saved designs survive. Share the youzign.com/editor URL from now on.
+- **/thanks page** now has a "Can't install it? Use it in your browser" section under the download cards linking `/editor` (the fallback for unsigned-app/SmartScreen refusers — the whole reason the web version exists).
+- **Access note:** the app is now fully public/discoverable (the obscure URL was the only gate). Accepted — product is free forever.
+- **Verified 2026-07-13** in headless Chrome against production: /dashboard 307→dashboard renders, sample design opens with full canvas + filter thumbnails, all /editor/ assets 200, zero path-related console errors; old URL redirect verified. Shots + log: `docs/planning/web-editor-url-progress.html` (+ `web-editor-url-shots/`).
 
 ## NEW 2026-07-07: editor LIVE as a web app — **https://yz-editor-k4x7.vercel.app** (Win7 clients)
 Trigger: a client on Windows 7 can't open the desktop app (WebView2 dropped Win7 — last capable engine is v109; unfixable on our side), and there are "a couple like these". Solution: deploy the editor itself to a Vercel URL — zero code changes needed because `apps/editor` already has browser fallbacks for every native call (`apps/editor/src/native.ts`: file open → `<input type=file>`, save → anchor download, open-url → `window.open`).

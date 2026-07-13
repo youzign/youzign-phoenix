@@ -25,6 +25,7 @@ import { getKey } from "../library/settings.js";
 import { FAL_KEY_URL } from "../library/generate.js";
 import type { MagicExpandRatio } from "../magic/endpoints.js";
 import { ensureGoogleFonts } from "../fonts.js";
+import { asset } from "../asset.js";
 import {
   Icon,
   IconButton,
@@ -768,7 +769,7 @@ function CanvasPanel() {
               className="rounded-md bg-white/[0.04] p-1 text-left ring-2 ring-[var(--accent)] transition-colors duration-150 hover:bg-white/[0.08]"
             >
               <span className="relative block aspect-square overflow-hidden rounded-[5px] bg-neutral-800">
-                <img src="/demo-portrait.jpg" alt="" className="h-full w-full object-cover" style={filterThumbStyle(activeFilterId)} />
+                <img src={asset("/demo-portrait.jpg")} alt="" className="h-full w-full object-cover" style={filterThumbStyle(activeFilterId)} />
                 {filterThumbOverlay(activeFilterId)}
               </span>
               <span className="mt-1 block truncate text-[10.5px] font-medium text-neutral-100">
@@ -785,7 +786,7 @@ function CanvasPanel() {
             }`}
           >
             <span className="relative block aspect-square overflow-hidden rounded-[5px] bg-neutral-800">
-              <img src="/demo-portrait.jpg" alt="" className="h-full w-full object-cover" />
+              <img src={asset("/demo-portrait.jpg")} alt="" className="h-full w-full object-cover" />
             </span>
             <span className="mt-1 block truncate text-[10.5px] font-medium text-neutral-200">Original</span>
           </button>
@@ -802,7 +803,7 @@ function CanvasPanel() {
                 }`}
               >
                 <span className="relative block aspect-square overflow-hidden rounded-[5px] bg-neutral-800">
-                  <img src="/demo-portrait.jpg" alt="" className="h-full w-full object-cover" style={filterThumbStyle(id)} />
+                  <img src={asset("/demo-portrait.jpg")} alt="" className="h-full w-full object-cover" style={filterThumbStyle(id)} />
                   {filterThumbOverlay(id)}
                 </span>
                 <span className="mt-1 block truncate text-[10.5px] font-medium text-neutral-200">{FILTER_NAMES[id]}</span>

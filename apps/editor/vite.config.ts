@@ -44,13 +44,35 @@ function serveOrtAssets(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [serveOrtAssets(), react()],
-  define: {
-    "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion()),
-  },
-  // Default dev/preview stay on 5191 (the long-lived local server);
-  // Tauri dev/preview pass --port 1420 explicitly (see tauri.conf.json).
-  server: { port: 5191 },
-  preview: { port: 5191 },
+export default defineConfig(({ command }) => {
+  // Tauri injects TAURI_ENV_* vars for both `tauri dev` and `tauri build`
+  // (see beforeDevCommand/beforeBuildCommand in src-tauri/tauri.conf.json,
+  // which both shell out to this same `pnpm --filter @youzign/editor
+  // build|dev` script). The desktop app loads dist/ from the filesystem via
+  // the tauri:// asset protocol at the root, so it must always use base "/".
+  //
+  // The web deployment (https://youzign.com/editor/ via Vercel rewrite, and
+  // https://yz-editor-k4x7.vercel.app/editor/ where files live under an
+  // editor/ prefix) needs base "/editor/" so built asset URLs resolve under
+  // that sub-path. That's what a plain (non-Tauri) `vite build` — i.e.
+  // `pnpm build` for web snapshots — produces.
+  //
+  // Local `vite`/`vite dev` (command === "serve") always stays at root "/"
+  // regardless of Tauri, matching today's dev-server behavior at
+  // http://localhost:5191/ (Tauri dev loads http://localhost:1420/index.html
+  // directly, so base "/" there too).
+  const isTauri = Boolean(process.env.TAURI_ENV_PLATFORM);
+  const base = command === "serve" || isTauri ? "/" : "/editor/";
+
+  return {
+    base,
+    plugins: [serveOrtAssets(), react()],
+    define: {
+      "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion()),
+    },
+    // Default dev/preview stay on 5191 (the long-lived local server);
+    // Tauri dev/preview pass --port 1420 explicitly (see tauri.conf.json).
+    server: { port: 5191 },
+    preview: { port: 5191 },
+  };
 });

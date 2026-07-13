@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web Editor on youzign.com — Progress</title>
+<style>
+  :root { --ink:#1A1A1A; --vellum:#F7F5F0; --paper:#EDEBE6; --muted:#6B6459; --dim:#8B867B; --accent:#0D9488; --accent-deep:#0F766E; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--vellum); color:var(--ink); font-family:'Inter',-apple-system,sans-serif; line-height:1.55; }
+  .wrap { max-width:880px; margin:0 auto; padding:48px 24px 96px; }
+  .eyebrow { display:inline-block; font-family:ui-monospace,'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.13em; text-transform:uppercase; color:var(--accent-deep); background:#fff; border:1px solid rgba(26,26,26,0.12); border-radius:999px; padding:4px 12px; transform:rotate(-2deg); }
+  h1 { font-size:34px; font-weight:600; letter-spacing:-0.02em; margin:16px 0 8px; }
+  h1 em { font-family:Georgia,'Instrument Serif',serif; font-style:italic; font-weight:400; }
+  .sub { color:var(--muted); font-size:14.5px; max-width:66ch; }
+  .legend { margin-top:14px; font-size:12px; color:var(--dim); }
+  .legend .tag { margin-left:0; margin-right:6px; }
+  .meta { margin-top:12px; font-size:12.5px; color:var(--muted); }
+  .meta code { background:var(--paper); border-radius:6px; padding:1px 6px; }
+  .entry { background:#fff; border:1px solid rgba(26,26,26,0.08); border-radius:20px; padding:24px 28px; margin-top:24px; box-shadow:0 18px 40px -30px rgba(26,26,26,0.35); }
+  .entry .ts { font-family:ui-monospace,'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); }
+  .entry h2 { font-size:19px; font-weight:600; margin:6px 0 8px; }
+  .entry p, .entry li { font-size:14px; color:#3a362f; }
+  .tag { display:inline-block; font-size:11px; font-weight:600; border-radius:999px; padding:2px 10px; margin-left:8px; vertical-align:2px; }
+  .tag.done { background:#DDE8D9; color:#3D5A35; }
+  .tag.wip { background:#D6ECEA; color:var(--accent-deep); }
+  .tag.blocked { background:#F6DEDB; color:#8C3A30; }
+  .tag.plan { background:#E7E2D8; color:#6B6459; }
+  code { background:var(--paper); border-radius:6px; padding:1px 6px; font-size:12.5px; }
+  pre { background:#1A1A1A; color:#EDEBE6; border-radius:12px; padding:14px 16px; font-size:12.5px; overflow:auto; font-family:ui-monospace,'IBM Plex Mono',monospace; }
+  .note { margin-top:12px; font-size:13px; color:#3a362f; background:#FBF7EE; border:1px solid rgba(13,148,136,0.25); border-left:3px solid var(--accent); border-radius:10px; padding:10px 14px; }
+  .warn { margin-top:12px; font-size:13px; color:#3a362f; background:#FDF3F1; border:1px solid rgba(140,58,48,0.25); border-left:3px solid #8C3A30; border-radius:10px; padding:10px 14px; }
+  .shots { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin-top:14px; }
+  .shots figure { margin:0; }
+  .shots img { width:100%; border:1px solid rgba(26,26,26,0.12); border-radius:12px; display:block; }
+  .shots figcaption { font-size:12px; color:var(--dim); margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="eyebrow">Live progress log</span>
+  <h1>Web editor on youzign.com — <em>a real address, finally.</em></h1>
+  <p class="sub">The browser version of the editor lived at an obscure Vercel URL (<code>yz-editor-k4x7.vercel.app</code>). Goal: serve it at <strong>youzign.com/editor</strong> (with <strong>/dashboard</strong> as a friendly alias) and offer it on the <strong>/thanks</strong> page as the fallback for people who can't run the unsigned desktop app. No DNS changes needed — youzign.com already lives on Vercel; the landing project proxies <code>/editor/*</code> to the editor project. Newest first.</p>
+  <p class="legend">
+    <span class="tag plan">Plan</span> not started ·
+    <span class="tag wip">WIP</span> in progress ·
+    <span class="tag done">Done</span> built/verified ·
+    <span class="tag blocked">Blocked</span> needs input
+  </p>
+  <p class="meta">Repo <code>~/Projects/dev/youzign-next</code> · branch <code>support-fixes-dez-57-60-61</code> · Vercel projects <code>youzign-landing</code> (domain) + <code>yz-editor-k4x7</code> (app) · shots in <code>web-editor-url-shots/</code></p>
+
+  <article class="entry">
+    <span class="ts">2026-07-13 · shipped &amp; verified</span><span class="tag done">Done</span>
+    <h2>Live: youzign.com/editor + /dashboard, verified in headless Chrome against production</h2>
+    <ul>
+      <li><strong>Code:</strong> new <code>apps/editor/src/asset.ts</code> helper; Vite <code>base</code> is <code>/editor/</code> for plain web builds, <code>/</code> for Tauri (<code>TAURI_ENV_PLATFORM</code>) and dev — desktop build verified unaffected. All 336 tests green (196 editor-core, 20 renderer, 120 editor).</li>
+      <li><strong>Deploys:</strong> editor shipped to <code>yz-editor-k4x7</code> production with files under <code>/editor/</code> + root 307 → <code>/editor/</code> (same origin, existing users' designs survive); landing shipped with the rewrites + the /thanks section. New helper: <code>scripts/deploy-web-editor.sh</code>.</li>
+      <li><strong>Verified live:</strong> /dashboard 307s to /editor and renders the dashboard; the sample design opens with a fully painted canvas (image, text, graphic, filter thumbnails — the base-path-sensitive assets); /editor, /editor/, wasm, onnx model, brand logo, starter XML all 200; <code>version.json</code> (the desktop updater endpoint) untouched and alive; zero path-related console errors. Only console noise: pre-existing html-to-image warnings about cross-origin Google-Fonts CSS during thumbnailing — remote URLs, unrelated to this change.</li>
+    </ul>
+    <div class="shots">
+      <figure><img src="web-editor-url-shots/01-dashboard.png" alt="Dashboard at youzign.com/editor"><figcaption>youzign.com/dashboard → dashboard renders at /editor#/</figcaption></figure>
+      <figure><img src="web-editor-url-shots/02-editor.png" alt="Sample design open in the editor"><figcaption>Sample design fully painted — canvas, layers, filter thumbnails</figcaption></figure>
+      <figure><img src="web-editor-url-shots/03-thanks-web-option.png" alt="Thanks page web option"><figcaption>/thanks: "Can't install it? Use it in your browser"</figcaption></figure>
+      <figure><img src="web-editor-url-shots/04-old-url-redirect.png" alt="Old URL redirect"><figcaption>Old yz-editor-k4x7 URL 307s to /editor/ — same origin, designs kept</figcaption></figure>
+    </div>
+  </article>
+
+  <article class="entry">
+    <span class="ts">2026-07-13 · plan of record</span><span class="tag done">Done</span>
+    <h2>The plan — four small moves, no DNS, no new costs</h2>
+    <ul>
+      <li><strong>① App learns its new home:</strong> build <code>apps/editor</code> with Vite <code>base: "/editor/"</code> for web (desktop/Tauri build keeps <code>/</code>), and make the ~8 hardcoded absolute asset paths (<code>/ort/</code> wasm, demo images, brand, starter templates, help) base-aware. <em>Sonnet subagent, tests must stay green.</em></li>
+      <li><strong>② Landing proxies the path:</strong> <code>landing/vercel.json</code> gets rewrites <code>/editor/* → yz-editor-k4x7.vercel.app/editor/*</code> and a redirect <code>/dashboard → /editor</code> (the dashboard IS the app's home screen — one app, two doors).</li>
+      <li><strong>③ /thanks gets the fallback:</strong> new "Can't install it? Use it in your browser" section under the download cards, linking <code>/editor</code>.</li>
+      <li><strong>④ Deploy + verify for real:</strong> editor snapshot redeployed with files under an <code>/editor/</code> prefix (old root URL 302s there, so existing users keep their saved designs — same origin), landing redeployed, then drive youzign.com/editor, /dashboard and /thanks in headless Chrome with screenshots below.</li>
+    </ul>
+    <div class="note"><strong>Why the old URL keeps working:</strong> designs live in the browser's local storage, tied to the web address. By keeping the app on the same Vercel project (just under <code>/editor/</code>, with the root redirecting there), the couple of Win7 clients already using it lose nothing.</div>
+    <div class="warn"><strong>Trade-off accepted:</strong> the obscure URL was the only "access control" — at youzign.com/editor the web app is fully public. Fine by design: the product is free forever.</div>
+  </article>
+
+</div>
+</body>
+</html>

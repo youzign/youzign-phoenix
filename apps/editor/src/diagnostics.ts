@@ -1,5 +1,6 @@
 import { removeBackground } from "./bg/removeBackground.js";
 import { appendDebugLog, isTauri } from "./native.js";
+import { asset } from "./asset.js";
 
 let installed = false;
 
@@ -50,7 +51,7 @@ async function runSelftest() {
   appendDebugLog({ type: "selftest.start", probes: capabilityProbes() });
   try {
     appendDebugLog({ type: "selftest.step", step: "fetch demo portrait" });
-    const res = await fetch("/demo-portrait.jpg");
+    const res = await fetch(asset("/demo-portrait.jpg"));
     if (!res.ok) throw new Error(`demo portrait fetch failed (${res.status})`);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);

@@ -28,6 +28,7 @@ import {
 import { buildBackupBundle, parseBackupBundle } from "../library/backup.js";
 import { getActiveBrandId, listBrands, mergeBrands } from "../library/brands.js";
 import { allUploads, fileToUploadRecord, isAcceptedFile, putUpload } from "../library/uploads.js";
+import { asset } from "../asset.js";
 import { openExternal, pickFiles, saveBlob } from "../native.js";
 import { blankDocument, imageDocument, startImageDims, START_IMAGE_MAX_DIM } from "../newDesign.js";
 import { backupHash, dashboardHash, editorHash, helpHash } from "../router.js";
@@ -419,7 +420,7 @@ function useActiveHelpSection() {
 
 function HelpShot({ file, caption }: Extract<HelpBlock, { type: "shot-ref" }>) {
   const [missing, setMissing] = useState(false);
-  const src = `/help/${file}`;
+  const src = asset(`/help/${file}`);
 
   return (
     <figure className="my-5 overflow-hidden rounded-xl border border-white/[0.06] bg-[#151518]">
@@ -685,7 +686,7 @@ export function Dashboard({ tab = "designs" }: { tab?: DashboardTab }) {
   useEffect(() => {
     if (tab !== "designs" || docs.length !== 0 || starterXml !== undefined) return;
     const controller = new AbortController();
-    fetch("/starter/youzign-starter.xml", { signal: controller.signal })
+    fetch(asset("/starter/youzign-starter.xml"), { signal: controller.signal })
       .then((res) => (res.ok ? res.text() : null))
       .then((text) => setStarterXml(text?.trim() ? text : null))
       .catch((err) => {
@@ -739,7 +740,7 @@ export function Dashboard({ tab = "designs" }: { tab?: DashboardTab }) {
             aria-label={updateInfo ? "Youzign update available" : "Youzign"}
             aria-expanded={updateInfo ? updateOpen : undefined}
           >
-            <img src="/brand/youzign-logo.png" alt="Youzign" className="h-7 w-7" />
+            <img src={asset("/brand/youzign-logo.png")} alt="Youzign" className="h-7 w-7" />
             {updateInfo && (
               <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--accent)] ring-2 ring-[#1c1c1f]" />
             )}
