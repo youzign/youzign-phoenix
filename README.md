@@ -24,6 +24,19 @@ pnpm test    # vitest across packages
 pnpm shots   # screenshot the running dev server (needs it running on :5191)
 ```
 
+
+### Desktop vs web builds
+
+The same app ships two ways: the Tauri **desktop** app and a **web** version
+served at [youzign.com/editor](https://www.youzign.com/editor). A plain
+`pnpm build` produces the web build (Vite `base: /editor/`); Tauri builds and
+`pnpm dev` automatically use base `/`, so nothing changes for desktop or local
+work. To ship a fix to web users after a release:
+
+```bash
+pnpm -r build && ./scripts/deploy-web-editor.sh
+```
+
 ## Architecture
 
 A pnpm workspace monorepo, TypeScript throughout.
