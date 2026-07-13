@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Reputation Recovery — Progress</title>
+<style>
+  :root { --ink:#1A1A1A; --vellum:#F7F5F0; --paper:#EDEBE6; --muted:#6B6459; --dim:#8B867B; --accent:#0D9488; --accent-deep:#0F766E; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--vellum); color:var(--ink); font-family:'Inter',-apple-system,sans-serif; line-height:1.55; }
+  .wrap { max-width:880px; margin:0 auto; padding:48px 24px 96px; }
+  .eyebrow { display:inline-block; font-family:ui-monospace,'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.13em; text-transform:uppercase; color:var(--accent-deep); background:#fff; border:1px solid rgba(26,26,26,0.12); border-radius:999px; padding:4px 12px; transform:rotate(-2deg); }
+  h1 { font-size:34px; font-weight:600; letter-spacing:-0.02em; margin:16px 0 8px; }
+  h1 em { font-family:Georgia,'Instrument Serif',serif; font-style:italic; font-weight:400; }
+  .sub { color:var(--muted); font-size:14.5px; max-width:66ch; }
+  .legend { margin-top:14px; font-size:12px; color:var(--dim); }
+  .legend .tag { margin-left:0; margin-right:6px; }
+  .meta { margin-top:12px; font-size:12.5px; color:var(--muted); }
+  .meta code { background:var(--paper); border-radius:6px; padding:1px 6px; }
+  .entry { background:#fff; border:1px solid rgba(26,26,26,0.08); border-radius:20px; padding:24px 28px; margin-top:24px; box-shadow:0 18px 40px -30px rgba(26,26,26,0.35); }
+  .entry .ts { font-family:ui-monospace,'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); }
+  .entry h2 { font-size:19px; font-weight:600; margin:6px 0 8px; }
+  .entry p, .entry li { font-size:14px; color:#3a362f; }
+  .tag { display:inline-block; font-size:11px; font-weight:600; border-radius:999px; padding:2px 10px; margin-left:8px; vertical-align:2px; }
+  .tag.done { background:#DDE8D9; color:#3D5A35; }
+  .tag.wip { background:#D6ECEA; color:var(--accent-deep); }
+  .tag.blocked { background:#F6DEDB; color:#8C3A30; }
+  .tag.plan { background:#E7E2D8; color:#6B6459; }
+  code { background:var(--paper); border-radius:6px; padding:1px 6px; font-size:12.5px; }
+  pre { background:#1A1A1A; color:#EDEBE6; border-radius:12px; padding:14px 16px; font-size:12.5px; overflow:auto; font-family:ui-monospace,'IBM Plex Mono',monospace; }
+  table.jobs { width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; }
+  table.jobs th, table.jobs td { text-align:left; padding:7px 10px; border-bottom:1px solid rgba(26,26,26,0.08); vertical-align:top; }
+  table.jobs th { font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--dim); font-weight:600; }
+  .note { margin-top:12px; font-size:13px; color:#3a362f; background:#FBF7EE; border:1px solid rgba(13,148,136,0.25); border-left:3px solid var(--accent); border-radius:10px; padding:10px 14px; }
+  .warn { margin-top:12px; font-size:13px; color:#3a362f; background:#FDF3F1; border:1px solid rgba(140,58,48,0.25); border-left:3px solid #8C3A30; border-radius:10px; padding:10px 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="eyebrow">Live progress log</span>
+  <h1>Email Reputation Recovery — <em>taking the list back.</em></h1>
+  <p class="sub">Years of third-party affiliate blasts spammed the legacy list into oblivion; the weekend DNS migration added an auth-fail blast and a broken tracking cert on top. Authentication is now verifiably perfect — what's left is <em>reputation</em>: rebuild it by mailing only people who want the mail, measuring with Postmaster, and widening slowly. Newest first.</p>
+  <p class="legend">
+    <span class="tag plan">Plan</span> not started ·
+    <span class="tag wip">WIP</span> in progress ·
+    <span class="tag done">Done</span> built/verified ·
+    <span class="tag blocked">Blocked</span> needs input
+  </p>
+  <p class="meta">ESP <strong>Elastic Email</strong> (support@youzign.com, envelope-aligned) · DNS in GoDaddy · recovery assets in <code>/Users/dezygn/Projects/backup/</code> · companion memory: <code>elastic-tracking-cert-open-drop.md</code>, <code>elastic-list-deletion-recovery.md</code></p>
+
+  <article class="entry">
+    <span class="ts">2026-07-06 · plan of record</span><span class="tag plan">Plan</span>
+    <h2>The recovery roadmap — engaged-first, measured, no shortcuts</h2>
+    <p><strong>Decisions locked in:</strong> no new cousin domain (fresh domain + bulk volume = snowshoe pattern, starts <em>below</em> current rep), no from-address change (reputation is domain/IP-level, not local-part). Keep <code>youzign.com</code> + the now-perfect auth, fix the list. Escape hatch only if Postmaster still shows "Bad" after ~4 weeks: move bulk to <code>news.youzign.com</code> subdomain with its own SPF/DKIM.</p>
+    <p><strong>The ladder:</strong> start from the one list in Elastic — <code>IMPORT-1-engaged-july.csv</code> (6,764 proven July openers/clickers) — and climb rung by rung toward the ultimate goal: <strong>the full Youzign audience</strong> (22k July-delivered → ~20k dump buyers via <code>deals_licenses</code>), earning each expansion with a clean Postmaster reading. Volume is unlocked by reputation, never ahead of it.</p>
+    <table class="jobs">
+      <tr><th>Rung</th><th>When</th><th>List / action</th><th>Advance when</th></tr>
+      <tr><td><strong>0 · Instrument</strong></td><td>now</td><td>Import <code>IMPORT-1-engaged-july.csv</code> as <strong>"Engaged July 2026"</strong> — the ONLY list in Elastic · bounce domain ON (CNAME in GoDaddy) · Google Postmaster Tools TXT · <strong>every send goes to this list, nothing else exists to mis-send to</strong></td><td>Postmaster reporting live</td></tr>
+      <tr><td><strong>1 · Engaged core (6.7k)</strong></td><td>weeks 1–3</td><td>Steady cadence 1–3 sends/wk to Engaged July 2026, no volume spikes, genuinely wanted content (desktop-app story). Elastic engaged-first send order ON.</td><td>Spam rate &lt;0.1%, reputation off Bad/Low</td></tr>
+      <tr><td><strong>2 · Widen toward 22k</strong></td><td>weeks 3–8</td><td>Import slices of <code>IMPORT-2-archive-parked.csv</code> (diffed vs SUPPRESS first) a few thousand at a time: historical clickers first (<code>clicked_ever</code>), then recent-consent, then the rest. Check Postmaster after each slice; spike → shrink back one rung.</td><td>Reputation Medium/High at ~22k volume</td></tr>
+      <tr><td><strong>3 · Re-permission the tail</strong></td><td>after 2</td><td>ONE "still want to hear from us?" email to whatever never engaged; keep clickers, <strong>delete the rest</strong>.</td><td>Clean settled list</td></tr>
+      <tr><td><strong>4 · The big Youzign list</strong></td><td>rep = High</td><td>Reconstruct the ~20k <strong>buyers</strong> from the dump (<code>deals_licenses</code> → <code>wp_users</code> join), diff vs SUPPRESS + existing, re-permission the never-mailed portion in slices. The 274k raw signups stay a reservoir — only ever entered via re-permission, never blasted.</td><td>—</td></tr>
+    </table>
+    <div class="note"><strong>Measurement:</strong> Google Postmaster Tools (postmaster.google.com) is the source of truth — actual Gmail spam rate + domain reputation on real volume, independent of pixel tracking. Elastic open % is the secondary signal (baseline to beat: ~18%, the pre-weekend ugcly campaigns). Periodic Gmail seed test with real campaign content (bdiouly@gmail.com): check folder + Show original = SPF/DKIM/DMARC all PASS.</div>
+    <div class="warn"><strong>Standing rules:</strong> the suppression file is NOT imported into Elastic (decision 07-06, see entry below) — instead <code>SUPPRESS-never-mail.csv</code> is the mandatory <strong>check-before-import</strong> gate: nothing enters Elastic without being diffed against it first (44 July unsubs + 2 abuse reporters must never come back). Never import the raw 274k dump extract (ancient free signups — reputation suicide). Keep DMARC <code>p=reject</code> — backscatter shows spammers actively forge @youzign.com; the &lt;0.1% forwarded-mail loss is the cost of that protection.</div>
+  </article>
+
+  <article class="entry">
+    <span class="ts">2026-07-06 21:00</span><span class="tag done">Done</span>
+    <h2>Decision: one list, no suppression import — "Engaged July 2026" is the list of record</h2>
+    <ul>
+      <li><strong>Skipping the suppression import.</strong> The Email Marketing product has no Suppressions screen (that's the Email API product); the workaround (import 1,288 contacts with status "unsubscribed") adds clutter and counts against the contact quota. Since <code>IMPORT-1-engaged-july.csv</code> already has every suppressed address filtered out (verified 0 overlap), an Elastic account whose only list is the engaged list simply can't mail them.</li>
+      <li><strong>The trade, accepted knowingly:</strong> no account-level backstop against a <em>future</em> import resurrecting the July unsubs/abuse reporters. Mitigation = the standing check-before-import rule above; the file stays at <code>/Users/dezygn/Projects/backup/Email Lists/SUPPRESS-never-mail.csv</code> and every future import gets diffed against it (30-second job) before upload.</li>
+      <li><strong>Framing locked:</strong> <code>IMPORT-1-engaged-july.csv</code> (6,764) = the first and only list; the ultimate destination is the full Youzign audience, climbed slowly per the ladder — reputation unlocks volume, never the reverse.</li>
+    </ul>
+  </article>
+
+  <article class="entry">
+    <span class="ts">2026-07-06 20:40</span><span class="tag done">Done</span>
+    <h2>List rebuilt from the exports — engaged / archive / suppression files ready to import</h2>
+    <p>Combed the Elastic exports in <code>/Users/dezygn/Projects/backup/Email Lists/</code>: the 7-day activity log (468k events) recovered the <strong>full current list (22,262 unique delivered)</strong> plus live engagement — <strong>6,822 unique July openers, 461 clickers</strong> (~31% engaged). Cross-referenced against every exclusion source (July unsubs + abuse reports from the log, the 1,116 historic blocked contacts, bounced-and-never-delivered, the 168 DSN bounces) and enriched with names/consent dates from the July-2025 All Contacts snapshot. Output, in the same folder:</p>
+    <table class="jobs">
+      <tr><th>File</th><th>Rows</th><th>What / how to use</th></tr>
+      <tr><td><code>SUPPRESS-never-mail.csv</code></td><td>1,288</td><td>44 unsubs + 2 abuse + 1,000 blocked + 242 hard-dead. <strong>Upload to Settings → Suppressions FIRST.</strong></td></tr>
+      <tr><td><code>IMPORT-1-engaged-july.csv</code></td><td>6,764</td><td>Opened/clicked in July, exclusions removed. <code>tier</code> column: <strong>438 "hot"</strong> (clicked) vs "engaged". The Phase-1 send list.</td></tr>
+      <tr><td><code>IMPORT-2-archive-parked.csv</code></td><td>15,312</td><td>Delivered July but didn't engage. Parked — Phase-3 re-permission only.</td></tr>
+    </table>
+    <p>Verified: <strong>0 suppressed addresses leak into either import file</strong>; 85 people who engaged but then unsubscribed are correctly excluded. 3,752 of the engaged have name/consent enrichment from the old snapshot.</p>
+    <div class="note"><strong>Import order in Elastic:</strong> ① suppression CSV → ② IMPORT-1 as list "Engaged July 2026" → ③ IMPORT-2 as list "Archive (do not mail)". If support restores the old list afterwards, these lists still stand as the segmentation of record.</div>
+  </article>
+
+  <article class="entry">
+    <span class="ts">2026-07-06 20:15</span><span class="tag done">Done</span>
+    <h2>List accidentally deleted while removing bounces — recovery assets secured, restore pending</h2>
+    <ul>
+      <li><strong>What happened:</strong> while deleting bounced contacts in Elastic, the entire ~21k contact list was deleted. Elastic support asked for a restore — <strong>answer pending</strong>.</li>
+      <li><strong>Recovery sources, in priority order:</strong>
+        (1) Elastic support restore — best case, keeps engagement history;
+        (2) <strong>Activity-log export</strong> — per-recipient sent/open/click events for the recent full-list campaigns = recovers the list AND the July engaged segment. ⚠️ ~35-day retention; dashboard export is paginated/painful (50 per page, infinite scroll) — the API export (<code>/v4/events</code> CSV export) is the sane route;
+        (3) <strong>DB dump extracts — done, on disk:</strong> <code>/Users/dezygn/Projects/backup/wp_users_emails.csv</code> (273,866 unique emails) + <code>deals_licenses_raw.sql</code> (license → user-ID → source; joins back to wp_users to reconstruct the ~20k buyers).</li>
+      <li><strong>Silver lining:</strong> the rebuild IS the hygiene reset — re-import as two lists: <strong>"Engaged"</strong> (July openers/clickers) = who gets mailed; <strong>"Archive"</strong> (everyone else) = parked for the Phase-3 re-permission email only.</li>
+      <li><strong>Bounce suppression list ready:</strong> <code>/Users/dezygn/Projects/backup/youzign-bounced-emails.csv</code> — 169 hard bounces (user-unknown / mailbox-full / disabled / dead-domain) parsed from the DSNs in the support@ inbox; DMARC-policy rejects deliberately excluded (live mailboxes, auth issue since fixed).</li>
+    </ul>
+  </article>
+
+  <article class="entry">
+    <span class="ts">2026-07-06 19:30</span><span class="tag done">Done</span>
+    <h2>Diagnosis day: the "open-rate crash" was a broken tracking cert — auth is perfect, reputation is the real work</h2>
+    <ul>
+      <li><strong>Opens 18% → 2–9% after the weekend was NOT deliverability.</strong> The custom tracking domain <code>tracking.youzign.com</code> (CNAME → api.elasticemail.com, added 07-05) served Elastic's own cert until the Let's Encrypt cert for the custom hostname finished provisioning — <strong>2026-07-06 15:00 UTC</strong> (verified: <code>CN=tracking.youzign.com</code>, HTTP 200, SSL verify 0). During the broken window, open pixels were blocked at cert validation and click links threw browser warnings → opens undercounted, clicks ≈ 0 (the <code>sitvo 1</code> campaign: 1,914 opens / <strong>0 clicks</strong> — the tell). First post-fix campaign immediately recovered: 135 clicks in 4 hours, opens climbing.</li>
+      <li><strong>Authentication verified end-to-end at Gmail</strong> (seed test to bdiouly@gmail.com, Show original): <code>SPF PASS · DKIM PASS aligned d=youzign.com s=api · DMARC PASS (p=REJECT)</code>. GoDaddy <code>api._domainkey</code> TXT matches Elastic's dashboard byte-for-byte; Elastic shows domain verified. <strong>DNS work is DONE — stop touching it.</strong></li>
+      <li><strong>Bounce forensics</strong> (1,332 DSNs parsed from the Thunderbird mbox at <code>~/Library/Thunderbird/Profiles/z381ehgp.default-release/ImapMail/imap.purelymail.com/INBOX</code>): mostly normal old-list decay (589 mailbox-full, 312 user-unknown). The 89 July DMARC rejects = <em>forwarded</em> mail only (forwarders mutate the body → DKIM body-hash breaks, SPF breaks on the hop → p=reject bites); &lt;0.1% of sends. Microsoft/Yahoo receive direct mail fine.</li>
+      <li><strong>But the seed test landed in Spam/Trash despite perfect auth</strong> → the remaining problem is <strong>domain reputation</strong>: years of affiliate offers to the list, the 07-04 blast that went out pre-DKIM-fix, and dead addresses never suppressed (bounce domain OFF → DSNs pile into support@ instead of Elastic). Hence this recovery plan.</li>
+      <li><strong>Non-issues, confirmed:</strong> Elastic's "35% High Risk" score on support@youzign.com = their contact-validator flagging a role address, not sender reputation. Elastic's "set DMARC p=none" banner = generic nag; keeping <code>p=reject</code>.</li>
+    </ul>
+    <div class="note"><strong>Before/after tracking-cert baseline:</strong> ugcly rp3/rp4/rp5 (pre-weekend, built-in tracking) = 18–19% opens, 38–53 clicks · 07-04/05 (broken cert) = 2.4–9% opens, 0–81 clicks · 07-06 16:38 (cert healed) = 10.8% and climbing at 4h, 135 clicks. Target: settled campaigns back at ~18% on the engaged segment — expect <em>higher</em> (engaged-only skews up).</div>
+  </article>
+
+</div>
+</body>
+</html>
