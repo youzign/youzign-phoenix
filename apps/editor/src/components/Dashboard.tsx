@@ -21,10 +21,18 @@ import {
   putDocument,
   shapeDocumentRecord,
   documentRecordFromXml,
+  relativeEditedTime,
   sortDocuments,
   type DocumentSortOrder,
   type DocumentRecord,
 } from "../library/documents.js";
+import {
+  importLegacyDesign,
+  LegacyImportError,
+  lookupLegacyUser,
+  type LegacyDesign,
+  type LegacyLookupResult,
+} from "../library/legacyImport.js";
 import { buildBackupBundle, parseBackupBundle } from "../library/backup.js";
 import { getActiveBrandId, listBrands, mergeBrands } from "../library/brands.js";
 import { allUploads, fileToUploadRecord, isAcceptedFile, putUpload } from "../library/uploads.js";
@@ -36,6 +44,7 @@ import { documentFromXml, normalizeDocument } from "../document.js";
 import { APP_VERSION, fetchUpdateInfo, type VersionInfo } from "../version.js";
 import { Icon, accentBtn, ghostBtn, segItem } from "./ui.js";
 import { sections, type HelpBlock } from "../help-content.js";
+import { BugReportModal } from "./BugReportModal.js";
 
 const QUICK_PRESETS = ["ig-post-square", "ig-story", "yt-thumbnail", "print-a4", "print-business-card"];
 const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
@@ -480,6 +489,7 @@ function HelpBlockView({ block }: { block: HelpBlock }) {
 
 function HelpManual() {
   const active = useActiveHelpSection();
+  const [bugReportOpen, setBugReportOpen] = useState(false);
   const scrollToSection = (event: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     event.preventDefault();
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -510,13 +520,19 @@ function HelpManual() {
       </aside>
 
       <div className="min-w-0">
-        <header className="mb-8 border-b border-white/[0.06] pb-5">
-          <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-neutral-500">Youzign Manual</div>
-          <h1 className="mt-2 text-[24px] font-semibold tracking-normal text-neutral-100">Living help for the local editor</h1>
-          <p className="mt-2 max-w-2xl text-[13px] leading-6 text-neutral-500">
-            A practical reference for the dashboard, editor, content panels, AI tools, export, backup, and keyboard shortcuts.
-          </p>
+        <header className="mb-8 flex items-start justify-between gap-4 border-b border-white/[0.06] pb-5">
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-neutral-500">Youzign Manual</div>
+            <h1 className="mt-2 text-[24px] font-semibold tracking-normal text-neutral-100">Living help for the local editor</h1>
+            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-neutral-500">
+              A practical reference for the dashboard, editor, content panels, AI tools, export, backup, and keyboard shortcuts.
+            </p>
+          </div>
+          <button className={`${ghostBtn} shrink-0`} onClick={() => setBugReportOpen(true)} data-testid="report-bug">
+            Report a bug
+          </button>
         </header>
+        {bugReportOpen && <BugReportModal onClose={() => setBugReportOpen(false)} />}
 
         <div className="space-y-10">
           {sections.map((section) => (
@@ -535,9 +551,238 @@ function HelpManual() {
   );
 }
 
+function LegacyDesignThumb({ design }: { design: LegacyDesign }) {
+  const [failed, setFailed] = useState(false);
+  if (!design.thumb_url || failed) {
+    return (
+      <div className="flex aspect-[4/3] items-center justify-center bg-[#151518] text-neutral-600">
+        <Icon name="image-off" size={22} />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={design.thumb_url}
+      alt=""
+      className="aspect-[4/3] w-full bg-[#151518] object-contain"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefresh: () => void }) {
+  const [identifier, setIdentifier] = useState("");
+  const [lookup, setLookup] = useState<LegacyLookupResult | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [current, setCurrent] = useState(0);
+  const [phase, setPhase] = useState("");
+  const [imported, setImported] = useState<number | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
+
+  const designKey = (design: LegacyDesign) => `${design.generation}:${design.design_id}`;
+  const selectedDesigns = lookup?.designs.filter((design) => selected.has(designKey(design))) ?? [];
+
+  useEffect(() => {
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) onClose();
+    };
+    window.addEventListener("keydown", dismiss);
+    return () => window.removeEventListener("keydown", dismiss);
+  }, [busy, onClose]);
+
+  const findDesigns = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!identifier.trim() || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await lookupLegacyUser(identifier);
+      setLookup(result);
+      setSelected(new Set(result.designs.map(designKey)));
+    } catch (err) {
+      setError(
+        err instanceof LegacyImportError && err.code === "not_found"
+          ? "No account found for that email or username."
+          : err instanceof LegacyImportError && err.code === "network"
+            ? "Couldn't connect. Check your internet connection and try again."
+            : "Couldn't load your legacy designs. Please try again."
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const importDesigns = async () => {
+    if (!lookup || selectedDesigns.length === 0 || busy) return;
+    const batch = selectedDesigns;
+    setBusy(true);
+    setImported(null);
+    setImportErrors([]);
+    setWarnings([]);
+    let successCount = 0;
+    const failures: string[] = [];
+    const assetWarnings: string[] = [];
+
+    for (const [index, design] of batch.entries()) {
+      setCurrent(index + 1);
+      setPhase("Fetching design…");
+      try {
+        const result = await importLegacyDesign(identifier, design, lookup.download, () => setPhase("Fetching images…"));
+        successCount++;
+        if (result.failedAssets.length > 0) {
+          assetWarnings.push(`${design.title || "Untitled"}: ${result.failedAssets.length} image${result.failedAssets.length === 1 ? "" : "s"} couldn't be downloaded`);
+          setWarnings([...assetWarnings]);
+        }
+      } catch {
+        failures.push(design.title || "Untitled");
+        setImportErrors([...failures]);
+      }
+    }
+
+    setImported(successCount);
+    setImportErrors(failures);
+    setWarnings(assetWarnings);
+    setBusy(false);
+    onRefresh();
+  };
+
+  const gridDesigns = lookup?.designs ?? [];
+  const allSelected = gridDesigns.length > 0 && selected.size === gridDesigns.length;
+  const toggleAll = () => {
+    if (!lookup) return;
+    setSelected(allSelected ? new Set() : new Set(gridDesigns.map(designKey)));
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-6"
+      onMouseDown={() => !busy && onClose()}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="legacy-import-title"
+        className="flex max-h-[86vh] w-full max-w-[920px] flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#202024] shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
+        data-testid="legacy-import-modal"
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-white/[0.06] p-5">
+          <div>
+            <h2 id="legacy-import-title" className="text-[15px] font-semibold text-neutral-100">
+              Import from youzign.com
+            </h2>
+            <p className="mt-1 text-[12px] text-neutral-500">Bring your rescued legacy designs into this device.</p>
+          </div>
+          <button className={ghostBtn} onClick={onClose} disabled={busy} aria-label="Close">
+            Close
+          </button>
+        </header>
+
+        {!lookup ? (
+          <form className="p-5" onSubmit={(event) => void findDesigns(event)}>
+            <label className="block text-[12px] font-medium text-neutral-300" htmlFor="legacy-identifier">
+              Email or username
+            </label>
+            <input
+              id="legacy-identifier"
+              autoFocus
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
+              disabled={busy}
+              className="mt-2 w-full rounded-lg border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-[13px] text-neutral-100 outline-none transition-colors placeholder:text-neutral-600 focus:border-[var(--accent)]"
+              placeholder="you@example.com"
+            />
+            {error && <div className="mt-3 text-[12px] text-red-300" role="alert">{error}</div>}
+            <button className={`${accentBtn} mt-4`} type="submit" disabled={busy || !identifier.trim()}>
+              <Icon name="search" size={15} /> {busy ? "Searching…" : "Find my designs"}
+            </button>
+          </form>
+        ) : imported !== null ? (
+          <div className="p-5">
+            <div className="text-[15px] font-semibold text-neutral-100">
+              {imported} imported, {importErrors.length} failed
+            </div>
+            {importErrors.length > 0 && (
+              <div className="mt-4 rounded-lg border border-red-400/15 bg-red-400/[0.06] p-3">
+                <div className="text-[12px] font-medium text-red-200">Could not import</div>
+                <ul className="mt-2 space-y-1 text-[12px] text-red-300">
+                  {importErrors.map((name, index) => <li key={`${name}-${index}`}>{name}</li>)}
+                </ul>
+              </div>
+            )}
+            {warnings.length > 0 && (
+              <div className="mt-4 rounded-lg border border-amber-400/15 bg-amber-400/[0.06] p-3 text-[12px] text-amber-200">
+                {warnings.map((warning) => <div key={warning}>{warning}</div>)}
+              </div>
+            )}
+            <button className={`${accentBtn} mt-5`} onClick={onClose}>Done</button>
+          </div>
+        ) : (
+          <>
+            <div className="border-b border-white/[0.06] px-5 py-4">
+              <div className="text-[14px] font-semibold text-neutral-100">
+                Welcome back, {lookup.user.username} ({lookup.user.email_masked}) — {lookup.designs.length} designs found
+              </div>
+              <label className="mt-3 inline-flex items-center gap-2 text-[12px] text-neutral-400">
+                <input type="checkbox" checked={allSelected} onChange={toggleAll} disabled={busy} className="accent-[var(--accent)]" />
+                Select all
+              </label>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {gridDesigns.map((design) => {
+                  const key = designKey(design);
+                  const date = Date.parse(design.updated_at || design.created_at);
+                  return (
+                    <label key={key} className="overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] transition-colors hover:border-white/15">
+                      <LegacyDesignThumb design={design} />
+                      <span className="flex items-start gap-2 p-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(key)}
+                          disabled={busy}
+                          onChange={() => setSelected((currentSelected) => {
+                            const next = new Set(currentSelected);
+                            if (next.has(key)) next.delete(key);
+                            else next.add(key);
+                            return next;
+                          })}
+                          className="mt-0.5 accent-[var(--accent)]"
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate text-[12px] font-medium text-neutral-100">{design.title || "Untitled"}</span>
+                          <span className="mt-1 block text-[11px] text-neutral-500">
+                            {Number.isNaN(date) ? "Legacy design" : relativeEditedTime(date)}
+                          </span>
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <footer className="flex items-center justify-between gap-4 border-t border-white/[0.06] p-5">
+              <div className="text-[12px] text-neutral-500" role="status">
+                {busy ? `Importing ${current} of ${selectedDesigns.length} — ${phase}` : `${selected.size} selected`}
+              </div>
+              <button className={accentBtn} onClick={() => void importDesigns()} disabled={busy || selected.size === 0}>
+                <Icon name="download" size={15} /> {busy ? "Importing…" : `Import ${selected.size} designs`}
+              </button>
+            </footer>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BackupPanel({ docs, onRefresh }: { docs: DocumentRecord[]; onRefresh: () => void }) {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [legacyOpen, setLegacyOpen] = useState(false);
 
   const exportAll = async () => {
     setBusy(true);
@@ -649,15 +894,18 @@ function BackupPanel({ docs, onRefresh }: { docs: DocumentRecord[]; onRefresh: (
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)]/12 text-[var(--accent)]">
             <Icon name="cloud" size={23} />
           </div>
-          <div>
-            <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-neutral-500">Soon</div>
+          <div className="min-w-0 flex-1">
             <h2 className="mt-1 text-[15px] font-semibold text-neutral-100">Import from youzign.com</h2>
             <p className="mt-1 text-[13px] leading-6 text-neutral-500">
-              Your legacy designs return when the archive is restored.
+              Find your rescued legacy designs and save them to this device.
             </p>
+            <button className={`${accentBtn} mt-4`} onClick={() => setLegacyOpen(true)}>
+              <Icon name="search" size={15} /> Find my designs
+            </button>
           </div>
         </div>
       </div>
+      {legacyOpen && <LegacyImportModal onClose={() => setLegacyOpen(false)} onRefresh={onRefresh} />}
     </section>
   );
 }

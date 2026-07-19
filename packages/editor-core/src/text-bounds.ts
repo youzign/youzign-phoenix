@@ -1,3 +1,4 @@
+import { textScale as sharedTextScale, textOrigin } from "@youzign/designstring";
 import type { CommonItemFields, TextFields } from "@youzign/designstring";
 import type { SelBox } from "./geometry.js";
 
@@ -75,10 +76,9 @@ export function textMatrixCenter(
 }
 
 function textScale(item: CommonItemFields & TextFields) {
-  return {
-    sx: item.textAreaWidth ? item.mcWidth / item.textAreaWidth : 1,
-    sy: item.textAreaHeight ? item.mcHeight / item.textAreaHeight : 1,
-  };
+  // Shared AABB-aware reconstruction so the selection chrome matches the
+  // renderer for rotated legacy text; identical to mc/textArea at θ=0.
+  return sharedTextScale(item);
 }
 
 export function wrappedTextLines(
@@ -123,8 +123,11 @@ function measuredTextLocalBounds(
     return {
       localCx: item.textAreaWidth / 2,
       localCy: item.textAreaHeight / 2,
-      w: item.mcWidth || item.textAreaWidth * sx,
-      h: item.mcHeight || item.textAreaHeight * sy,
+      // True (unrotated) local box = scale × text area. Equals mcWidth/mcHeight
+      // at θ=0; for rotated legacy text mc is the AABB, not this box, so derive
+      // from the reconstructed scale instead.
+      w: item.textAreaWidth * sx || item.mcWidth,
+      h: item.textAreaHeight * sy || item.mcHeight,
     };
   }
 
@@ -188,9 +191,7 @@ export function measuredTextBox(
   item: CommonItemFields & TextFields,
   measurer: TextMeasurer = fallbackMeasure
 ): SelBox {
-  const { sx, sy } = textScale(item);
-  const left = item.xpos + item.textAreaxpos * sx;
-  const top = item.ypos + item.textAreaypos * sy;
+  const { sx, sy, left, top } = textOrigin(item);
   const bounds = measuredTextLocalBounds(item, measurer);
   return {
     ...textMatrixCenter(item, left, top, bounds.localCx, bounds.localCy, sx, sy),

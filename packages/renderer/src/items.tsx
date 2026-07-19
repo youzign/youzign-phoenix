@@ -141,6 +141,27 @@ function buildRuns(content: string, colors: number[]): Run[] {
   return runs;
 }
 
+/**
+ * Per-line height (px) for a text item. Mirrors editor-core's
+ * measuredTextLocalBounds so the rendered glyphs and the selection box agree.
+ *
+ * Legacy non-wrapping text auto-sized its field to the CONTENT, so
+ * textAreaHeight is the height of ALL lines: a single line fills the box, but
+ * a multi-line item must SPLIT textAreaHeight across its lines (with a
+ * size×1.2 floor). The old code used textAreaHeight as every line's height,
+ * so a 2-line heading rendered at 2× its true height and dropped its second
+ * line onto the copy below it (the "snatchems beerfest pod" bug).
+ */
+export function textLineHeight(
+  item: Pick<TextItem, "wrapping" | "size" | "textAreaHeight" | "content">
+): number {
+  if (item.wrapping) return item.size * 1.2;
+  const lineCount = Math.max(1, (item.content || " ").split(/\r?\n/).length);
+  return lineCount > 1
+    ? Math.max(item.size * 1.2, item.textAreaHeight / lineCount)
+    : item.textAreaHeight;
+}
+
 function TextItemView({ item }: { item: TextItem }) {
   const { left, top, matrix } = textPlacement(item);
   const runs = buildRuns(item.content, item.colors);
@@ -152,7 +173,7 @@ function TextItemView({ item }: { item: TextItem }) {
     width: item.textAreaWidth,
     height: item.textAreaHeight,
     fontSize: item.size,
-    lineHeight: item.wrapping ? `${item.size * 1.2}px` : `${item.textAreaHeight}px`,
+    lineHeight: `${textLineHeight(item)}px`,
     fontFamily: `"${item.font}", sans-serif`,
     fontWeight: item.bold ? 700 : 400,
     fontStyle: item.italic ? "italic" : "normal",
@@ -275,6 +296,11 @@ function ClipartItemView({ item }: { item: ClipartItem }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, svgIsSource, item.width, item.height, item.colors.join(",")]);
+
+  // Legacy addClipartToStage (Main.ts:764) bails immediately on a source-less
+  // clipart ("if(pageItem.source == '') return;") — it renders nothing. Match
+  // that instead of drawing an "image unavailable" placeholder box.
+  if (!url) return null;
 
   const boxStyle: CSSProperties = {
     position: "absolute",

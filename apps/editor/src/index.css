@@ -23,6 +23,18 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Tailwind's preflight sets img/video/svg { max-width: 100% } which clamps
+   absolutely-positioned design items to the canvas width. Full-bleed legacy
+   images are routinely WIDER than the canvas (e.g. a 2882px-wide image on a
+   1027px canvas, cropped by the canvas overflow) — the clamp squeezed them
+   into a sliver. Design-canvas content must honor its exact inline sizes. */
+.yz-canvas img,
+.yz-canvas svg,
+.yz-canvas video {
+  max-width: none;
+  max-height: none;
+}
+
 /* Kill native number spinners — we use compact fields */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {

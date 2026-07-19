@@ -1,6 +1,7 @@
 import { parse, serialize } from "@youzign/designstring";
 import { documentFromXml, type EditorDocument, normalizeDocument, parseAutosave } from "../document.js";
 import { LS_PREFIX } from "../store.js";
+import { remapLegacyDesign } from "./remapLegacy.js";
 import { promisifyRequest } from "./uploads.js";
 
 export interface DocumentRecord {
@@ -81,7 +82,10 @@ export function documentRecordFromXml(name: string, xml: string, now = Date.now(
 
 export function editorDocumentFromRecord(rec: Pick<DocumentRecord, "pages" | "titles" | "activePage">): EditorDocument {
   return normalizeDocument({
-    pages: rec.pages.map((xml, i) => ({ design: parse(xml), title: rec.titles[i] || undefined })),
+    pages: rec.pages.map((xml, i) => ({
+      design: remapLegacyDesign(parse(xml)),
+      title: rec.titles[i] || undefined,
+    })),
     activePage: rec.activePage,
   });
 }

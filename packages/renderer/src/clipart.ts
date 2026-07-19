@@ -80,6 +80,54 @@ function recolor(svgEl: Element, hexColors: string[]): void {
   }
 }
 
+// Every inlined clipart shares generic internal ids (the rescued legacy SVGs all
+// use `id="Layer1_0_FILL"` + `<use xlink:href="#Layer1_0_FILL">`). When several
+// different cliparts are inlined into the SAME document, a `<use href="#id">`
+// resolves to the FIRST element with that id anywhere in the page — so every
+// clipart would paint the first one's shape. Namespace all ids (and the intra-
+// SVG references to them) with a per-instance prefix so each inlined SVG is
+// self-contained. This is a correctness fix for ALL svg cliparts; it changes no
+// visual/recolor semantics.
+let svgInstanceCounter = 0;
+
+function namespaceIds(svgEl: Element): void {
+  const ids = new Set<string>();
+  const collect = (el: Element) => {
+    const id = el.getAttribute("id");
+    if (id) ids.add(id);
+    for (const child of Array.from(el.children)) collect(child);
+  };
+  collect(svgEl);
+  if (ids.size === 0) return;
+
+  const prefix = `yzc${svgInstanceCounter++}-`;
+  const rename = (id: string) => `${prefix}${id}`;
+
+  const rewrite = (el: Element) => {
+    const id = el.getAttribute("id");
+    if (id && ids.has(id)) el.setAttribute("id", rename(id));
+    for (const attr of Array.from(el.attributes)) {
+      const name = attr.name.toLowerCase();
+      let val = attr.value;
+      // Reference forms: href="#id" / xlink:href="#id".
+      if ((name === "href" || name === "xlink:href") && val.startsWith("#")) {
+        const ref = val.slice(1);
+        if (ids.has(ref)) el.setAttribute(attr.name, `#${rename(ref)}`);
+        continue;
+      }
+      // Functional refs anywhere (fill/clip-path/mask/filter, incl. inside style).
+      if (val.includes("url(")) {
+        val = val.replace(/url\((['"]?)#([^)'"]+)\1\)/g, (m, q: string, ref: string) =>
+          ids.has(ref) ? `url(${q}#${rename(ref)}${q})` : m
+        );
+        if (val !== attr.value) el.setAttribute(attr.name, val);
+      }
+    }
+    for (const child of Array.from(el.children)) rewrite(child);
+  };
+  rewrite(svgEl);
+}
+
 export interface InlinedSvg {
   markup: string;
 }
@@ -101,6 +149,7 @@ export function inlineClipartSvg(
 
   sanitize(svgEl);
   recolor(svgEl, colorInts.map(signedIntToHex));
+  namespaceIds(svgEl);
 
   svgEl.setAttribute("width", String(width));
   svgEl.setAttribute("height", String(height));
@@ -109,7 +158,16 @@ export function inlineClipartSvg(
   return { markup: new XMLSerializer().serializeToString(svgEl) };
 }
 
-/** True when a clipart source URL points at an SVG (vs a raster fallback). */
+/**
+ * True when a clipart source points at an SVG we can inline + recolor.
+ *
+ * Covers both a plain `.svg` URL (desktop app, live backend) AND an
+ * `data:image/svg+xml` data URL. The legacy-import flow inlines every fetched
+ * asset — including the clipart SVG — as a base64 data URL, so by the time the
+ * renderer sees it the `.svg` extension is gone. Without matching the data-URL
+ * form, inlined cliparts fell through to the raw <img> path and rendered in the
+ * SVG's default fill instead of the item's stored color(s).
+ */
 export function isSvgSource(url: string): boolean {
-  return /\.svg(\?|#|$)/i.test(url);
+  return /^data:image\/svg\+xml/i.test(url) || /\.svg(\?|#|$)/i.test(url);
 }

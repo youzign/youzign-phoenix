@@ -1,6 +1,6 @@
 // Geometry ports of the legacy Utils.ts matrix builders (scale = 1).
 
-import type { CommonItemFields, TextFields } from "@youzign/designstring";
+import { textOrigin, type CommonItemFields, type TextFields } from "@youzign/designstring";
 
 export interface CssMatrix {
   a: number;
@@ -35,17 +35,15 @@ export function textPlacement(
   item: CommonItemFields & TextFields
 ): { left: number; top: number; matrix: CssMatrix } {
   const radians = (item.rotation * Math.PI) / 180;
-  const sx = item.textAreaWidth ? item.mcWidth / item.textAreaWidth : 1;
-  const sy = item.textAreaHeight ? item.mcHeight / item.textAreaHeight : 1;
+  // AABB-aware scale + Flash-faithful anchor for rotated legacy text; both
+  // degenerate to mc/textArea and an axis-aligned offset at θ=0.
+  const { sx, sy, left, top } = textOrigin(item);
 
   const cos = Math.cos(radians) * sx;
   const sin = Math.sin(radians) * sy;
 
-  const left = item.xpos + item.textAreaxpos * sx;
-  const top = item.ypos + item.textAreaypos * sy;
-
-  // createTextMatrix: since centerX==originalX, the rotation term collapses and
-  // translate == (left, top). Matrix = (cos*sx, sin*sy, -sin*sy, cos*sx, left, top).
+  // createTextMatrix: the div's local (0,0) is placed at (left, top) and the
+  // box rotates+scales about it. Matrix = (cos*sx, sin*sy, -sin*sy, cos*sx, left, top).
   return {
     left,
     top,

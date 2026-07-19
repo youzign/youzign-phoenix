@@ -1,0 +1,63 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="none" x="0px" y="0px" width="296px" height="142px" viewBox="0 0 296 142">
+<defs>
+<g id="Layer5_0_FILL">
+<path fill="#313742" stroke="none" d="
+M 266.65 98.9
+Q 266.65 94.2 263.35 90.9 260 87.6 255.35 87.6
+L 45.3 87.6
+Q 40.6 87.6 37.3 90.9 34 94.2 34 98.9
+L 34 224.55 266.65 224.55 266.65 98.9 Z"/>
+</g>
+
+<g id="Layer4_0_FILL">
+<path fill="#DCDFE1" stroke="none" d="
+M 43.9 212.4
+L 256.75 212.4 256.75 98.1 43.9 98.1 43.9 212.4 Z"/>
+</g>
+
+<g id="Layer3_0_FILL">
+<path fill="#DCDFE1" stroke="none" d="
+M 2.35 220.4
+Q 3.05 224 5.9 226.35 8.8 228.7 12.5 228.7
+L 288.15 228.7
+Q 291.9 228.7 294.75 226.35 297.6 224 298.3 220.4
+L 2.35 220.4 Z"/>
+</g>
+
+<g id="Layer2_0_FILL">
+<path fill="#CED4D7" stroke="none" d="
+M 150.3 95.2
+Q 151.15 95.2 151.7 94.6 152.3 94.05 152.3 93.2 152.3 92.4 151.7 91.8 151.15 91.2 150.3 91.2 149.5 91.2 148.9 91.8 148.35 92.35 148.35 93.2 148.35 94.05 148.9 94.6 149.5 95.2 150.3 95.2 Z"/>
+</g>
+
+<g id="Layer1_0_FILL">
+<path fill="#CED4D7" stroke="none" d="
+M 135.35 220.5
+Q 135.6 221.7 136.35 222.5 137.15 223.3 138.1 223.3
+L 162.55 223.3
+Q 163.5 223.3 164.25 222.5 165 221.75 165.25 220.5
+L 135.35 220.5 Z"/>
+</g>
+</defs>
+
+<g transform="matrix( 1, 0, 0, 1, -2.35,-87.6) ">
+<use xlink:href="#Layer5_0_FILL"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, -2.35,-87.6) ">
+<use xlink:href="#Layer4_0_FILL"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, -2.35,-87.6) ">
+<use xlink:href="#Layer3_0_FILL"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, -2.35,-87.6) ">
+<use xlink:href="#Layer2_0_FILL"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, -2.35,-87.6) ">
+<use xlink:href="#Layer1_0_FILL"/>
+</g>
+</svg>

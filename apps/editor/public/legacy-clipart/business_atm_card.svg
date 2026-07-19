@@ -1,0 +1,71 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="none" x="0px" y="0px" width="290px" height="177px" viewBox="0 0 290 177">
+<defs>
+<g id="Layer3_0_FILL">
+<path fill="#18AF81" stroke="none" d="
+M 295 71.15
+Q 295 65.8 291.2 61.95 287.35 58.15 282 58.15
+L 18 58.15
+Q 12.65 58.15 8.8 61.95 5 65.8 5 71.15
+L 5 222.3
+Q 5 227.65 8.8 231.5 12.65 235.3 18 235.3
+L 282 235.3
+Q 287.35 235.3 291.2 231.5 295 227.65 295 222.3
+L 295 71.15 Z"/>
+</g>
+
+<g id="Layer2_0_FILL">
+<path fill="#FFC836" stroke="none" d="
+M 228.4 176.95
+Q 221.3 184.05 221.3 194.1 221.3 204.15 228.4 211.25 235.5 218.35 245.55 218.35 255.6 218.35 262.75 211.25 269.85 204.15 269.85 194.1 269.85 184.05 262.75 176.95 255.6 169.8 245.55 169.8 235.5 169.8 228.4 176.95 Z"/>
+</g>
+
+<g id="Layer1_0_FILL">
+<path fill="#2C3E50" stroke="none" d="
+M 295 115.55
+L 295 81.4 5 81.4 5 115.55 295 115.55 Z"/>
+</g>
+
+<g id="Layer1_1_FILL">
+<path fill="#35495E" stroke="none" d="
+M 225.1 95.55
+Q 218 88.4 207.95 88.4 197.9 88.4 190.8 95.55 183.65 102.65 183.65 112.7 183.65 122.75 190.8 129.85 197.9 136.95 207.95 136.95 218 136.95 225.1 129.85 232.2 122.75 232.2 112.7 232.2 102.65 225.1 95.55 Z"/>
+</g>
+
+<g id="Layer1_2_FILL">
+<path fill="#35495E" stroke="none" d="
+M 72.8 140.3
+L 72.8 128.3 33.05 128.3 33.05 140.3 72.8 140.3 Z"/>
+</g>
+
+<g id="Layer1_3_FILL">
+<path fill="#35495E" stroke="none" d="
+M 269.85 140.3
+L 269.85 128.3 91.5 128.3 91.5 140.3 269.85 140.3 Z"/>
+</g>
+</defs>
+
+<g transform="matrix( 1, 0, 0, 1, -5,-58.15) ">
+<use xlink:href="#Layer3_0_FILL"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, -5,-58.15) ">
+<use xlink:href="#Layer2_0_FILL"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, -5,-58.15) ">
+<use xlink:href="#Layer1_0_FILL"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 0,23.25) ">
+<use xlink:href="#Layer1_1_FILL"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, -5,-58.15) ">
+<use xlink:href="#Layer1_2_FILL"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, -5,-58.15) ">
+<use xlink:href="#Layer1_3_FILL"/>
+</g>
+</svg>

@@ -1,4 +1,5 @@
 import { parse, serialize, type Design } from "@youzign/designstring";
+import { remapLegacyDesign } from "./library/remapLegacy.js";
 
 export interface PageEntry {
   design: Design;
@@ -104,14 +105,17 @@ export function parseAutosave(raw: string): EditorDocument {
     if (Array.isArray(payload.pages) && payload.pages.length > 0) {
       const titles = Array.isArray(payload.titles) ? payload.titles : [];
       return normalizeDocument({
-        pages: payload.pages.map((xml, i) => ({ design: parse(xml), title: titles[i] || undefined })),
+        pages: payload.pages.map((xml, i) => ({
+          design: remapLegacyDesign(parse(xml)),
+          title: titles[i] || undefined,
+        })),
         activePage: payload.activePage ?? 0,
       });
     }
   }
-  return { pages: [{ design: parse(raw) }], activePage: 0 };
+  return { pages: [{ design: remapLegacyDesign(parse(raw)) }], activePage: 0 };
 }
 
 export function documentFromXml(xml: string): EditorDocument {
-  return { pages: [{ design: parse(xml) }], activePage: 0 };
+  return { pages: [{ design: remapLegacyDesign(parse(xml)) }], activePage: 0 };
 }

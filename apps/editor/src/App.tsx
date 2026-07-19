@@ -8,6 +8,8 @@ import { PropertiesPanel } from "./components/PropertiesPanel.js";
 import { LayersPanel } from "./components/LayersPanel.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { ensureGoogleFonts } from "./fonts.js";
+import { ensureLegacyFonts } from "./legacyFontFaces.js";
+import { collectSelfHostFonts } from "./library/legacyFonts.js";
 import {
   editorDocumentFromRecord,
   getDocument,
@@ -74,6 +76,11 @@ function EditorView() {
   useEffect(() => {
     const fonts = new Set<string>();
     collectFonts(design.items, fonts);
+    // Self-hosted legacy faces (no Google equivalent): inject their @font-face
+    // and keep them out of the Google Fonts request (which would 400 on them).
+    const selfHost = collectSelfHostFonts(design.items);
+    ensureLegacyFonts(selfHost);
+    for (const f of selfHost) fonts.delete(f.family);
     ensureGoogleFonts([...fonts]);
   }, [design]);
 

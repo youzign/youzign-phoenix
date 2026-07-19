@@ -1,7 +1,7 @@
 // Selection-box geometry: a center-based, rotated box per item, used by the
 // editor overlay for handles and hit-testing. Coordinates are in canvas space.
 
-import type { Item } from "@youzign/designstring";
+import { textOrigin, type Item } from "@youzign/designstring";
 import { measuredTextBox } from "./text-bounds.js";
 
 export interface SelBox {
@@ -138,12 +138,9 @@ export function itemBox(item: Item & Record<string, any>): SelBox {
         const s = item.topDirection ? 1 : -1;
         return { cx: item.xpos, cy: item.ypos + (s * (h - pad)) / 2, w, h, rotation: item.rotation };
       }
-      const sx = item.textAreaWidth ? item.mcWidth / item.textAreaWidth : 1;
-      const sy = item.textAreaHeight ? item.mcHeight / item.textAreaHeight : 1;
-      const left = item.xpos + item.textAreaxpos * sx;
-      const top = item.ypos + item.textAreaypos * sy;
-      const w = item.mcWidth || item.textAreaWidth * sx;
-      const h = item.mcHeight || item.textAreaHeight * sy;
+      const { sx, sy, left, top } = textOrigin(item);
+      const w = item.textAreaWidth * sx || item.mcWidth;
+      const h = item.textAreaHeight * sy || item.mcHeight;
       return { cx: left + w / 2, cy: top + h / 2, w, h, rotation: item.rotation };
     }
     case "text": {
