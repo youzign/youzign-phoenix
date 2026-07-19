@@ -1,0 +1,57 @@
+{
+  "checks": {
+    "dashboard_loads": {
+      "pass": true
+    },
+    "legacy_grid": {
+      "pass": true,
+      "headerText": "Welcome back, marketing (i*@y***.com) — 1360 designs foundSelect all",
+      "foundCount": 1360,
+      "thumbStats": {
+        "total": 1333,
+        "loadedGt0": 32
+      }
+    },
+    "exact_title_match": {
+      "ok": true,
+      "candidateCount": 1,
+      "totalCards": 1360
+    },
+    "import_darkknight": {
+      "summaryText": "1 imported, 0 failedDone",
+      "imported": 1,
+      "failed": 0,
+      "pass": true,
+      "importBtnText": "Import 1 designs"
+    },
+    "open_darkknight": {
+      "ok": true,
+      "candidateCount": 1
+    },
+    "canvas_content": {
+      "editorState": null,
+      "screenshot": "05-darkknight-canvas.png"
+    },
+    "bug_report": {
+      "pass": true,
+      "error": null
+    }
+  },
+  "consoleErrors": [
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error loading remote stylesheet JSHandle@error",
+    "Error loading remote stylesheet JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Fredericka+the+Great:wght@400;700&family=IMFELLEnglish:wght@400;700&display=swap JSHandle@error"
+  ],
+  "generatedAt": "2026-07-19T15:34:45.561Z",
+  "url": "https://www.youzign.com/editor",
+  "consoleErrorCount": 6,
+  "notableConsoleErrors": [
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error loading remote stylesheet JSHandle@error",
+    "Error loading remote stylesheet JSHandle@error"
+  ]
+}
