@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legacy Claim (Import from youzign.com) — Progress</title>
+<style>
+  :root { --ink:#1A1A1A; --vellum:#F7F5F0; --paper:#EDEBE6; --muted:#6B6459; --dim:#8B867B; --accent:#0D9488; --accent-deep:#0F766E; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--vellum); color:var(--ink); font-family:'Inter',-apple-system,sans-serif; line-height:1.55; }
+  .wrap { max-width:880px; margin:0 auto; padding:48px 24px 96px; }
+  .eyebrow { display:inline-block; font-family:ui-monospace,'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.13em; text-transform:uppercase; color:var(--accent-deep); background:#fff; border:1px solid rgba(26,26,26,0.12); border-radius:999px; padding:4px 12px; transform:rotate(-2deg); }
+  h1 { font-size:34px; font-weight:600; letter-spacing:-0.02em; margin:16px 0 8px; }
+  h1 em { font-family:Georgia,'Instrument Serif',serif; font-style:italic; font-weight:400; }
+  .sub { color:var(--muted); font-size:14.5px; max-width:66ch; }
+  .legend { margin-top:14px; font-size:12px; color:var(--dim); }
+  .legend .tag { margin-left:0; margin-right:6px; }
+  .meta { margin-top:12px; font-size:12.5px; color:var(--muted); }
+  .meta code { background:var(--paper); border-radius:6px; padding:1px 6px; }
+  .entry { background:#fff; border:1px solid rgba(26,26,26,0.08); border-radius:20px; padding:24px 28px; margin-top:24px; box-shadow:0 18px 40px -30px rgba(26,26,26,0.35); }
+  .entry .ts { font-family:ui-monospace,'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); }
+  .entry h2 { font-size:19px; font-weight:600; margin:6px 0 8px; }
+  .entry p, .entry li { font-size:14px; color:#3a362f; }
+  .tag { display:inline-block; font-size:11px; font-weight:600; border-radius:999px; padding:2px 10px; margin-left:8px; vertical-align:2px; }
+  .tag.done { background:#DDE8D9; color:#3D5A35; }
+  .tag.wip { background:#D6ECEA; color:var(--accent-deep); }
+  .tag.blocked { background:#F6DEDB; color:#8C3A30; }
+  .tag.plan { background:#E7E2D8; color:#6B6459; }
+  code { background:var(--paper); border-radius:6px; padding:1px 6px; font-size:12.5px; }
+  pre { background:#1A1A1A; color:#EDEBE6; border-radius:12px; padding:14px 16px; font-size:12.5px; overflow:auto; font-family:ui-monospace,'IBM Plex Mono',monospace; }
+  .note { margin-top:12px; font-size:13px; color:#3a362f; background:#FBF7EE; border:1px solid rgba(13,148,136,0.25); border-left:3px solid var(--accent); border-radius:10px; padding:10px 14px; }
+  .warn { margin-top:12px; font-size:13px; color:#3a362f; background:#FDF3F1; border:1px solid rgba(140,58,48,0.25); border-left:3px solid #8C3A30; border-radius:10px; padding:10px 14px; }
+  .shots { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin-top:14px; }
+  .shots figure { margin:0; }
+  .shots img { width:100%; border:1px solid rgba(26,26,26,0.12); border-radius:12px; display:block; background:#151518; }
+  .shots figcaption { font-size:12px; color:var(--dim); margin-top:6px; }
+  table { width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid rgba(26,26,26,0.08); }
+  th { color:var(--dim); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="eyebrow">Live progress log</span>
+  <h1>Legacy claim — <em>Import from youzign.com, tested end to end.</em></h1>
+  <p class="sub">The dashboard's "Import from youzign.com" card lets a returning user type their old email/username, browse a grid of their rescued legacy designs (from the 2015-era Youzign, DEZ-73), pick which ones they want, and pull them onto this device. Backend was already deployed and verified in isolation; this pass drives the real editor UI end to end against the live edge function and a seeded test account. Newest first.</p>
+  <p class="legend">
+    <span class="tag plan">Plan</span> not started ·
+    <span class="tag wip">WIP</span> in progress ·
+    <span class="tag done">Done</span> built/verified ·
+    <span class="tag blocked">Blocked</span> needs input
+  </p>
+  <p class="meta">Repo <code>~/Projects/dev/youzign-next</code> · editor dev server <code>localhost:5191</code> · e2e script <code>scripts/e2e-legacy-import.mjs</code> · shots in <code>legacy-claim-shots/</code> · data rescue background in <code>../LEGACY-DATA-RESCUE.md</code></p>
+
+  <article class="entry">
+    <span class="ts">2026-07-16 · re-run after font / clipart / id-namespacing fixes (qa5)</span><span class="tag done">Done</span>
+    <h2>QA5 — 15/7/4 → <strong>16 MATCH / 8 MINOR / 2 BROKEN</strong> of 26</h2>
+    <p><strong>What changed:</strong> three more render-pipeline fixes landed since qa4 — (1) <strong>self-hosted legacy fonts</strong> in <code>apps/editor/public/legacy-fonts/</code>, (2) <strong>.swf → bundled-SVG clipart resolution</strong>, and (3) <strong>renderer SVG id-namespacing</strong>. This QA5 pass re-imports the <em>exact same 26 designs</em> (still read straight from <code>qa3-results.json</code> by title/design_id, per account, so the sample never drifts) through the newly-fixed pipeline and re-judges each canvas against its qa3 server thumbnail with the same MATCH/MINOR/BROKEN rules. Sanity gates green first: full test suite (<strong>408 tests across renderer 24 / editor-core 196 / editor 188</strong>) and <code>pnpm -r build</code> both passed (build's only warning is the benign &gt;500 kB chunk-size notice). Scripts: <code>scripts/e2e-qa5.mjs</code> + <code>scripts/e2e-qa5-recapture.mjs</code> (2400×2800 viewport for large canvases), each run against a <strong>fresh throwaway Chrome profile</strong> so nothing from a prior run lingered in IndexedDB/cache. Plumbing again solid: <strong>26/26 imported, 0 hard failures</strong>, only the two 2015 gen-1 designs warned about missing images (same server-side asset gap as qa3/qa4).</p>
+    <table>
+      <tr><th>The 3 new fixes</th><th>Effect seen in qa5</th></tr>
+      <tr><td>1 · Self-hosted legacy fonts (<code>public/legacy-fonts/</code>)</td><td>ISSPWhichTypeofAccount's body text no longer overflows/overlaps — the mapped display faces now load locally, so line-heights are correct and every paragraph is legible (BROKEN → MINOR).</td></tr>
+      <tr><td>2 · .swf → bundled-SVG clipart resolution</td><td>Boxroom Business Card's black swoosh + red social icons now render (were dropped in qa4); ISSPWhich's divider rules now draw as lines instead of placeholder boxes.</td></tr>
+      <tr><td>3 · Renderer SVG id-namespacing</td><td>No cross-design gradient/clip bleed observed; all previously-passing MATCH/MINOR designs held with zero regressions across the 26.</td></tr>
+    </table>
+    <table>
+      <tr><th>Verdict</th><th>qa3</th><th>qa4</th><th>qa5</th></tr>
+      <tr><td>MATCH</td><td>9</td><td>15</td><td><strong>16</strong></td></tr>
+      <tr><td>MINOR</td><td>8</td><td>7</td><td><strong>8</strong></td></tr>
+      <tr><td>BROKEN</td><td>9</td><td>4</td><td><strong>2</strong></td></tr>
+    </table>
+    <p><strong>The only two verdict moves since qa4</strong> (account · title · qa4 → qa5) — both upgrades, no regressions anywhere else:</p>
+    <table>
+      <tr><th>Account</th><th>Design</th><th>qa4</th><th>qa5</th></tr>
+      <tr><td>imgllc</td><td>ISSPWhichTypeofAccount</td><td>❌ BROKEN</td><td>✅ MINOR</td></tr>
+      <tr><td>7YgkgPFJ</td><td>Boxroom Business Card</td><td>❌ BROKEN</td><td>✅ MATCH</td></tr>
+    </table>
+    <div class="note"><strong>Zero regressions:</strong> all 15 qa4-MATCH designs stayed MATCH and all 7 qa4-MINOR designs stayed MINOR. The self-hosted-font fix cleared ISSPWhich's text overlap (now a clean MINOR — divider clipart renders as thin rules vs the thumb's thicker ellipses, and the display font is a near-match substitute), and the clipart fix restored Boxroom Business Card's black swoosh and red social icons (now a faithful MATCH).</div>
+    <div class="warn"><strong>2 designs still BROKEN</strong> — hand-off detail for engineering:
+      <ul>
+        <li><strong>Inform</strong> (imgllc, gen3/json, design_id 13406389) — the note/pencil icon renders cleanly, but the canvas still opens at <strong>320×225 instead of 1000×1000</strong>. This is the same canvas-size bug flagged in qa3/qa4, untouched by the font/clipart/id fixes. Designstring: <code>legacy-claim-shots/qa3/designstrings/imgllc-gen3-13406389.txt</code>.</li>
+        <li><strong>snatchems beerfest pod</strong> (7YgkgPFJ, gen3/json, design_id 14603375) — photo, Golden Ball Hotel logo and body copy all render, but the "mid-week stay in a luxury" heading still renders far too large in a fallback face and <strong>overlaps the body paragraph</strong>. The heading font specifically is still unmapped (distinct from the ISSPWhich faces that the self-hosted set now covers). Designstring: <code>legacy-claim-shots/qa3/designstrings/7YgkgPFJ-gen3-14603375.txt</code>.</li>
+      </ul>
+    </div>
+    <p><strong>Before → after (left = qa4 canvas, right = qa5 canvas)</strong> for the two changed designs plus the flagged watch-items:</p>
+    <div class="shots">
+      <figure><img src="legacy-claim-shots/qa4/imgllc-isspwhichtypeofaccount-canvas.png" alt="ISSPWhich before"><figcaption>ISSPWhichTypeofAccount — BEFORE (qa4): .swf dividers + font overlap (BROKEN)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa5/imgllc-isspwhichtypeofaccount-canvas.png" alt="ISSPWhich after"><figcaption>✅ AFTER (qa5): text legible, no overlap, dividers draw as rules — MINOR</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/7YgkgPFJ-boxroom-business-card-canvas.png" alt="Boxroom card before"><figcaption>Boxroom Business Card — BEFORE (qa4): black swoosh + red icons missing (BROKEN)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa5/7YgkgPFJ-boxroom-business-card-canvas.png" alt="Boxroom card after"><figcaption>✅ AFTER (qa5): swoosh + fb/twitter icons + logo all render — MATCH</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/imgllc-inform-canvas.png" alt="Inform before"><figcaption>Inform — BEFORE (qa4): canvas 320×225 vs 1000×1000 (BROKEN)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa5/imgllc-inform-canvas.png" alt="Inform after"><figcaption>❌ AFTER (qa5): icon clean but canvas still 320×225 — still BROKEN (canvas-size bug)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/7YgkgPFJ-snatchems-beerfest-pod-canvas.png" alt="snatchems before"><figcaption>snatchems — BEFORE (qa4): heading overlaps body (BROKEN)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa5/7YgkgPFJ-snatchems-beerfest-pod-canvas.png" alt="snatchems after"><figcaption>❌ AFTER (qa5): heading font still unmapped, still overlaps body — still BROKEN</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/7YgkgPFJ-esell-price-banner-white-w-border-canvas.png" alt="Esell before"><figcaption>Esell price banner — BEFORE (qa4): outline numerals, partial fill (MINOR)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa5/7YgkgPFJ-esell-price-banner-white-w-border-canvas.png" alt="Esell after"><figcaption>AFTER (qa5): unchanged — £499 renders, some glyphs fill-vs-outline — MINOR</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/mackcarbon-15x100-mtb-vork-2021-grijze-achtergrond-canvas.png" alt="15x100 before"><figcaption>15×100 mtb vork — BEFORE (qa4): rotated text renders, font sub (MINOR)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa5/mackcarbon-15x100-mtb-vork-2021-grijze-achtergrond-canvas.png" alt="15x100 after"><figcaption>AFTER (qa5): unchanged — THOR logo + fork photo + rotated "15x100 mm / 29 inch" all render — MINOR</figcaption></figure>
+    </div>
+    <div class="note"><strong>Bottom line:</strong> the three new fixes cleared two more of the four remaining qa4 failures with no regressions — <strong>BROKEN is down to 2 of 26 (Inform, snatchems)</strong> and MATCH+MINOR now covers 24/26 (~92%). The two stragglers are narrow, known, and degrade legibly: one canvas-size bug (Inform) and one still-unmapped heading font (snatchems). Recommend fixing those two before a broad "import all your old designs" announcement; the feature is comfortably <strong>safe for soft / opt-in rollout now</strong>.</div>
+  </article>
+
+  <article class="entry">
+    <span class="ts">2026-07-16 · re-run after 4 render fixes (qa4)</span><span class="tag done">Done</span>
+    <h2>Re-QA after the fixes — 9/8/9 → <strong>15 MATCH / 7 MINOR / 4 BROKEN</strong> of 26</h2>
+    <p><strong>What changed:</strong> four render-pipeline fixes landed in the working tree since the qa3 pass. This run re-imports the <em>exact same 26 designs</em> (read straight from <code>qa3-results.json</code> by title, per account) through the fixed pipeline and re-judges each canvas against its server thumbnail with the same MATCH/MINOR/BROKEN rules. Full test suite (169 tests, 21 files) and <code>pnpm -r build</code> were both green before the visual pass. Script: <code>scripts/e2e-qa4.mjs</code> + <code>scripts/e2e-qa4-recapture.mjs</code> (2400×2800 viewport for tall canvases), run against a <strong>fresh throwaway Chrome profile</strong> each time so nothing from qa3 lingered in IndexedDB/cache and every design re-imported cleanly. Plumbing again solid: 26/26 imported, 0 hard failures, only the two 2015 gen-1 designs warned about missing images (same as qa3, server-side asset gap).</p>
+    <table>
+      <tr><th>The 4 fixes</th><th>Effect seen in qa4</th></tr>
+      <tr><td>1 · Clipart recolor applied (data-URL SVGs recolored; source-less cliparts render nothing)</td><td><strong>Biggest win.</strong> OMS flyer blue shapes are blue again, Boxroom Pineapple correct, DJ Mike Pelsis 2 box now grey (#858585) not slate-blue, HiQ voucher's 21 source-less cliparts now render nothing instead of a placeholder column.</td></tr>
+      <tr><td>2 · Legacy font loader (Google-Fonts-mappable names now load)</td><td>Unl eng v spain now renders in condensed uppercase (BebasNeue mapped) — was a lowercase sans fallback. Sales 3 red heading now correct. Proprietary/unmappable fonts still fall back (expected).</td></tr>
+      <tr><td>3 · Rotated-text AABB placement</td><td>15×100 mtb vork's rotated "15x100 mm / 29 inch" text now renders (was dropped entirely); slight upward position drift remains.</td></tr>
+      <tr><td>4 · Canvas img/svg CSS clamp removed</td><td>VirtualCombinationLock's full-canvas dial now fills 1027×1536 (was a left-edge sliver) — clean MATCH. Boxroom Pineapple photo no longer shifted.</td></tr>
+    </table>
+    <table>
+      <tr><th>Verdict</th><th>qa3</th><th>qa4</th></tr>
+      <tr><td>MATCH</td><td>9</td><td><strong>15</strong></td></tr>
+      <tr><td>MINOR</td><td>8</td><td><strong>7</strong></td></tr>
+      <tr><td>BROKEN</td><td>9</td><td><strong>4</strong></td></tr>
+      <tr><td>(excluded — title collision)</td><td>1</td><td>1</td></tr>
+    </table>
+    <p><strong>Per-design deltas</strong> (account · title · qa3 → qa4):</p>
+    <table>
+      <tr><th>Account</th><th>Design</th><th>qa3</th><th>qa4</th></tr>
+      <tr><td>imgllc</td><td>VirtualCombinationLockContactUS</td><td>BROKEN</td><td>✅ MATCH</td></tr>
+      <tr><td>imgllc</td><td>ISSPWhichTypeofAccount</td><td>BROKEN</td><td>❌ BROKEN</td></tr>
+      <tr><td>imgllc</td><td>Inform</td><td>BROKEN</td><td>❌ BROKEN</td></tr>
+      <tr><td>imgllc</td><td>Kindle cover e</td><td>MINOR</td><td>MINOR</td></tr>
+      <tr><td>imgllc</td><td>Deandra Newton 2015</td><td>MINOR</td><td>MINOR</td></tr>
+      <tr><td>imgllc</td><td>Deandra Newton LegalShield 2015</td><td>MINOR</td><td>MINOR</td></tr>
+      <tr><td>imgllc</td><td>MyronFOBtrans · MYRUNGOLDNSILVER · ISSP Tranparent</td><td>MATCH</td><td>MATCH</td></tr>
+      <tr><td>mackcarbon</td><td>DJ Mike Pelsis 2</td><td>MINOR</td><td>✅ MATCH</td></tr>
+      <tr><td>mackcarbon</td><td>Sales 3</td><td>MINOR</td><td>✅ MATCH</td></tr>
+      <tr><td>mackcarbon</td><td>15x100 mtb vork 2021 grijze achtergrond</td><td>BROKEN</td><td>✅ MINOR</td></tr>
+      <tr><td>mackcarbon</td><td>BOTTLE CAGES FRONT PIC</td><td>MINOR</td><td>MINOR</td></tr>
+      <tr><td>mackcarbon</td><td>WW flatbar · WW riserbar · Thor Hammer · zadel handvast</td><td>MATCH</td><td>MATCH</td></tr>
+      <tr><td>mackcarbon</td><td>DJ Mike Pelsis</td><td>EXCLUDED</td><td>EXCLUDED (title collision w/ "DJ Mike Pelsis 2")</td></tr>
+      <tr><td>7YgkgPFJ</td><td>Boxroom Pineapple</td><td>BROKEN</td><td>✅ MATCH</td></tr>
+      <tr><td>7YgkgPFJ</td><td>HiQ beerfest voucher</td><td>BROKEN</td><td>✅ MATCH</td></tr>
+      <tr><td>7YgkgPFJ</td><td>OMS flyer back</td><td>BROKEN</td><td>✅ MINOR</td></tr>
+      <tr><td>7YgkgPFJ</td><td>Unl eng v spain</td><td>MINOR</td><td>✅ MATCH</td></tr>
+      <tr><td>7YgkgPFJ</td><td>Boxroom Business Card</td><td>BROKEN</td><td>❌ BROKEN (improved)</td></tr>
+      <tr><td>7YgkgPFJ</td><td>snatchems beerfest pod</td><td>BROKEN</td><td>❌ BROKEN (improved)</td></tr>
+      <tr><td>7YgkgPFJ</td><td>Esell price banner white w border</td><td>MINOR</td><td>MINOR</td></tr>
+      <tr><td>7YgkgPFJ</td><td>B2K transparent logo · SandJ security</td><td>MATCH</td><td>MATCH</td></tr>
+    </table>
+    <div class="note"><strong>5 of the 9 qa3-BROKEN designs are now passing</strong> (VirtualCombinationLock, Boxroom Pineapple, HiQ voucher → MATCH; 15×100 vork, OMS flyer → MINOR), plus 3 MINOR→MATCH upgrades (DJ Mike Pelsis 2, Sales 3, Unl eng v spain). No regressions among the qa3 MATCH/MINOR set (WW riserbar's blank centre matches its own server thumb — it's a logo/title card, not a dropped photo).</div>
+    <div class="warn"><strong>4 designs still BROKEN</strong> — hand-off detail for engineering:
+      <ol>
+        <li><strong>ISSPWhichTypeofAccount</strong> (imgllc, gen3/xml, id 1189179) — the two divider cliparts still render as grey striped placeholders and the substituted heading font overlaps the body text at the bottom. Not a recolor case; the dividers appear to be <code>.swf</code>/Flash with no static source, and the heading font is unmappable.</li>
+        <li><strong>Inform</strong> (imgllc, gen3/json, id 13406389) — icon now renders cleanly but the canvas still opens at <strong>320×225</strong> where the designstring says <strong>1000×1000</strong> (square, icon centred small). Canvas-dimension bug — not one of the 4 fixes, still outstanding.</li>
+        <li><strong>Boxroom Business Card</strong> (7YgkgPFJ, gen3/xml, id 7124137) — big improvement (red background restored, phantom "JHONNY DO" text gone), but the defining bold <strong>black swoosh graphic is absent</strong> and the red left-hand contact icons (phone/chat/home) don't render.</li>
+        <li><strong>snatchems beerfest pod</strong> (7YgkgPFJ, gen3/json, id 14603375) — white arch is white now (recolor fixed), but the display heading ("mid-week stay in a luxury") still <strong>overlaps the body text</strong> — an unmappable heading font mis-sizes/mis-positions the text item.</li>
+      </ol>
+      Two themes remain: unmappable proprietary/display fonts causing text overlap (ISSPWhich, snatchems), and a couple of specific graphics that still don't render (Boxroom swoosh, ISSPWhich dividers). Raw designstrings for these are in <code>legacy-claim-shots/qa3/designstrings/</code>.</div>
+    <div class="note"><strong>Known, expected gaps (not blockers):</strong> proprietary/display fonts with no Google-Fonts equivalent still fall back to a substitute (correct behaviour); <code>.swf</code>-only Flash cliparts with no static source render as nothing (correct); images that 404 server-side (the two 2015 Deandra designs) show an "Image unavailable" placeholder (correct, and warned to the user at import time).</div>
+    <p><strong>Before → after for the 9 designs that were BROKEN in qa3</strong> (left = qa3 canvas, right = qa4 canvas):</p>
+    <div class="shots">
+      <figure><img src="legacy-claim-shots/qa3/imgllc-virtualcombinationlockcontactus-canvas.png" alt="VirtualCombinationLock before"><figcaption>VirtualCombinationLock — BEFORE (qa3): left-edge sliver</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/imgllc-virtualcombinationlockcontactus-canvas.png" alt="VirtualCombinationLock after"><figcaption>✅ AFTER (qa4): dial fills the canvas — MATCH</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/7YgkgPFJ-boxroom-pineapple-canvas.png" alt="Boxroom Pineapple before"><figcaption>Boxroom Pineapple — BEFORE (qa3): shifted / faded</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/7YgkgPFJ-boxroom-pineapple-canvas.png" alt="Boxroom Pineapple after"><figcaption>✅ AFTER (qa4): correctly placed — MATCH</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/7YgkgPFJ-hiq-beerfest-voucher-canvas.png" alt="HiQ voucher before"><figcaption>HiQ voucher — BEFORE (qa3): placeholder-clipart column</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/7YgkgPFJ-hiq-beerfest-voucher-canvas.png" alt="HiQ voucher after"><figcaption>✅ AFTER (qa4): clean — source-less cliparts render nothing — MATCH</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/7YgkgPFJ-oms-flyer-back-canvas.png" alt="OMS flyer before"><figcaption>OMS flyer — BEFORE (qa3): all blue shapes grey</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/7YgkgPFJ-oms-flyer-back-canvas.png" alt="OMS flyer after"><figcaption>✅ AFTER (qa4): blue shapes blue again — MINOR (font sub)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/mackcarbon-15x100-mtb-vork-2021-grijze-achtergrond-canvas.png" alt="15x100 before"><figcaption>15×100 mtb vork — BEFORE (qa3): rotated text dropped</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/mackcarbon-15x100-mtb-vork-2021-grijze-achtergrond-canvas.png" alt="15x100 after"><figcaption>✅ AFTER (qa4): rotated "15x100 mm" text renders — MINOR</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/7YgkgPFJ-boxroom-business-card-canvas.png" alt="Boxroom card before"><figcaption>Boxroom Business Card — BEFORE (qa3): swoosh grey, phantom text</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/7YgkgPFJ-boxroom-business-card-canvas.png" alt="Boxroom card after"><figcaption>❌ AFTER (qa4): red restored, phantom text gone — but black swoosh + red icons still missing (BROKEN)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/7YgkgPFJ-snatchems-beerfest-pod-canvas.png" alt="snatchems before"><figcaption>snatchems — BEFORE (qa3): arch grey + text overlap</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/7YgkgPFJ-snatchems-beerfest-pod-canvas.png" alt="snatchems after"><figcaption>❌ AFTER (qa4): arch white now, but heading still overlaps body (BROKEN)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/imgllc-isspwhichtypeofaccount-canvas.png" alt="ISSPWhich before"><figcaption>ISSPWhich — BEFORE (qa3): placeholder dividers + overlap</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/imgllc-isspwhichtypeofaccount-canvas.png" alt="ISSPWhich after"><figcaption>❌ AFTER (qa4): essentially unchanged — .swf dividers + font overlap (BROKEN)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/imgllc-inform-canvas.png" alt="Inform before"><figcaption>Inform — BEFORE (qa3): 320×225, icon mis-scaled</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa4/imgllc-inform-canvas.png" alt="Inform after"><figcaption>❌ AFTER (qa4): icon clean but canvas still 320×225 vs 1000×1000 (BROKEN)</figcaption></figure>
+    </div>
+    <div class="note"><strong>Bottom line:</strong> the four fixes work and materially improve fidelity — BROKEN dropped from 9 to 4 (of 26), MATCH rose from 9 to 15. The clipart-recolor and font-loader fixes are the big movers. Remaining 4 BROKEN split into one canvas-size bug (Inform), two unmappable-font text-overlap cases (ISSPWhich, snatchems), and one still-missing graphic (Boxroom swoosh). Recommend fixing the canvas-size bug + the two overlap cases before a broad "import your old designs" announcement; the feature is safe for a soft/opt-in rollout now given ~85% of sampled designs render acceptably (MATCH+MINOR) and failures degrade legibly rather than crashing.</div>
+  </article>
+
+  <article class="entry">
+    <span class="ts">2026-07-16 · visual QA, 3 real customer accounts</span><span class="tag blocked">Blocked</span>
+    <h2>Render-fidelity QA against real customer designs — 9 MATCH / 8 MINOR / 9 BROKEN of 26</h2>
+    <p><strong>Setup:</strong> three seeded REAL customer accounts on the new live backend — <code>imgllc</code> (426 designs, v1+v2+v3, XML+JSON), <code>mackcarbon</code> (109, v3), <code>7YgkgPFJ</code> (253, v3). Per account: grid screenshot (server thumbnails = ground truth), a mixed sample of ~9 designs imported through the real UI (<code>node scripts/e2e-qa3.mjs</code>), each opened in the editor and its canvas screenshotted next to the server thumbnail (pairs in <code>legacy-claim-shots/qa3/pairs/</code>). Tall canvases recaptured with a 2400×2800 viewport (<code>scripts/e2e-qa3-recapture.mjs</code>) after the first pass baked editor UI into element shots.</p>
+    <p><strong>The plumbing is solid:</strong> 26/26 selected designs imported with 0 hard failures, and only ONE design pair produced "images couldn't be downloaded" warnings (the two 2015 gen-1 designs, 2 images each) — the server rescue clearly worked. The problem is <em>render fidelity</em>:</p>
+    <table>
+      <tr><th>Verdict</th><th>Count</th><th>Designs</th></tr>
+      <tr><td>MATCH</td><td>9</td><td>MyronFOBtrans, MYRUNGOLDNSILVER, ISSP Tranparent, WW flatbar, WW riserbar, Thor Hammer topcap, zadel handvast, B2K logo, SandJ security</td></tr>
+      <tr><td>MINOR</td><td>8</td><td>Deandra ×2 (missing imgs, warned; no server thumb), Kindle cover e, DJ Mike Pelsis 2, Sales 3, BOTTLE CAGES, Esell banner, Unl eng v spain</td></tr>
+      <tr><td>BROKEN</td><td>9</td><td>ISSPWhichTypeofAccount, Inform, VirtualCombinationLockContactUS, 15x100 mtb vork, Boxroom Pineapple, Boxroom Business Card, HiQ beerfest voucher, snatchems beerfest pod, OMS flyer back</td></tr>
+    </table>
+    <div class="warn"><strong>Four systemic bugs behind the BROKEN column</strong> (raw designstrings for every affected design saved in <code>legacy-claim-shots/qa3/designstrings/</code>):
+      <ol>
+        <li><strong>Clipart recolor is not applied</strong> — SVG cliparts render in the asset's default slate-gray instead of the stored color. Evidence: OMS flyer (all blue shapes → gray), Boxroom Business Card (red/black swoosh → gray), snatchems (white arch → gray), DJ Mike Pelsis 2 (stored <code>#858585</code>, renders blue). Hits XML and JSON eras alike — the single biggest fidelity killer.</li>
+        <li><strong>Legacy fonts not loaded/mapped</strong> — BebasNeue, Coolvetica, SteinemRoman, Yanone, Cooper et al fall back to a plain sans, changing case (all-caps display fonts show lowercase), width and wrapping — causing text overlaps (snatchems, ISSPWhich).</li>
+        <li><strong>JSON matrix placement still fails on some designs</strong> — VirtualCombinationLockContactUS (gen3 id 13626898): single 960×540 image, matrix scale 3.002 / x −934 should fill the 1027×1536 canvas (thumb confirms); renders as a thin sliver on the left edge.</li>
+        <li><strong>Canvas size wrong on one JSON design</strong> — Inform (gen3 id 13406389): designstring says 1000×1000, editor opens it at 320×225 and the icon is mis-scaled relative to canvas.</li>
+      </ol>
+      Plus two smaller ones: a rotated text item dropped entirely (15x100 mtb vork), and source-less cliparts rendering as a visible column of placeholder icons (HiQ voucher — invisible in the original).</div>
+    <div class="note"><strong>What already works well:</strong> photos download and place correctly in the majority of designs, multi-page-free XML layouts (logos + product shots + captions) are frequently pixel-faithful (see the Thor pairs), transparent canvases survive, and missing-image warnings are now rare (1 design pair of 26 vs "many" pre-rescue).</div>
+    <div class="shots">
+      <figure><img src="legacy-claim-shots/qa3/grid-imgllc.png" alt="imgllc grid 426 designs"><figcaption>Grid — "Welcome back, imgllc — 426 designs found"</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/pairs/mackcarbon-thor-hammer-topcap-pair.png" alt="Thor topcap match pair"><figcaption>MATCH — Thor Hammer topcap (left thumb, right canvas): pixel-faithful</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/pairs/7YgkgPFJ-sandj-security-services-wide-pair.png" alt="SandJ match pair"><figcaption>MATCH — SandJ security (JSON era)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/pairs/7YgkgPFJ-oms-flyer-back-pair.png" alt="OMS flyer color loss"><figcaption>BROKEN — OMS flyer: perfect layout, ALL blue shapes render gray (recolor bug)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/pairs/7YgkgPFJ-boxroom-business-card-pair.png" alt="Business card color loss"><figcaption>BROKEN — business card: red/black swoosh → gray, icons gone, hidden "JHONNY DO" text surfaces</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/pairs/imgllc-virtualcombinationlockcontactus-pair.png" alt="Combination lock sliver"><figcaption>BROKEN — matrix placement: full-canvas image renders as a left-edge sliver</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/pairs/imgllc-inform-pair.png" alt="Inform canvas size wrong"><figcaption>BROKEN — Inform: canvas 1000×1000 in data, opens at 320×225</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/pairs/7YgkgPFJ-unl-eng-v-spain-pair.png" alt="Unl eng v spain font substitution"><figcaption>MINOR — layout perfect, BebasNeue falls back to lowercase plain sans</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/pairs/7YgkgPFJ-snatchems-beerfest-pod-pair.png" alt="snatchems overlap"><figcaption>BROKEN — snatchems: arch white→gray + heading font fallback overlaps body text</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/pairs/mackcarbon-15x100-mtb-vork-2021-grijze-achtergrond-pair.png" alt="15x100 missing rotated text"><figcaption>BROKEN — rotated "15x100 mm / 29 inch" text item dropped entirely</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/pairs/7YgkgPFJ-boxroom-pineapple-pair.png" alt="Boxroom pineapple shifted"><figcaption>BROKEN — photo shifted left vs thumb (and 0.5 opacity honored from data while thumb is opaque)</figcaption></figure>
+      <figure><img src="legacy-claim-shots/qa3/pairs/mackcarbon-sales-3-pair.png" alt="Sales 3 font fallback"><figcaption>MINOR — Sales 3: everything renders, red heading font substituted</figcaption></figure>
+    </div>
+    <div class="warn"><strong>Bottom line: NOT safe to announce yet.</strong> Import plumbing + data rescue are done, but ~1 in 3 sampled designs opens visibly wrong. The clipart-recolor bug and the font fallback account for most of it and look very fixable; the matrix-sliver and canvas-size cases need the saved designstrings above.</div>
+  </article>
+
+  <article class="entry">
+    <span class="ts">2026-07-14 · e2e verified</span><span class="tag done">Done</span>
+    <h2>Full flow driven in real Chrome against the live backend — 7/7 steps pass</h2>
+    <p><strong>Background:</strong> ~4,000 legacy designs across three Youzign generations were rescued from the pre-2018 AWS/WordPress stack ahead of account closure and copied into a Backblaze B2 bucket (<code>youzign-archive</code>, object keys mirroring the original AWS layout). The test account <code>marketing</code> / <code>in@youzign.com</code> was seeded with 58 v1 + 92 v2 + 1,210 v3 designs (1,360 total) for this pass. Full rescue recap: <code>../LEGACY-DATA-RESCUE.md</code>.</p>
+    <p><strong>Two bugs found and fixed during backend smoke testing (before this UI pass, already deployed):</strong></p>
+    <table>
+      <tr><th>Bug</th><th>Fix</th></tr>
+      <tr><td>Supabase query capped lookup results at 1,000 rows — the <code>marketing</code> account (1,360 designs) silently lost its last 360</td><td>Added pagination to the lookup query so it walks past the default row cap</td></tr>
+      <tr><td>Some v3 design thumbnail keys were stored without the <code>x/</code> prefix the B2 layout expects, so those thumbs 404'd even though the object existed</td><td>SQL backfill adding the missing <code>x/</code> prefix on affected v3 thumb keys</td></tr>
+    </table>
+    <p><strong>This pass — UI end to end (<code>node scripts/e2e-legacy-import.mjs</code>, real Chrome, live edge function, no mocks):</strong></p>
+    <table>
+      <tr><th>Step</th><th>Result</th></tr>
+      <tr><td>(a) Dashboard shows the import card</td><td>Pass — under the Backup tab</td></tr>
+      <tr><td>(b) Step 1: identifier entry</td><td>Pass</td></tr>
+      <tr><td>(c) Step 2: design grid</td><td>Pass — header reads "Welcome back, marketing … 1360 designs found"; thumbnails render (real images confirmed via naturalWidth &gt; 0)</td></tr>
+      <tr><td>(d) Not-found path (<code>zzz-no-such-user-zzz</code>)</td><td>Pass — "No account found for that email or username."</td></tr>
+      <tr><td>(e) Select 5 designs across generations, import</td><td>Pass — "4 imported, 1 failed" summary, with per-design asset warnings surfaced</td></tr>
+      <tr><td>(f) Dashboard reflects the import</td><td>Pass — document count 0 → 4</td></tr>
+      <tr><td>(g) Open an imported design in the editor</td><td>Pass — canvas paints real content (logo, text, graphic layers), not blank</td></tr>
+    </table>
+    <div class="note"><strong>Thumbnail load rate observed:</strong> of ~1,333 <code>&lt;img&gt;</code> thumbnails in the DOM at grid-load time (lazy/viewport-loaded subset), 53 had confirmed non-zero <code>naturalWidth</code> within the 3s sampling window used by the script — the rest were still off-screen/lazy or mid-fetch, not necessarily failed. Visual inspection of the rendered grid (screenshot 03) shows a healthy mix of real thumbnails with only the expected occasional placeholder icon for missing assets — consistent with "some 404 → placeholder is OK."</div>
+    <div class="warn"><strong>Anomaly — one hard import failure:</strong> of the 5 selected designs, 4 imported cleanly (2 with only partial-asset warnings) and 1 ("dezygnaudit") failed outright rather than importing with a warning. Two other designs ("Storey 2", "Packaging Design Back") imported successfully but logged missing-image warnings — expected for pre-2018 Flash-clipart designs per the known <code>.swf</code>-rendering limitation noted in the data-rescue doc. The hard failure on "dezygnaudit" is worth a follow-up look (possibly a malformed/edge-case designstring for that one legacy record) but is a data-layer question, not a UI bug — not investigated further here per the "feature code is frozen" scope of this test pass.</div>
+    <div class="note"><strong>Console noise, not bugs:</strong> CORS-blocked <code>fetch</code> errors when inlining a handful of legacy image assets from Backblaze B2 (expected — these become the "images couldn't be downloaded" warnings shown to the user) and pre-existing cross-origin Google Fonts CSS warnings during thumbnailing (same known noise seen in other e2e runs in this repo, unrelated to this feature).</div>
+    <div class="shots">
+      <figure><img src="legacy-claim-shots/01-dashboard-import-card.png" alt="Dashboard Backup tab with Import from youzign.com card"><figcaption>(a) Dashboard → Backup tab → "Import from youzign.com" card</figcaption></figure>
+      <figure><img src="legacy-claim-shots/02-modal-step1-identifier.png" alt="Modal step 1 with marketing typed in"><figcaption>(b) Step 1 — identifier "marketing" entered</figcaption></figure>
+      <figure><img src="legacy-claim-shots/03-modal-step2-grid.png" alt="Step 2 design grid loaded"><figcaption>(c) Step 2 — "1360 designs found", real thumbnails rendering</figcaption></figure>
+      <figure><img src="legacy-claim-shots/04-modal-not-found.png" alt="Not found message for bad identifier"><figcaption>(d) Not-found path for a bogus identifier</figcaption></figure>
+      <figure><img src="legacy-claim-shots/05-modal-selected-designs.png" alt="5 designs selected across generations"><figcaption>(e) 5 designs selected, ready to import</figcaption></figure>
+      <figure><img src="legacy-claim-shots/06-modal-import-progress.png" alt="Import in progress"><figcaption>(e) Import progress state — "Importing N of 5"</figcaption></figure>
+      <figure><img src="legacy-claim-shots/07-modal-import-summary.png" alt="Import summary 4 imported 1 failed"><figcaption>(e) Final summary — 4 imported, 1 failed, asset warnings listed</figcaption></figure>
+      <figure><img src="legacy-claim-shots/08-dashboard-after-import.png" alt="Dashboard showing 4 new designs"><figcaption>(f) Dashboard now lists the 4 imported designs</figcaption></figure>
+      <figure><img src="legacy-claim-shots/09-editor-imported-design.png" alt="Imported design open in the editor with painted canvas"><figcaption>(g) An imported design open in the editor — canvas paints real content</figcaption></figure>
+    </div>
+  </article>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "phase": "after",
+  "snatchems": {
+    "dims": {
+      "stateW": 1800,
+      "stateH": 750,
+      "cssW": 1800,
+      "cssH": 750,
+      "rectW": 1080,
+      "rectH": 450,
+      "items": 11
+    },
+    "out": "/Users/dezygn/Projects/dev/youzign-next/docs/planning/legacy-claim-shots/final-2/snatchems-after-canvas.png"
+  }
+}

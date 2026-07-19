@@ -1,0 +1,414 @@
+{
+  "items": {
+    "1-dashboard-sanity": {
+      "pass": true,
+      "textContent": "Hello WebKit"
+    },
+    "2-legacy-import-darkknight": {
+      "pass": true,
+      "thumbCheck": {
+        "total": 1333,
+        "withNaturalWidth": 40
+      },
+      "summaryText": "1 imported, 0 failedDone",
+      "opened": true,
+      "canvasState": {
+        "itemsCount": 3,
+        "texts": [
+          "Dark Knight",
+          "John Doe"
+        ],
+        "hasFullBleedImage": true
+      },
+      "fontLoaded": true
+    },
+    "3-clipart-recolor": {
+      "pass": true,
+      "opened": true,
+      "svgInfo": {
+        "svgCount": 18
+      },
+      "totalSampled": 40,
+      "totalShapePixels": 30,
+      "blueLikeCount": 20,
+      "grayShapeCount": 10,
+      "hueDump": [
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 255,
+          "g": 255,
+          "b": 255,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 255,
+          "g": 255,
+          "b": 255,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 255,
+          "g": 255,
+          "b": 255,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 255,
+          "g": 255,
+          "b": 255,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 255,
+          "g": 255,
+          "b": 255,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 255,
+          "g": 255,
+          "b": 255,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 255,
+          "g": 255,
+          "b": 255,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 255,
+          "g": 255,
+          "b": 255,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 255,
+          "g": 255,
+          "b": 255,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 255,
+          "g": 255,
+          "b": 255,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 203,
+          "g": 203,
+          "b": 203,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 203,
+          "g": 203,
+          "b": 203,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 203,
+          "g": 203,
+          "b": 203,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 203,
+          "g": 203,
+          "b": 203,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 203,
+          "g": 203,
+          "b": 203,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 53,
+          "g": 152,
+          "b": 219,
+          "h": 204,
+          "s": 70
+        },
+        {
+          "r": 203,
+          "g": 203,
+          "b": 203,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 203,
+          "g": 203,
+          "b": 203,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 203,
+          "g": 203,
+          "b": 203,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 203,
+          "g": 203,
+          "b": 203,
+          "h": 0,
+          "s": 0
+        },
+        {
+          "r": 203,
+          "g": 203,
+          "b": 203,
+          "h": 0,
+          "s": 0
+        }
+      ]
+    },
+    "4-legacy-font": {
+      "pass": true,
+      "opened": true,
+      "fontErrors": [],
+      "allConsoleErrorsDuringTest": [
+        "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+        "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+        "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+        "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403"
+      ]
+    },
+    "5-bug-report-form": {
+      "pass": true,
+      "intercepted": {
+        "method": "POST",
+        "body": {
+          "category": "import",
+          "description": "WebKit e2e verification run — testing bug report submission.",
+          "email": "webkit-e2e@example.com",
+          "appVersion": "1.0.2",
+          "platform": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15 | browser"
+        }
+      }
+    },
+    "6-not-found": {
+      "pass": true,
+      "modalTextSnippet": "Import from youzign.comBring your rescued legacy designs into this device.CloseEmail or usernameNo account found for that email or username. Find my designs"
+    }
+  },
+  "consoleErrors": [
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "[pageerror] /youzign-landing.vercel.app/version.json due to access control checks.",
+    "Failed to load resource: Origin http://localhost:5191 is not allowed by Access-Control-Allow-Origin. Status code: 403",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "consoleErrorsIgnored": [
+    "Error inlining remote css file SecurityError: Not allowed to access cross-origin stylesheet",
+    "Error inlining remote css file SecurityError: Not allowed to access cross-origin stylesheet",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap SecurityError: Not allowed to access cross-origin stylesheet",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Fredericka+the+Great:wght@400;700&family=IMFELLEnglish:wght@400;700&display=swap SecurityError: Not allowed to access cross-origin stylesheet",
+    "Error inlining remote css file SecurityError: Not allowed to access cross-origin stylesheet",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap SecurityError: Not allowed to access cross-origin stylesheet",
+    "Error inlining remote css file SecurityError: Not allowed to access cross-origin stylesheet",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap SecurityError: Not allowed to access cross-origin stylesheet"
+  ]
+}

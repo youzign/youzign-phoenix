@@ -1,0 +1,76 @@
+{
+  "results": [
+    {
+      "identifier": "mackcarbon",
+      "title": "15x100 mtb vork 2021 grijze achtergrond",
+      "out": "/Users/dezygn/Projects/dev/youzign-next/docs/planning/legacy-claim-shots/rotated-text-fix/before-mackcarbon-15x100-mtb-vork-2021-grijze-achtergrond-canvas.png",
+      "info": {
+        "items": 4,
+        "w": 1445,
+        "h": 2560,
+        "texts": [
+          {
+            "content": "15x100 mm\n29 inch",
+            "rotation": -90.5659415730855,
+            "taW": 727.3,
+            "taH": 326.3,
+            "mcW": 333.5,
+            "mcH": 730.45,
+            "xpos": 1166,
+            "ypos": 421
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "marketing",
+      "title": "darkknight",
+      "out": "/Users/dezygn/Projects/dev/youzign-next/docs/planning/legacy-claim-shots/rotated-text-fix/before-marketing-darkknight-canvas.png",
+      "info": {
+        "items": 3,
+        "w": 1130,
+        "h": 1500,
+        "texts": [
+          {
+            "content": "Dark Knight",
+            "rotation": 0,
+            "taW": 640.555,
+            "taH": 135,
+            "mcW": 609.657249543801,
+            "mcH": 128.4881527556777,
+            "xpos": 568.7843630213605,
+            "ypos": 162.89878489801814
+          },
+          {
+            "content": "John Doe",
+            "rotation": 0,
+            "taW": 239.977,
+            "taH": 76.5,
+            "mcW": 251.0870462962963,
+            "mcH": 80.04166666666667,
+            "xpos": 567.2475590225873,
+            "ypos": 1383.0701606875932
+          }
+        ]
+      }
+    }
+  ],
+  "consoleErrors": [
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Access to fetch at 'https://fonts.googleapis.com/css2?family=Coolvetica:wght@400;700&display=swap' from origin 'http://localhost:5191' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Error loading remote stylesheet JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Coolvetica:wght@400;700&display=swap JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Access to fetch at 'https://fonts.googleapis.com/css2?family=Coolvetica:wght@400;700&display=swap' from origin 'http://localhost:5191' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Error loading remote stylesheet JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Coolvetica:wght@400;700&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Fredericka+the+Great:wght@400;700&family=IMFELLEnglish:wght@400;700&display=swap JSHandle@error"
+  ]
+}

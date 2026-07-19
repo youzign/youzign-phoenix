@@ -1,0 +1,35 @@
+{
+  "subject": "QA5 'Inform' (imgllc, design_id 13406389) '320x225 canvas' claim is a HARNESS ARTIFACT, not a bug",
+  "settled_on": "2026-07-19",
+  "verdict": "b+c — the QA5 harness imported/opened the WRONG design (title-substring collision), and the reference thumb is that other design's image, not a render of 13406389.",
+  "root_cause": {
+    "harness_bug": "scripts/e2e-qa5.mjs matches grid/dashboard cards with `(el.textContent||'').includes(title)`. The pick title is the bare string 'Inform', which is a substring of two OTHER designs on the same imgllc account.",
+    "colliding_designs_from_server_lookup": [
+      { "design_id": 13626390, "title": "InformationImage320X225", "canvas": "320x225" },
+      { "design_id": 13406993, "title": "Inform01", "canvas": "1000x1000" },
+      { "design_id": 13406389, "title": "Inform", "canvas": "1000x1000" }
+    ],
+    "dom_order_in_grid": ["InformationImage320X225", "Inform01", "Inform"],
+    "harness_first_includes_Inform_match": "InformationImage320X225",
+    "consequence": "Every `.includes('Inform')` lookup in qa5 (thumb capture, checkbox tick, dashboard open) resolved to the DOM-first card 'InformationImage320X225' — a genuine 320x225 landscape image design whose name literally states its size. So qa5/imgllc-inform-thumb.png and qa5/imgllc-inform-canvas.png are BOTH InformationImage320X225, NOT design 13406389."
+  },
+  "real_inform_13406389_evidence": {
+    "payload_canvasData": "width=1000 height=1000, one clipart (pencil icon-UZiDTv.svg), matrix scale 1.5209 -> ~389x389 centered at (500,482)",
+    "imported_via_real_modal_ui": {
+      "DocumentRecord": "1000x1000",
+      "editor_state_canvasWidth_x_Height": "1000x1000",
+      "yz-canvas_css": "1000x1000",
+      "items": 1
+    },
+    "screenshot": "../final-2/imgllc-Inform-REAL-canvas.png (1000x1000 square, small centered pencil on white — correct)",
+    "matches": "the earlier Opus agent's live-pipeline finding (opened 1000x1000, not reproducible)"
+  },
+  "collision_design_evidence": {
+    "InformationImage320X225_13626390": {
+      "DocumentRecord": "320x225",
+      "editor_state": "320x225",
+      "screenshot": "../final-2/imgllc-InformationImage320X225-canvas.png (landscape pencil filling frame — identical to the mislabeled qa5 imgllc-inform-canvas.png)"
+    }
+  },
+  "conclusion": "No product/import bug for 'Inform'. The import path renders design 13406389 correctly at 1000x1000. The qa5 '320x225' reference and canvas are the unrelated 'InformationImage320X225' design pulled in by a substring-match bug in the test harness (which matches by non-unique title text). Not release-blocking."
+}

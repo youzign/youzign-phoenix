@@ -1,0 +1,124 @@
+{
+  "picks": [
+    {
+      "design_id": 14600068,
+      "generation": 3,
+      "title": "darkknight",
+      "thumb_url": "https://f005.backblazeb2.com/file/youzign-archive/wp-content/uploads/x/2024/03/thumbnail-eKtVep.png?Authorization=3_20260716172203_5386bed0633f05a777b13894_38bbfeb6e2f5800fb3f869dcead96f9ea4f9cf1f_005_20260723172203_0000_dnld",
+      "thumbShot": true,
+      "editor": {
+        "items": 3,
+        "w": 1130,
+        "h": 1500,
+        "bgType": "color"
+      },
+      "canvasShot": "docs/planning/legacy-claim-shots/json-darkknight-canvas.png",
+      "opened": true,
+      "textSelection": {
+        "content": "Dark Knight",
+        "mcWidth": 609.657249543801,
+        "textAreaWidth": 640.555,
+        "xpos": 568.7843630213605,
+        "ypos": 162.89878489801814
+      }
+    },
+    {
+      "design_id": 12549735,
+      "generation": 3,
+      "title": "tamoservices",
+      "thumb_url": "https://f005.backblazeb2.com/file/youzign-archive/wp-content/uploads/x/2021/01/thumbnail-wZstbb.png?Authorization=3_20260716172203_5386bed0633f05a777b13894_38bbfeb6e2f5800fb3f869dcead96f9ea4f9cf1f_005_20260723172203_0000_dnld",
+      "thumbShot": true,
+      "editor": {
+        "items": 12,
+        "w": 1024,
+        "h": 768,
+        "bgType": "color"
+      },
+      "canvasShot": "docs/planning/legacy-claim-shots/json-tamoservices-canvas.png",
+      "opened": true
+    },
+    {
+      "design_id": 12584762,
+      "generation": 3,
+      "title": "Logo demo",
+      "thumb_url": "https://f005.backblazeb2.com/file/youzign-archive/wp-content/uploads/x/2021/01/thumbnail-LgxEKX.png?Authorization=3_20260716172203_5386bed0633f05a777b13894_38bbfeb6e2f5800fb3f869dcead96f9ea4f9cf1f_005_20260723172203_0000_dnld",
+      "thumbShot": true,
+      "editor": {
+        "items": 15,
+        "w": 1000,
+        "h": 1000,
+        "bgType": "color"
+      },
+      "canvasShot": "docs/planning/legacy-claim-shots/json-logo-demo-canvas.png",
+      "opened": true
+    },
+    {
+      "design_id": 11903188,
+      "generation": 3,
+      "title": "Compare zSuite",
+      "thumb_url": "https://f005.backblazeb2.com/file/youzign-archive/wp-content/uploads/x/2021/03/thumbnail-UfoH2U.png?Authorization=3_20260716172203_5386bed0633f05a777b13894_38bbfeb6e2f5800fb3f869dcead96f9ea4f9cf1f_005_20260723172203_0000_dnld",
+      "thumbShot": true,
+      "editor": {
+        "items": 24,
+        "w": 1035,
+        "h": 1000,
+        "bgType": "color"
+      },
+      "canvasShot": "docs/planning/legacy-claim-shots/json-compare-zsuite-canvas.png",
+      "opened": true
+    },
+    {
+      "design_id": 12369123,
+      "generation": 3,
+      "title": "Storey 2",
+      "thumb_url": "https://f005.backblazeb2.com/file/youzign-archive/wp-content/uploads/x/2021/01/thumbnail-r8Ll9G.png?Authorization=3_20260716172203_5386bed0633f05a777b13894_38bbfeb6e2f5800fb3f869dcead96f9ea4f9cf1f_005_20260723172203_0000_dnld",
+      "thumbShot": true,
+      "editor": {
+        "items": 8,
+        "w": 599,
+        "h": 398,
+        "bgType": "gradient"
+      },
+      "canvasShot": "docs/planning/legacy-claim-shots/json-storey-2-canvas.png",
+      "opened": true
+    },
+    {
+      "design_id": 12573336,
+      "generation": 3,
+      "title": "Blog first design in 5 minutes",
+      "thumb_url": "https://f005.backblazeb2.com/file/youzign-archive/wp-content/uploads/x/2021/01/thumbnail-lhqLK0.png?Authorization=3_20260716172203_5386bed0633f05a777b13894_38bbfeb6e2f5800fb3f869dcead96f9ea4f9cf1f_005_20260723172203_0000_dnld",
+      "thumbShot": true,
+      "editor": {
+        "items": 3,
+        "w": 1024,
+        "h": 480,
+        "bgType": "gradient"
+      },
+      "canvasShot": "docs/planning/legacy-claim-shots/json-blog-first-design-in-5-minutes-canvas.png",
+      "opened": true
+    }
+  ],
+  "import": {
+    "summaryText": "6 imported, 0 failedDone",
+    "imported": 6,
+    "failed": 0
+  },
+  "consoleErrorCount": 55,
+  "consoleErrorsSample": [
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Fredericka+the+Great:wght@400;700&family=IMFELLEnglish:wght@400;700&display=swap JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Access to fetch at 'https://fonts.googleapis.com/css2?family=Coolvetica:wght@400;700&display=swap' from origin 'http://localhost:5191' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Error loading remote stylesheet JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Fredericka+the+Great:wght@400;700&family=IMFELLEnglish:wght@400;700&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Coolvetica:wght@400;700&display=swap JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error"
+  ]
+}

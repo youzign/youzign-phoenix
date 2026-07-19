@@ -1,0 +1,56 @@
+[
+  {
+    "name": "virtualcombolock",
+    "title": "VirtualCombinationLockContactUS",
+    "json": true,
+    "thumb": "docs/planning/legacy-claim-shots/qa3/imgllc-virtualcombinationlockcontactus-thumb.png",
+    "record": {
+      "id": "36c12561-d9f9-44bf-a5cd-a5c3fe2d155c",
+      "w": 1027,
+      "h": 1536
+    },
+    "state": {
+      "canvas": [
+        1027,
+        1536
+      ],
+      "items": 1
+    }
+  },
+  {
+    "name": "inform",
+    "title": "Inform",
+    "json": true,
+    "thumb": "docs/planning/legacy-claim-shots/qa3/imgllc-inform-thumb.png",
+    "record": {
+      "id": "e6422484-1ea7-4555-8209-ec2f924142da",
+      "w": 1000,
+      "h": 1000
+    },
+    "state": {
+      "canvas": [
+        1000,
+        1000
+      ],
+      "items": 1
+    }
+  },
+  {
+    "name": "vork",
+    "title": "15x100 mtb vork (XML — renderer diagnosis)",
+    "json": false,
+    "thumb": "docs/planning/legacy-claim-shots/qa3/mackcarbon-15x100-mtb-vork-2021-grijze-achtergrond-thumb.png",
+    "record": {
+      "id": "f5d8ddf0-30cb-4e45-bfb7-a86ac16070c8",
+      "w": 1445,
+      "h": 2560
+    },
+    "state": {
+      "canvas": [
+        1445,
+        2560
+      ],
+      "items": 4
+    }
+  }
+]

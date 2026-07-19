@@ -1,0 +1,87 @@
+{
+  "phase": "before",
+  "informDesignsFromServer": [
+    {
+      "design_id": 13626390,
+      "title": "InformationImage320X225",
+      "generation": 3,
+      "format": "json"
+    },
+    {
+      "design_id": 13406993,
+      "title": "Inform01",
+      "generation": 3,
+      "format": "json"
+    },
+    {
+      "design_id": 13406389,
+      "title": "Inform",
+      "generation": 3,
+      "format": "json"
+    }
+  ],
+  "domInfo": {
+    "informOrderInDOM": [
+      "InformationImage320X225",
+      "Inform01",
+      "Inform"
+    ],
+    "harnessIncludesFirst": "InformationImage320X225"
+  },
+  "importSummary": "3 imported, 0 failedDone",
+  "recordsInDB": [
+    {
+      "name": "Inform",
+      "width": 1000,
+      "height": 1000
+    },
+    {
+      "name": "InformationImage320X225",
+      "width": 320,
+      "height": 225
+    },
+    {
+      "name": "Inform01",
+      "width": 1000,
+      "height": 1000
+    }
+  ],
+  "opened": {
+    "Inform": {
+      "dims": {
+        "stateW": 1000,
+        "stateH": 1000,
+        "cssW": 1000,
+        "cssH": 1000,
+        "rectW": 600,
+        "rectH": 600,
+        "items": 1
+      },
+      "out": "/Users/dezygn/Projects/dev/youzign-next/docs/planning/legacy-claim-shots/final-2/imgllc-Inform-REAL-canvas.png"
+    },
+    "InformationImage320X225": {
+      "dims": {
+        "stateW": 320,
+        "stateH": 225,
+        "cssW": 320,
+        "cssH": 225,
+        "rectW": 192,
+        "rectH": 135,
+        "items": 1
+      },
+      "out": "/Users/dezygn/Projects/dev/youzign-next/docs/planning/legacy-claim-shots/final-2/imgllc-InformationImage320X225-canvas.png"
+    }
+  },
+  "snatchems": {
+    "dims": {
+      "stateW": 1800,
+      "stateH": 750,
+      "cssW": 1800,
+      "cssH": 750,
+      "rectW": 1080,
+      "rectH": 450,
+      "items": 11
+    },
+    "out": "/Users/dezygn/Projects/dev/youzign-next/docs/planning/legacy-claim-shots/final-2/snatchems-before-canvas.png"
+  }
+}

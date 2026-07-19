@@ -1,0 +1,59 @@
+{
+  "a_dashboard_card": {
+    "pass": true,
+    "backupTabClicked": true
+  },
+  "b_modal_step1": {
+    "pass": true
+  },
+  "c_grid_loaded": {
+    "pass": true,
+    "headerText": "Welcome back, marketing (i*@y***.com) — 1360 designs foundSelect all",
+    "foundCount": 1360,
+    "usernameOk": true,
+    "thumbStats": {
+      "total": 1333,
+      "loadedGt0": 53
+    }
+  },
+  "d_not_found": {
+    "pass": true,
+    "notFoundMsg": "No account found for that email or username."
+  },
+  "e_import": {
+    "pass": true,
+    "summaryText": "4 imported, 1 failedCould not importdezygnauditStorey 2: 1 image couldn't be downloadedPackaging Design Back: 2 images couldn't be downloadedDone",
+    "picked": 5
+  },
+  "f_dashboard_updated": {
+    "pass": true,
+    "baselineCount": 0,
+    "afterCount": 4,
+    "delta": 4
+  },
+  "g_editor_opens": {
+    "pass": true,
+    "editorState": {
+      "itemCount": 5,
+      "w": 160,
+      "h": 600
+    }
+  },
+  "consoleErrorsSample": [
+    "Failed to load resource: the server responded with a status of 404 ()",
+    "Access to fetch at 'https://f005.backblazeb2.com/file/youzign-archive/wp-content/uploads/x/2018/04/youzign-logo-text-white-bW8VdQ.png?Authorization=3_20260714194144_b846274577d4c7edaec3ddd0_9c29e09dcc1df2d7f8df49165710fe5d9c244bce_005_20260721194144_0000_dnld' from origin 'http://localhost:5191' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Access to fetch at 'https://f005.backblazeb2.com/file/youzign-archive/wp-content/uploads/x/2018/12/zsuite-shirt-front-ReQhpU.png?Authorization=3_20260714194148_caf7e2ea6c1e71c98081da95_0ca248c530d5bd97d4586946f063de39c94397c0_005_20260721194148_0000_dnld' from origin 'http://localhost:5191' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Access to fetch at 'https://f005.backblazeb2.com/file/youzign-archive/wp-content/uploads/x/2018/12/zsuite-shirt-front-TWOniM.png?Authorization=3_20260714194148_caf7e2ea6c1e71c98081da95_0ca248c530d5bd97d4586946f063de39c94397c0_005_20260721194148_0000_dnld' from origin 'http://localhost:5191' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Access to fetch at 'https://fonts.googleapis.com/css2?family=PassingNotes:wght@400;700&display=swap' from origin 'http://localhost:5191' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Error loading remote stylesheet JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=PassingNotes:wght@400;700&display=swap JSHandle@error"
+  ],
+  "consoleErrorCount": 14
+}

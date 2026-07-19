@@ -1,0 +1,295 @@
+{
+  "accounts": [
+    {
+      "identifier": "imgllc",
+      "picks": [
+        {
+          "design_id": 32260,
+          "generation": 1,
+          "format": "xml",
+          "title": "Deandra Newton 2015",
+          "created_at": "2015-03-01T23:32:10+00:00"
+        },
+        {
+          "design_id": 32267,
+          "generation": 1,
+          "format": "xml",
+          "title": "Deandra Newton LegalShield 2015",
+          "created_at": "2015-03-01T23:38:45+00:00"
+        },
+        {
+          "design_id": 14345649,
+          "generation": 3,
+          "format": "json",
+          "title": "MyronFOBtrans",
+          "created_at": "2023-06-27T15:55:08+00:00"
+        },
+        {
+          "design_id": 14325455,
+          "generation": 3,
+          "format": "json",
+          "title": "MYRUNGOLDNSILVER",
+          "created_at": "2023-06-01T14:56:20+00:00"
+        },
+        {
+          "design_id": 1189179,
+          "generation": 3,
+          "format": "xml",
+          "title": "ISSPWhichTypeofAccount",
+          "created_at": "2016-02-11T21:59:29+00:00"
+        },
+        {
+          "design_id": 13406389,
+          "generation": 3,
+          "format": "json",
+          "title": "Inform",
+          "created_at": "2021-11-20T22:07:53+00:00"
+        },
+        {
+          "design_id": 3646828,
+          "generation": 3,
+          "format": "xml",
+          "title": "ISSP Tranparent",
+          "created_at": "2016-10-26T04:01:31+00:00"
+        },
+        {
+          "design_id": 13626898,
+          "generation": 3,
+          "format": "json",
+          "title": "VirtualCombinationLockContactUS",
+          "created_at": "2022-02-18T07:16:56+00:00"
+        },
+        {
+          "design_id": 3875370,
+          "generation": 3,
+          "format": "xml",
+          "title": "Kindle cover e",
+          "created_at": "2016-11-20T06:30:11+00:00"
+        }
+      ],
+      "warnings": [],
+      "totalDesigns": 426,
+      "eraBreakdown": {
+        "3/json": 80,
+        "3/xml": 275,
+        "2/xml": 51,
+        "1/xml": 20
+      },
+      "gridHeader": "Welcome back, imgllc (i*****8@g***.com) — 426 designs foundSelect all",
+      "checkedCount": 9,
+      "import": {
+        "summaryText": "9 imported, 0 failedDeandra Newton LegalShield 2015: 2 images couldn't be downloadedDeandra Newton 2015: 2 images couldn't be downloadedDone",
+        "imported": 9,
+        "failed": 0,
+        "warningsText": [
+          "9 imported, 0 failed",
+          "Deandra Newton LegalShield 2015: 2 images couldn't be downloadedDeandra Newton 2015: 2 images couldn't be downloaded",
+          "Done"
+        ],
+        "failedNames": []
+      }
+    },
+    {
+      "identifier": "mackcarbon",
+      "picks": [
+        {
+          "design_id": 10039365,
+          "generation": 3,
+          "format": "xml",
+          "title": "Weight Weenies flatbar opening",
+          "created_at": "2019-08-31T10:35:37+00:00"
+        },
+        {
+          "design_id": 10039383,
+          "generation": 3,
+          "format": "xml",
+          "title": "Weight weenies riserbar opening pic",
+          "created_at": "2019-08-31T10:42:59+00:00"
+        },
+        {
+          "design_id": 14911708,
+          "generation": 3,
+          "format": "json",
+          "title": "DJ Mike Pelsis 2",
+          "created_at": "2026-02-07T12:09:08+00:00"
+        },
+        {
+          "design_id": 14911704,
+          "generation": 3,
+          "format": "json",
+          "title": "DJ Mike Pelsis",
+          "created_at": "2026-02-07T12:06:18+00:00"
+        },
+        {
+          "design_id": 10375752,
+          "generation": 3,
+          "format": "xml",
+          "title": "Sales 3",
+          "created_at": "2019-11-13T17:19:29+00:00"
+        },
+        {
+          "design_id": 13240298,
+          "generation": 3,
+          "format": "json",
+          "title": "Thor Hammer topcap",
+          "created_at": "2021-09-19T15:44:07+00:00"
+        },
+        {
+          "design_id": 12460592,
+          "generation": 3,
+          "format": "xml",
+          "title": "15x100 mtb vork 2021 grijze achtergrond",
+          "created_at": "2020-12-20T08:44:38+00:00"
+        },
+        {
+          "design_id": 14709026,
+          "generation": 3,
+          "format": "json",
+          "title": "zadel handvast aangedraaid",
+          "created_at": "2024-09-03T11:49:01+00:00"
+        },
+        {
+          "design_id": 12490009,
+          "generation": 3,
+          "format": "xml",
+          "title": "BOTTLE CAGES FRONT PIC",
+          "created_at": "2020-12-28T12:20:58+00:00"
+        }
+      ],
+      "warnings": [],
+      "totalDesigns": 109,
+      "eraBreakdown": {
+        "3/json": 80,
+        "3/xml": 29
+      },
+      "gridHeader": "Welcome back, mackcarbon (m*****n@g***.com) — 109 designs foundSelect all",
+      "checkedCount": 8,
+      "import": {
+        "summaryText": "8 imported, 0 failedDone",
+        "imported": 8,
+        "failed": 0,
+        "warningsText": [],
+        "failedNames": []
+      }
+    },
+    {
+      "identifier": "7YgkgPFJ",
+      "picks": [
+        {
+          "design_id": 7122195,
+          "generation": 3,
+          "format": "xml",
+          "title": "Boxroom Pineapple",
+          "created_at": "2018-01-24T09:46:26+00:00"
+        },
+        {
+          "design_id": 7124137,
+          "generation": 3,
+          "format": "xml",
+          "title": "Boxroom Business Card",
+          "created_at": "2018-01-24T15:28:31+00:00"
+        },
+        {
+          "design_id": 14603377,
+          "generation": 3,
+          "format": "json",
+          "title": "HiQ beerfest voucher",
+          "created_at": "2024-03-06T12:25:03+00:00"
+        },
+        {
+          "design_id": 14603375,
+          "generation": 3,
+          "format": "json",
+          "title": "snatchems beerfest pod",
+          "created_at": "2024-03-06T12:24:45+00:00"
+        },
+        {
+          "design_id": 7644155,
+          "generation": 3,
+          "format": "xml",
+          "title": "OMS flyer back",
+          "created_at": "2018-04-16T13:04:34+00:00"
+        },
+        {
+          "design_id": 13116522,
+          "generation": 3,
+          "format": "json",
+          "title": "B2K transparent logo",
+          "created_at": "2021-07-27T06:08:59+00:00"
+        },
+        {
+          "design_id": 7927454,
+          "generation": 3,
+          "format": "xml",
+          "title": "Esell price banner white w border",
+          "created_at": "2018-06-08T07:37:07+00:00"
+        },
+        {
+          "design_id": 13745447,
+          "generation": 3,
+          "format": "json",
+          "title": "SandJ security services wide",
+          "created_at": "2022-04-14T07:22:41+00:00"
+        },
+        {
+          "design_id": 8351361,
+          "generation": 3,
+          "format": "xml",
+          "title": "Unl eng v spain",
+          "created_at": "2018-09-04T08:27:40+00:00"
+        }
+      ],
+      "warnings": [],
+      "totalDesigns": 253,
+      "eraBreakdown": {
+        "3/json": 80,
+        "3/xml": 173
+      },
+      "gridHeader": "Welcome back, 7YgkgPFJ (s*****s@t***.uk) — 253 designs foundSelect all",
+      "checkedCount": 9,
+      "import": {
+        "summaryText": "9 imported, 0 failedDone",
+        "imported": 9,
+        "failed": 0,
+        "warningsText": [],
+        "failedNames": []
+      }
+    }
+  ],
+  "userDataDir": "/var/folders/w7/v3kmj00x5xd6jvzzvk65r2cc0000gn/T/yz-qa5-chrome-Sc3UWr",
+  "generatedAt": "2026-07-16T19:13:50.781Z",
+  "consoleErrorCount": 344,
+  "consoleErrorsSample": [
+    "Access to fetch at 'https://f005.backblazeb2.com/file/youzign-archive/0577/32267/img/54f3a1693394d.png?Authorization=3_20260716191420_5d54e21afe2bfae1dde412af_44e7a35e5e3154d2812f5c8d2a9a59e4154790d9_005_20260723191420_0000_dnld' from origin 'http://localhost:5191' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Access to fetch at 'https://f005.backblazeb2.com/file/youzign-archive/0577/32267/img/54f3a86986e9b.png?Authorization=3_20260716191420_5d54e21afe2bfae1dde412af_44e7a35e5e3154d2812f5c8d2a9a59e4154790d9_005_20260723191420_0000_dnld' from origin 'http://localhost:5191' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Access to fetch at 'https://f005.backblazeb2.com/file/youzign-archive/0577/32260/img/54f3a1693394d.png?Authorization=3_20260716191422_2c8ff376ac5dd093153949aa_19123b8e102a7d95b8c457be4ec3ae8ac831af2a_005_20260723191422_0000_dnld' from origin 'http://localhost:5191' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Access to fetch at 'https://f005.backblazeb2.com/file/youzign-archive/0577/32260/img/54f3a86986e9b.png?Authorization=3_20260716191422_2c8ff376ac5dd093153949aa_19123b8e102a7d95b8c457be4ec3ae8ac831af2a_005_20260723191422_0000_dnld' from origin 'http://localhost:5191' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Warning: `NaN` is an invalid value for the `%s` css style property.%s fontSize \n    at div\n    at TextItemView (http://localhost:5191/@fs/Users/dezygn/Projects/dev/youzign-next/packages/renderer/dist/items.js:164:3)\n    at ItemView (http://localhost:5191/@fs/Users/dezygn/Projects/dev/youzign-next/packages/renderer/dist/items.js:31:3)\n    at div\n    at div\n    at div\n    at DesignCanvas (http://localhost:5191/@fs/Users/dezygn/Projects/dev/youzign-next/packages/renderer/dist/DesignCanvas.js:30:3)\n    at div\n    at div\n    at div\n    at div\n    at CanvasStage (http://localhost:5191/src/components/CanvasStage.tsx:114:18)\n    at main\n    at div\n    at div\n    at EditorView (http://localhost:5191/src/App.tsx:68:16)\n    at App (http://localhost:5191/src/App.tsx:253:29)\n    at ErrorBoundary (http://localhost:5191/src/components/ErrorBoundary.tsx:9:5)",
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700&display=swap JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700&display=swap JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700&display=swap JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700&display=swap JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error inlining remote css file JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;450;500;600&display=swap JSHandle@error",
+    "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700&display=swap JSHandle@error",
+    "Error inlining remote css file JSHandle@error"
+  ],
+  "runErrors": []
+}
