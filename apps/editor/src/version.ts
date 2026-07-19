@@ -5,7 +5,8 @@ export interface VersionInfo {
 }
 
 export const APP_VERSION = import.meta.env.VITE_APP_VERSION || "0.0.0";
-export const VERSION_URL = "https://youzign-landing.vercel.app/version.json";
+export const VERSION_URL =
+  import.meta.env.VITE_VERSION_URL || "https://youzign-landing.vercel.app/version.json";
 export const RELEASES_URL = "https://github.com/youzign/youzign-phoenix/releases";
 
 function parts(version: string): number[] {
@@ -31,9 +32,12 @@ export function isNewerVersion(candidate: string, current = APP_VERSION): boolea
   return compareSemver(candidate, current) > 0;
 }
 
-export async function fetchUpdateInfo(current = APP_VERSION): Promise<VersionInfo | null> {
+export async function fetchUpdateInfo(
+  current = APP_VERSION,
+  versionUrl = VERSION_URL
+): Promise<VersionInfo | null> {
   try {
-    const res = await fetch(VERSION_URL, { cache: "no-store" });
+    const res = await fetch(versionUrl, { cache: "no-store" });
     if (!res.ok) return null;
     const json = (await res.json()) as Partial<VersionInfo>;
     if (!json.version || !isNewerVersion(json.version, current)) return null;

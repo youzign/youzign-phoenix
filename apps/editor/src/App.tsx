@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { toJpeg } from "html-to-image";
 import { useEditor } from "./store.js";
 import { TopBar } from "./components/TopBar.js";
 import { LeftSidebar } from "./components/LeftSidebar.js";
@@ -15,11 +14,13 @@ import {
   getDocument,
   putDocument,
   shapeDocumentRecord,
-  type DocumentRecord,
 } from "./library/documents.js";
 import { dashboardHash, parseHashRoute, type AppRoute } from "./router.js";
 import type { Item } from "@youzign/designstring";
 import { DesignCanvas } from "@youzign/renderer";
+import { captureDashboardThumb } from "./export/dashboardThumb.js";
+import { ingestFiles } from "./library/uploads.js";
+import { extractPastedImageFiles, isTextEditingContext } from "./paste.js";
 
 function collectFonts(items: Item[], out: Set<string>): void {
   for (const it of items) {
@@ -34,24 +35,6 @@ function currentRoute(): AppRoute {
   return parseHashRoute(typeof window === "undefined" ? "#/" : window.location.hash);
 }
 
-async function captureDashboardThumb(previous?: DocumentRecord | null): Promise<string | undefined> {
-  const node = document.querySelector<HTMLElement>(".yz-canvas");
-  if (!node) return previous?.thumb;
-  const rect = node.getBoundingClientRect();
-  const longest = Math.max(rect.width, rect.height);
-  const pixelRatio = longest > 0 ? Math.min(1, 320 / longest) : 0.25;
-  try {
-    return await toJpeg(node, {
-      quality: 0.72,
-      pixelRatio,
-      cacheBust: false,
-      backgroundColor: "#ffffff",
-    });
-  } catch {
-    return previous?.thumb;
-  }
-}
-
 function EditorView() {
   const undo = useEditor((s) => s.undo);
   const redo = useEditor((s) => s.redo);
@@ -61,6 +44,7 @@ function EditorView() {
   const nudge = useEditor((s) => s.nudgeSelected);
   const escapeSelection = useEditor((s) => s.escapeSelection);
   const toggleGrid = useEditor((s) => s.toggleGrid);
+  const addPhoto = useEditor((s) => s.addPhoto);
   const nextPage = useEditor((s) => s.nextPage);
   const previousPage = useEditor((s) => s.previousPage);
   const editing = useEditor((s) => s.editingUid);
@@ -146,6 +130,29 @@ function EditorView() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [undo, redo, del, dup, toggleTextStyle, nudge, escapeSelection, toggleGrid, nextPage, previousPage, editing]);
+
+  // Cmd/Ctrl+V with an image on the clipboard imports it into the Photos tab
+  // (My uploads), exactly like using the upload button there, and places it
+  // on the canvas (fit + centred, like addPhoto from the library). Left alone
+  // entirely while the user is editing text (an input/textarea/contenteditable
+  // has focus, or a canvas text item is mid-edit) or when the clipboard
+  // carries no image, so normal text paste is never intercepted.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (isTextEditingContext({ target: e.target, editingUid: editing })) return;
+      const files = extractPastedImageFiles(e.clipboardData);
+      if (files.length === 0) return;
+      e.preventDefault();
+      void (async () => {
+        const recs = await ingestFiles(files);
+        recs.forEach((r) =>
+          addPhoto({ source: r.dataUri, width: r.width, height: r.height })
+        );
+      })();
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [editing, addPhoto]);
 
   useEffect(() => {
     if (!documentId) return;

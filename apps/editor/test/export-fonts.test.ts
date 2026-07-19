@@ -31,7 +31,7 @@ describe("export font readiness", () => {
     const load = vi.fn().mockResolvedValue([]);
     const textElement = {};
     const textNode = { textContent: "Launch Cover", parentElement: textElement };
-    const canvas = {};
+    const canvas = { querySelectorAll: vi.fn(() => []) };
     vi.stubGlobal("NodeFilter", { SHOW_TEXT: 4 });
     vi.stubGlobal("getComputedStyle", vi.fn(() => ({
       display: "block",
@@ -73,13 +73,16 @@ describe("export font readiness", () => {
       canvasHeight: 400,
     });
 
-    await Promise.resolve();
-
-    expect(load).toHaveBeenCalledWith(expect.stringContaining("Playfair Display"));
+    await vi.waitFor(() => {
+      expect(load).toHaveBeenCalledWith(expect.stringContaining("Playfair Display"));
+    });
     expect(toPng).not.toHaveBeenCalled();
 
     resolveReady();
     await expect(exportPromise).resolves.toBe("data:image/png;base64,export");
-    expect(toPng).toHaveBeenCalledTimes(1);
+    // The shared stable-capture helper (capture.ts) calls toPng repeatedly
+    // until two consecutive results match; this mock returns the same value
+    // every time, so it stabilizes on the very first repeat (2 calls).
+    expect(toPng).toHaveBeenCalledTimes(2);
   });
 });

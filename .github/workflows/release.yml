@@ -41,6 +41,9 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
+      - name: Validate release metadata
+        run: node scripts/check-release-contract.mjs
+
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -69,7 +72,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: Youzign ${{ github.ref_name }}
           releaseBody: |
-            Unsigned Youzign desktop builds.
+            Fixes font and image export readiness, tall Reel recovery, color transparency, Fit Canvas, and desktop update notifications.
 
             macOS v1 builds are unsigned. If Gatekeeper blocks first launch, right-click the app and choose Open.
           releaseDraft: true
