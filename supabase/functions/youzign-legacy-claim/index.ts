@@ -352,7 +352,13 @@ async function handleGetDesign(body: any): Promise<Response> {
   if (!owned) return jsonError(403, "forbidden");
 
   const b2 = await getB2Auth();
-  const key = `_legacy_designs/v${generation}/${designIdRaw}.xml`;
+  // v1/v2 designs were mirrored to S3 (now B2) by the 2015-era app and are
+  // already present: reverse(user_id)/<design_id>/xml/<design_id>.xml.
+  // v3 has no mirror — its XML is copied under _legacy_designs/ by the
+  // corpus upload. Verified against B2 2026-07-20.
+  const key = generation === 3
+    ? `_legacy_designs/v3/${designIdRaw}.xml`
+    : `${String(user.user_id).split("").reverse().join("")}/${designIdRaw}/xml/${designIdRaw}.xml`;
   const res = await fetch(`${b2.baseUrl}/${key}`, {
     headers: { Authorization: b2.token },
   });
