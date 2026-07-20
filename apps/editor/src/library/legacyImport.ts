@@ -5,7 +5,13 @@ import { asset } from "../asset.js";
 
 const LEGACY_CLAIM_URL = "https://xnxcduqzexwukehavthg.supabase.co/functions/v1/youzign-legacy-claim";
 
-export type LegacyImportErrorCode = "not_found" | "network" | "server";
+export type LegacyImportErrorCode =
+  | "not_found"
+  | "network"
+  | "server"
+  // The design is genuinely the user's, but its XML has not been copied to
+  // B2 yet. Distinct from not_found so we never imply the design is lost.
+  | "unavailable";
 
 export class LegacyImportError extends Error {
   constructor(public readonly code: LegacyImportErrorCode) {
@@ -72,7 +78,16 @@ async function postLegacy<T>(body: object): Promise<T> {
   } catch {
     throw new LegacyImportError("network");
   }
-  if (response.status === 404) throw new LegacyImportError("not_found");
+  if (response.status === 404) {
+    let code: LegacyImportErrorCode = "not_found";
+    try {
+      const payload = await response.clone().json();
+      if (payload?.error === "designstring_unavailable") code = "unavailable";
+    } catch {
+      // fall through to not_found
+    }
+    throw new LegacyImportError(code);
+  }
   if (!response.ok) throw new LegacyImportError("server");
   try {
     return (await response.json()) as T;

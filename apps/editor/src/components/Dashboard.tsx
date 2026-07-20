@@ -636,8 +636,14 @@ function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefr
           assetWarnings.push(`${design.title || "Untitled"}: ${result.failedAssets.length} image${result.failedAssets.length === 1 ? "" : "s"} couldn't be downloaded`);
           setWarnings([...assetWarnings]);
         }
-      } catch {
-        failures.push(design.title || "Untitled");
+      } catch (err) {
+        // "unavailable" means the design is theirs but its file hasn't been
+        // copied over yet — say that, rather than implying it failed or is gone.
+        failures.push(
+          err instanceof LegacyImportError && err.code === "unavailable"
+            ? `${design.title || "Untitled"} — not transferred yet, try again later`
+            : design.title || "Untitled"
+        );
         setImportErrors([...failures]);
       }
     }

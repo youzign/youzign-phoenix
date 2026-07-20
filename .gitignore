@@ -6,3 +6,4 @@ apps/editor/dist
 .dev-server.log
 .claude/worktrees/
 .env*
+__pycache__/

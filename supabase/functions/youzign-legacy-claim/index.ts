@@ -225,6 +225,38 @@ async function handleLookup(body: any): Promise<Response> {
   const user = await findUserByIdentifier(supabase, identifier);
   if (!user) return jsonError(404, "not_found");
 
+  // Full-corpus users are stored as one manifest row (see migration 0003) —
+  // 2.25M per-design rows do not fit the free tier. Prefer it when present;
+  // fall back to yz_legacy_designs for the accounts seeded before manifests.
+  const { data: manifest, error: manifestError } = await supabase
+    .from("yz_legacy_manifests")
+    .select("designs")
+    .eq("user_id", user.user_id)
+    .maybeSingle();
+  if (manifestError) throw manifestError;
+
+  if (manifest?.designs) {
+    const b2m = await getB2Auth();
+    const entries = (manifest.designs as any[]) ?? [];
+    return jsonResponse(200, {
+      user: {
+        user_id: user.user_id,
+        username: user.username,
+        email_masked: maskEmail(user.email),
+      },
+      designs: entries.map((d: any) => ({
+        generation: d.g,
+        design_id: d.i,
+        title: d.t,
+        format: d.f ?? "xml",
+        created_at: d.c ?? null,
+        updated_at: d.m ?? null,
+        thumb_url: d.k ? `${b2m.baseUrl}/${d.k}?Authorization=${b2m.token}` : null,
+      })),
+      download: downloadPayload(b2m),
+    });
+  }
+
   // PostgREST caps a single select at 1000 rows — page through with .range()
   // so users with more designs than that (e.g. the 1,360-design test account)
   // get their full list.
@@ -291,16 +323,48 @@ async function handleGetDesign(body: any): Promise<Response> {
     .eq("design_id", designIdRaw)
     .maybeSingle();
   if (error) throw error;
-  if (!design) return jsonError(404, "design_not_found");
 
-  if (String((design as any).user_id) !== String(user.user_id)) {
-    return jsonError(403, "forbidden");
+  if (design) {
+    if (String((design as any).user_id) !== String(user.user_id)) {
+      return jsonError(403, "forbidden");
+    }
+    const b2 = await getB2Auth();
+    return jsonResponse(200, {
+      designstring: (design as any).designstring,
+      download: downloadPayload(b2),
+    });
   }
 
+  // Full-corpus path: the designstring is not in Postgres (14.4 GB of XML
+  // cannot live there). Verify ownership against the manifest, then stream
+  // the design out of B2.
+  const { data: manifest, error: manifestError } = await supabase
+    .from("yz_legacy_manifests")
+    .select("designs")
+    .eq("user_id", user.user_id)
+    .maybeSingle();
+  if (manifestError) throw manifestError;
+  if (!manifest?.designs) return jsonError(404, "design_not_found");
+
+  const owned = ((manifest.designs as any[]) ?? []).some(
+    (d: any) => Number(d.g) === generation && String(d.i) === String(designIdRaw),
+  );
+  if (!owned) return jsonError(403, "forbidden");
+
   const b2 = await getB2Auth();
+  const key = `_legacy_designs/v${generation}/${designIdRaw}.xml`;
+  const res = await fetch(`${b2.baseUrl}/${key}`, {
+    headers: { Authorization: b2.token },
+  });
+  if (!res.ok) {
+    // The design is genuinely theirs, but its XML has not been uploaded to
+    // B2 yet — distinct from "not found" so the client can say so honestly.
+    console.error(`designstring missing in B2: ${key} (${res.status})`);
+    return jsonError(404, "designstring_unavailable");
+  }
 
   return jsonResponse(200, {
-    designstring: (design as any).designstring,
+    designstring: await res.text(),
     download: downloadPayload(b2),
   });
 }
