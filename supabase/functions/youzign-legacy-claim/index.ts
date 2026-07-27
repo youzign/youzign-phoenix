@@ -204,13 +204,15 @@ async function findUserByIdentifier(
   if (byEmail.error) throw byEmail.error;
   if (byEmail.data) return byEmail.data as LegacyUserRow;
 
+  // Usernames are not unique once lowercased (e.g. mark_060 vs Mark_060), so
+  // limit(1) instead of maybeSingle — a duplicate must not 500 the lookup.
   const byUsername = await supabase
     .from("yz_legacy_users")
     .select("*")
     .ilike("username", pattern)
-    .maybeSingle();
+    .limit(1);
   if (byUsername.error) throw byUsername.error;
-  return (byUsername.data as LegacyUserRow) ?? null;
+  return (byUsername.data?.[0] as LegacyUserRow) ?? null;
 }
 
 // ---------------------------------------------------------------------------
