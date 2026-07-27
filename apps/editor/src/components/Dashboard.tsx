@@ -46,7 +46,7 @@ import { Icon, accentBtn, ghostBtn, segItem } from "./ui.js";
 import { sections, type HelpBlock } from "../help-content.js";
 import { BugReportModal } from "./BugReportModal.js";
 
-const QUICK_PRESETS = ["ig-post-square", "ig-story", "yt-thumbnail", "print-a4", "print-business-card"];
+const QUICK_PRESETS = ["ig-post-square", "ig-story", "yt-thumbnail", "video-16x9", "print-a4", "print-business-card"];
 const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
 type DashboardTab = "designs" | "help" | "backup";
 

@@ -53,6 +53,7 @@ function EditorView() {
   const activePage = useEditor((s) => s.activePage);
   const documentId = useEditor((s) => s.documentId);
   const designName = useEditor((s) => s.designName);
+  const rightCollapsed = useEditor((s) => s.rightCollapsed);
   const lastThumbRef = useState({ at: 0 })[0];
 
   // Load webfonts for every family used in the current design (so the canvas
@@ -188,10 +189,15 @@ function EditorView() {
         <main className="min-w-0 flex-1">
           <CanvasStage />
         </main>
-        <aside className="flex w-[272px] flex-col overflow-y-auto border-l border-white/[0.06] bg-[#202024]">
-          <LayersPanel />
-          <PropertiesPanel />
-        </aside>
+        {!rightCollapsed && (
+          <aside
+            data-testid="right-panel"
+            className="flex w-[272px] flex-col overflow-y-auto border-l border-white/[0.06] bg-[#202024]"
+          >
+            <LayersPanel />
+            <PropertiesPanel />
+          </aside>
+        )}
       </div>
       <div
         aria-hidden

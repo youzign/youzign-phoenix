@@ -192,6 +192,10 @@ interface EditorState {
   } | null;
   zoom: number;
   showGrid: boolean;
+  // Sidebar chrome. Kept in the store (not component state) so the collapsed
+  // layout survives panel remounts and can be driven from the TopBar.
+  leftCollapsed: boolean;
+  rightCollapsed: boolean;
   past: EditorDocument[];
   future: EditorDocument[];
 
@@ -202,6 +206,9 @@ interface EditorState {
   setName: (name: string) => void;
   setZoom: (z: number) => void;
   toggleGrid: () => void;
+  toggleLeftPanel: () => void;
+  toggleRightPanel: () => void;
+  setLeftCollapsed: (collapsed: boolean) => void;
 
   // selection
   select: (uid: number | null) => void;
@@ -394,6 +401,8 @@ export const useEditor = create<EditorState>((set, get) => {
     blurPreview: null,
     zoom: 0.6,
     showGrid: false,
+    leftCollapsed: false,
+    rightCollapsed: false,
     past: [],
     future: [],
     lockedUids: [],
@@ -415,6 +424,9 @@ export const useEditor = create<EditorState>((set, get) => {
     setName: (name) => set({ designName: name }),
     setZoom: (z) => set({ zoom: z }),
     toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
+    toggleLeftPanel: () => set((s) => ({ leftCollapsed: !s.leftCollapsed })),
+    toggleRightPanel: () => set((s) => ({ rightCollapsed: !s.rightCollapsed })),
+    setLeftCollapsed: (collapsed) => set({ leftCollapsed: collapsed }),
 
     select: (uid) =>
       set({ selectedUids: uid === null ? [] : [uid], drillGroupUid: null, editingUid: null, croppingUid: null }),

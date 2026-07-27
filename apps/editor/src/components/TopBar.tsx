@@ -17,6 +17,10 @@ export function TopBar() {
   const setZoom = useEditor((s) => s.setZoom);
   const showGrid = useEditor((s) => s.showGrid);
   const toggleGrid = useEditor((s) => s.toggleGrid);
+  const leftCollapsed = useEditor((s) => s.leftCollapsed);
+  const rightCollapsed = useEditor((s) => s.rightCollapsed);
+  const toggleLeftPanel = useEditor((s) => s.toggleLeftPanel);
+  const toggleRightPanel = useEditor((s) => s.toggleRightPanel);
   const undo = useEditor((s) => s.undo);
   const redo = useEditor((s) => s.redo);
   const canUndo = useEditor((s) => s.past.length > 0);
@@ -36,6 +40,18 @@ export function TopBar() {
 
   return (
     <header className="flex h-[49px] items-center gap-3 border-b border-white/[0.06] bg-[#1c1c1f] px-3">
+      {/* layout: show/hide the left panel (the icon rail always stays) */}
+      <div data-testid="toggle-left-panel">
+        <IconButton
+          icon="panel-left"
+          label={leftCollapsed ? "Show left panel" : "Hide left panel"}
+          onClick={toggleLeftPanel}
+          active={leftCollapsed}
+          size={16}
+          tooltipAlign="start"
+        />
+      </div>
+
       {/* brand + doc name */}
       <div className="flex items-center gap-2.5">
         <button
@@ -107,6 +123,20 @@ export function TopBar() {
           pages={pages.map((p) => ({ canvasWidth: p.design.canvasWidth, canvasHeight: p.design.canvasHeight }))}
           activePage={activePage}
         />
+
+        <div className="mx-1 h-5 w-px bg-white/10" />
+
+        {/* layout: show/hide the right (layers + properties) panel */}
+        <div data-testid="toggle-right-panel">
+          <IconButton
+            icon="panel-right"
+            label={rightCollapsed ? "Show right panel" : "Hide right panel"}
+            onClick={toggleRightPanel}
+            active={rightCollapsed}
+            size={16}
+            tooltipAlign="end"
+          />
+        </div>
       </div>
     </header>
   );

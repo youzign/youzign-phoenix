@@ -98,18 +98,34 @@ function useDebounced<T>(value: T, ms: number): T {
 
 export function LeftSidebar() {
   const [tab, setTab] = useState<Tab>("elements");
+  const collapsed = useEditor((s) => s.leftCollapsed);
+  const setCollapsed = useEditor((s) => s.setLeftCollapsed);
+
+  // VS Code activity-bar behaviour: a rail click while collapsed reopens the
+  // panel on that tab; clicking the already-active tab collapses it again.
+  const pickTab = (id: Tab) => {
+    if (collapsed) {
+      setTab(id);
+      setCollapsed(false);
+    } else if (id === tab) {
+      setCollapsed(true);
+    } else {
+      setTab(id);
+    }
+  };
 
   return (
     <div className="flex h-full">
-      {/* icon rail */}
+      {/* icon rail — always visible, even when the panel is collapsed */}
       <nav className="flex w-[68px] flex-col items-center gap-1 border-r border-white/[0.06] bg-[#1c1c1f] py-3">
         {TABS.map((t) => {
-          const active = tab === t.id;
+          const active = tab === t.id && !collapsed;
           return (
             <button
               key={t.id}
               title={t.label}
-              onClick={() => setTab(t.id)}
+              data-tab={t.id}
+              onClick={() => pickTab(t.id)}
               className={`flex h-14 w-14 flex-col items-center justify-center gap-1 rounded-xl transition-colors duration-150 ${
                 active
                   ? "bg-[var(--accent-soft)] text-[var(--accent)]"
@@ -124,14 +140,19 @@ export function LeftSidebar() {
       </nav>
 
       {/* panel */}
-      <div className="flex w-64 flex-col overflow-hidden border-r border-white/[0.06] bg-[#202024]">
-        {tab === "text" && <TextPanel />}
-        {tab === "elements" && <ElementsPanel />}
-        {tab === "icons" && <IconsPanel />}
-        {tab === "photos" && <PhotosPanel />}
-        {tab === "generate" && <GeneratePanel />}
-        {tab === "brand" && <BrandPanel />}
-      </div>
+      {!collapsed && (
+        <div
+          data-testid="left-panel"
+          className="flex w-64 flex-col overflow-hidden border-r border-white/[0.06] bg-[#202024]"
+        >
+          {tab === "text" && <TextPanel />}
+          {tab === "elements" && <ElementsPanel />}
+          {tab === "icons" && <IconsPanel />}
+          {tab === "photos" && <PhotosPanel />}
+          {tab === "generate" && <GeneratePanel />}
+          {tab === "brand" && <BrandPanel />}
+        </div>
+      )}
     </div>
   );
 }

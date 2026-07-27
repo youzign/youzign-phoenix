@@ -52,7 +52,9 @@ export type IconName =
   | "grip"
   | "layers"
   | "cloud"
-  | "droplet";
+  | "droplet"
+  | "panel-left"
+  | "panel-right";
 
 const PATHS: Record<IconName, ReactNode> = {
   cloud: <path d="M17.5 19H8a5 5 0 1 1 .9-9.9A6.5 6.5 0 0 1 21 12.5 3.5 3.5 0 0 1 17.5 19Z" />,
@@ -193,6 +195,18 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   layers: <path d="m12 2 9 5-9 5-9-5 9-5ZM3 12l9 5 9-5M3 17l9 5 9-5" />,
+  "panel-left": (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9.5 4v16" />
+    </>
+  ),
+  "panel-right": (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M14.5 4v16" />
+    </>
+  ),
 };
 
 export function Icon({
@@ -236,6 +250,7 @@ export function IconButton({
   active,
   danger,
   size = 18,
+  tooltipAlign = "center",
 }: {
   icon: IconName;
   label: string;
@@ -244,12 +259,21 @@ export function IconButton({
   active?: boolean;
   danger?: boolean;
   size?: number;
+  /** Where the tooltip sits relative to the button — "start"/"end" keep it on
+   *  screen for buttons sitting at the very edge of the header. */
+  tooltipAlign?: "start" | "center" | "end";
 }) {
   const tone = danger
     ? "text-neutral-400 hover:text-red-300 hover:bg-red-500/10"
     : active
     ? "text-white bg-white/10"
     : "text-neutral-400 hover:text-white hover:bg-white/10";
+  const tipPos =
+    tooltipAlign === "start"
+      ? "left-0"
+      : tooltipAlign === "end"
+      ? "right-0"
+      : "left-1/2 -translate-x-1/2";
   return (
     <span className="group/tt relative inline-flex">
       <button
@@ -262,7 +286,7 @@ export function IconButton({
       >
         <Icon name={icon} size={size} />
       </button>
-      <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/10 bg-neutral-800 px-2 py-1 text-[11px] font-medium text-neutral-100 opacity-0 shadow-lg transition-opacity duration-150 group-hover/tt:opacity-100">
+      <span className={`pointer-events-none absolute ${tipPos} top-full z-50 mt-1.5 whitespace-nowrap rounded-md border border-white/10 bg-neutral-800 px-2 py-1 text-[11px] font-medium text-neutral-100 opacity-0 shadow-lg transition-opacity duration-150 group-hover/tt:opacity-100`}>
         {label}
       </span>
     </span>

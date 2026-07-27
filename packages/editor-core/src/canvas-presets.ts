@@ -45,6 +45,7 @@ export const CANVAS_PRESETS: CanvasPreset[] = [
   { id: "video-vertical", name: "Vertical Video", group: "Reels", width: 1080, height: 1920, category: "Video", dpi: SCREEN },
   { id: "video-hd", name: "HD 720p", group: "Video", width: 1280, height: 720, category: "Video", dpi: SCREEN },
   { id: "video-fhd", name: "Full HD 1080p", group: "Video", width: 1920, height: 1080, category: "Video", dpi: SCREEN },
+  { id: "video-16x9", name: "16:9 Widescreen", group: "Video", width: 1920, height: 1080, category: "Video", dpi: SCREEN },
   { id: "video-2k", name: "2K QHD", group: "Video", width: 2560, height: 1440, category: "Video", dpi: SCREEN },
   { id: "video-4k", name: "4K UHD", group: "Video", width: 3840, height: 2160, category: "Video", dpi: SCREEN },
 
