@@ -1,4 +1,4 @@
-import { documentRecordFromXml, putDocument } from "./documents.js";
+import { documentRecordFromXml, getDocument, putDocument } from "./documents.js";
 import { convertLegacyJsonDesign } from "./legacyJson.js";
 import { rewriteLegacyClipartSources } from "./legacyClipart.js";
 import { asset } from "../asset.js";
@@ -193,8 +193,13 @@ export async function importLegacyDesign(
   identifier: string,
   design: LegacyDesign,
   download: LegacyDownload,
-  onProgress?: (progress: LegacyImageProgress) => void
-): Promise<{ ok: true; failedAssets: string[] }> {
+  onProgress?: (progress: LegacyImageProgress) => void,
+  documentId?: string
+): Promise<{ ok: true; failedAssets: string[]; alreadyImported: boolean }> {
+  // A completed checkpoint can survive an app close just before its session
+  // record is written. Reusing this stable local id makes that retry safe and
+  // keeps a locally edited imported document intact.
+  if (documentId && await getDocument(documentId)) return { ok: true, failedAssets: [], alreadyImported: true };
   const fetched = await fetchLegacyDesign(identifier, design.generation, design.design_id);
   const signedDownload = fetched.download ?? download;
   // JSON-format designs arrive as {"canvasData":…} in `designstring`; convert to
@@ -210,6 +215,7 @@ export async function importLegacyDesign(
   const rewritten = rewriteLegacyAssetUrls(clipartResolved, signedDownload);
   const inlined = await inlineLegacyImages(rewritten.xml, { onProgress });
   const record = documentRecordFromXml(design.title || "Untitled", inlined.xml);
+  if (documentId) record.id = documentId;
   await putDocument(record);
-  return { ok: true, failedAssets: inlined.failed };
+  return { ok: true, failedAssets: inlined.failed, alreadyImported: false };
 }

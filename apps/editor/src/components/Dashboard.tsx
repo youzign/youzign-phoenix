@@ -33,6 +33,18 @@ import {
   type LegacyDesign,
   type LegacyLookupResult,
 } from "../library/legacyImport.js";
+import {
+  LEGACY_IMPORT_BATCH_SIZE,
+  commitLegacyImportItem,
+  createLegacyImportSession,
+  legacyDocumentId,
+  legacyImportBatch,
+  legacyImportSummary,
+  loadLegacyImportSession,
+  retryLegacyImportItems,
+  saveLegacyImportSession,
+  type LegacyImportSession,
+} from "../library/legacyImportSession.js";
 import { buildBackupBundle, parseBackupBundle } from "../library/backup.js";
 import { getActiveBrandId, listBrands, mergeBrands } from "../library/brands.js";
 import { allUploads, fileToUploadRecord, isAcceptedFile, putUpload } from "../library/uploads.js";
@@ -573,6 +585,9 @@ function LegacyDesignThumb({ design }: { design: LegacyDesign }) {
 function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefresh: () => void }) {
   const [identifier, setIdentifier] = useState("");
   const [lookup, setLookup] = useState<LegacyLookupResult | null>(null);
+  const [session, setSession] = useState<LegacyImportSession | null>(() =>
+    typeof localStorage === "undefined" ? null : loadLegacyImportSession()
+  );
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -581,9 +596,13 @@ function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefr
   const [imported, setImported] = useState<number | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [completedBatch, setCompletedBatch] = useState(1);
+  const running = useRef(false);
 
-  const designKey = (design: LegacyDesign) => `${design.generation}:${design.design_id}`;
-  const selectedDesigns = lookup?.designs.filter((design) => selected.has(designKey(design))) ?? [];
+  const batchDesigns = session ? legacyImportBatch(session) : [];
+  const selectedDesigns = batchDesigns.filter((item) => selected.has(item.key));
+  const summary = session ? legacyImportSummary(session) : null;
+  const batchNumber = summary ? Math.min(Math.floor(summary.imported / LEGACY_IMPORT_BATCH_SIZE) + 1, Math.ceil(summary.total / LEGACY_IMPORT_BATCH_SIZE)) : 1;
 
   useEffect(() => {
     const dismiss = (event: KeyboardEvent) => {
@@ -600,8 +619,10 @@ function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefr
     setError("");
     try {
       const result = await lookupLegacyUser(identifier);
+      const nextSession = createLegacyImportSession(identifier, result.user, result.designs);
       setLookup(result);
-      setSelected(new Set(result.designs.map(designKey)));
+      setSession(saveLegacyImportSession(nextSession));
+      setSelected(new Set(legacyImportBatch(nextSession).map((item) => item.key)));
     } catch (err) {
       setError(
         err instanceof LegacyImportError && err.code === "not_found"
@@ -615,10 +636,34 @@ function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefr
     }
   };
 
-  const importDesigns = async () => {
-    if (!lookup || selectedDesigns.length === 0 || busy) return;
-    const batch = selectedDesigns;
+  const resumeImport = async () => {
+    if (!session || busy) return;
     setBusy(true);
+    setError("");
+    try {
+      const result = await lookupLegacyUser(session.identifier);
+      if (result.user.user_id !== session.user.user_id) {
+        setError("This saved import belongs to a different legacy account. Search for your designs again.");
+        return;
+      }
+      setIdentifier(session.identifier);
+      setLookup(result);
+      setSelected(new Set(legacyImportBatch(session).map((item) => item.key)));
+    } catch (err) {
+      setError(err instanceof LegacyImportError && err.code === "network"
+        ? "Couldn't connect. Your progress is still saved on this device."
+        : "Couldn't refresh your legacy download. Your progress is still saved on this device.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const importDesigns = async () => {
+    if (!lookup || !session || selectedDesigns.length === 0 || busy || running.current) return;
+    const batch = selectedDesigns;
+    running.current = true;
+    setBusy(true);
+    setCompletedBatch(batchNumber);
     setImported(null);
     setImportErrors([]);
     setWarnings([]);
@@ -626,24 +671,37 @@ function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefr
     const failures: string[] = [];
     const assetWarnings: string[] = [];
 
-    for (const [index, design] of batch.entries()) {
+    let nextSession = session;
+    for (const [index, item] of batch.entries()) {
       setCurrent(index + 1);
       setPhase("Fetching design…");
       try {
-        const result = await importLegacyDesign(identifier, design, lookup.download, () => setPhase("Fetching images…"));
+        const result = await importLegacyDesign(
+          session.identifier,
+          item.design,
+          lookup.download,
+          () => setPhase("Fetching images…"),
+          legacyDocumentId(session.user.user_id, item.design)
+        );
         successCount++;
         if (result.failedAssets.length > 0) {
-          assetWarnings.push(`${design.title || "Untitled"}: ${result.failedAssets.length} image${result.failedAssets.length === 1 ? "" : "s"} couldn't be downloaded`);
+          assetWarnings.push(`${item.design.title || "Untitled"}: ${result.failedAssets.length} image${result.failedAssets.length === 1 ? "" : "s"} couldn't be downloaded`);
           setWarnings([...assetWarnings]);
         }
+        // Save the checkpoint only after the local document write completes.
+        nextSession = saveLegacyImportSession(commitLegacyImportItem(nextSession, item.key, "imported"));
+        setSession(nextSession);
       } catch (err) {
         // "unavailable" means the design is theirs but its file hasn't been
         // copied over yet — say that, rather than implying it failed or is gone.
+        const unavailable = err instanceof LegacyImportError && err.code === "unavailable";
         failures.push(
-          err instanceof LegacyImportError && err.code === "unavailable"
-            ? `${design.title || "Untitled"} — not transferred yet, try again later`
-            : design.title || "Untitled"
+          unavailable
+            ? `${item.design.title || "Untitled"} — not transferred yet, try again later`
+            : item.design.title || "Untitled"
         );
+        nextSession = saveLegacyImportSession(commitLegacyImportItem(nextSession, item.key, unavailable ? "unavailable" : "failed"));
+        setSession(nextSession);
         setImportErrors([...failures]);
       }
     }
@@ -652,14 +710,28 @@ function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefr
     setImportErrors(failures);
     setWarnings(assetWarnings);
     setBusy(false);
+    running.current = false;
     onRefresh();
   };
 
-  const gridDesigns = lookup?.designs ?? [];
-  const allSelected = gridDesigns.length > 0 && selected.size === gridDesigns.length;
+  const allSelected = batchDesigns.length > 0 && batchDesigns.every((item) => selected.has(item.key));
   const toggleAll = () => {
-    if (!lookup) return;
-    setSelected(allSelected ? new Set() : new Set(gridDesigns.map(designKey)));
+    setSelected(allSelected ? new Set() : new Set(batchDesigns.map((item) => item.key)));
+  };
+  const showNextBatch = () => {
+    setImported(null);
+    setImportErrors([]);
+    setWarnings([]);
+    setSelected(new Set(legacyImportBatch(session!).map((item) => item.key)));
+  };
+  const retryFailed = () => {
+    if (!session) return;
+    const retryable = session.items.filter((item) => item.status === "failed" || item.status === "unavailable").map((item) => item.key);
+    const nextSession = saveLegacyImportSession(retryLegacyImportItems(session, retryable));
+    setSession(nextSession);
+    setImported(null);
+    setImportErrors([]);
+    setSelected(new Set(legacyImportBatch(nextSession).map((item) => item.key)));
   };
 
   return (
@@ -689,6 +761,17 @@ function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefr
 
         {!lookup ? (
           <form className="p-5" onSubmit={(event) => void findDesigns(event)}>
+            {session && summary && (
+              <div className="mb-5 rounded-lg border border-[var(--accent)]/25 bg-[var(--accent)]/[0.08] p-4" data-testid="legacy-import-resume">
+                <div className="text-[13px] font-semibold text-neutral-100">Saved import for {session.user.username}</div>
+                <p className="mt-1 text-[12px] text-neutral-400">
+                  {summary.imported} of {summary.total} designs saved. Continue with the next {Math.min(LEGACY_IMPORT_BATCH_SIZE, summary.pending)} designs.
+                </p>
+                <button className={`${accentBtn} mt-3`} type="button" onClick={() => void resumeImport()} disabled={busy || summary.pending === 0}>
+                  <Icon name="download" size={15} /> {summary.pending === 0 ? "Import complete" : "Resume import"}
+                </button>
+              </div>
+            )}
             <label className="block text-[12px] font-medium text-neutral-300" htmlFor="legacy-identifier">
               Email or username
             </label>
@@ -709,8 +792,9 @@ function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefr
         ) : imported !== null ? (
           <div className="p-5">
             <div className="text-[15px] font-semibold text-neutral-100">
-              {imported} imported, {importErrors.length} failed
+              Batch {completedBatch} finished. {imported} imported, {importErrors.length} failed
             </div>
+            {summary && <p className="mt-1 text-[12px] text-neutral-500">{summary.imported} of {summary.total} designs saved on this device.</p>}
             {importErrors.length > 0 && (
               <div className="mt-4 rounded-lg border border-red-400/15 bg-red-400/[0.06] p-3">
                 <div className="text-[12px] font-medium text-red-200">Could not import</div>
@@ -724,14 +808,19 @@ function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefr
                 {warnings.map((warning) => <div key={warning}>{warning}</div>)}
               </div>
             )}
-            <button className={`${accentBtn} mt-5`} onClick={onClose}>Done</button>
+            <div className="mt-5 flex flex-wrap gap-3">
+              {summary && summary.pending > 0 && <button className={accentBtn} onClick={showNextBatch} data-testid="legacy-import-next-batch"><Icon name="download" size={15} /> Import next {Math.min(LEGACY_IMPORT_BATCH_SIZE, summary.pending)}</button>}
+              {summary && (summary.failed > 0 || summary.unavailable > 0) && <button className={ghostBtn} onClick={retryFailed}>Retry failed designs</button>}
+              <button className={ghostBtn} onClick={onClose}>Done</button>
+            </div>
           </div>
         ) : (
           <>
             <div className="border-b border-white/[0.06] px-5 py-4">
               <div className="text-[14px] font-semibold text-neutral-100">
-                Welcome back, {lookup.user.username} ({lookup.user.email_masked}) — {lookup.designs.length} designs found
+                Welcome back, {lookup.user.username} ({lookup.user.email_masked}) — {session?.items.length ?? lookup.designs.length} designs found
               </div>
+              {summary && <p className="mt-1 text-[12px] text-neutral-500" data-testid="legacy-import-batch-status">Batch {batchNumber} of {Math.ceil(summary.total / LEGACY_IMPORT_BATCH_SIZE)} · {summary.imported} of {summary.total} saved · importing up to {LEGACY_IMPORT_BATCH_SIZE} at a time</p>}
               <label className="mt-3 inline-flex items-center gap-2 text-[12px] text-neutral-400">
                 <input type="checkbox" checked={allSelected} onChange={toggleAll} disabled={busy} className="accent-[var(--accent)]" />
                 Select all
@@ -739,21 +828,21 @@ function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefr
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-5">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {gridDesigns.map((design) => {
-                  const key = designKey(design);
+                {batchDesigns.map((item) => {
+                  const { design } = item;
                   const date = Date.parse(design.updated_at || design.created_at);
                   return (
-                    <label key={key} className="overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] transition-colors hover:border-white/15">
+                    <label key={item.key} className="overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] transition-colors hover:border-white/15">
                       <LegacyDesignThumb design={design} />
                       <span className="flex items-start gap-2 p-3">
                         <input
                           type="checkbox"
-                          checked={selected.has(key)}
+                          checked={selected.has(item.key)}
                           disabled={busy}
                           onChange={() => setSelected((currentSelected) => {
                             const next = new Set(currentSelected);
-                            if (next.has(key)) next.delete(key);
-                            else next.add(key);
+                            if (next.has(item.key)) next.delete(item.key);
+                            else next.add(item.key);
                             return next;
                           })}
                           className="mt-0.5 accent-[var(--accent)]"
@@ -772,10 +861,10 @@ function LegacyImportModal({ onClose, onRefresh }: { onClose: () => void; onRefr
             </div>
             <footer className="flex items-center justify-between gap-4 border-t border-white/[0.06] p-5">
               <div className="text-[12px] text-neutral-500" role="status">
-                {busy ? `Importing ${current} of ${selectedDesigns.length} — ${phase}` : `${selected.size} selected`}
+                {busy ? `Importing ${current} of ${selectedDesigns.length} in this batch — ${phase}` : `${selected.size} selected from this batch`}
               </div>
               <button className={accentBtn} onClick={() => void importDesigns()} disabled={busy || selected.size === 0}>
-                <Icon name="download" size={15} /> {busy ? "Importing…" : `Import ${selected.size} designs`}
+                <Icon name="download" size={15} /> {busy ? "Importing…" : `Import ${selected.size} in this batch`}
               </button>
             </footer>
           </>
