@@ -1,4 +1,4 @@
-import { documentRecordFromXml, putDocument } from "./documents.js";
+import { documentRecordFromXml, putDocument, type DocumentRecord } from "./documents.js";
 import { convertLegacyJsonDesign } from "./legacyJson.js";
 import { rewriteLegacyClipartSources } from "./legacyClipart.js";
 import { asset } from "../asset.js";
@@ -157,6 +157,53 @@ function blobToDataUrl(blob: Blob, contentType: string): Promise<string> {
   });
 }
 
+/**
+ * A lookup thumbnail is already a B2 object URL, but its lookup token may
+ * expire before a long import reaches that design. Re-sign only the exact
+ * object under the lookup response's approved B2 base with the fresh token
+ * returned by get_design. Never persist this URL: it is only for downloading
+ * a local dashboard thumbnail.
+ */
+export function refreshLegacyThumbnailUrl(
+  thumbUrl: string | null,
+  lookupDownload: Pick<LegacyDownload, "base_url">,
+  currentDownload: Pick<LegacyDownload, "token">
+): string | null {
+  if (!thumbUrl) return null;
+  try {
+    const base = new URL(lookupDownload.base_url);
+    const source = new URL(thumbUrl);
+    const basePath = base.pathname.replace(/\/+$/, "");
+    const allowedPrefix = `${basePath}/`;
+    if (
+      source.origin !== base.origin ||
+      !(source.pathname === basePath || source.pathname.startsWith(allowedPrefix))
+    ) return null;
+    source.search = "";
+    source.searchParams.set("Authorization", currentDownload.token);
+    return source.toString();
+  } catch {
+    return null;
+  }
+}
+
+export async function downloadLegacyThumbnail(
+  url: string | null,
+  fetchImpl: FetchImpl = fetch
+): Promise<string> {
+  if (!url) return "";
+  try {
+    const response = await fetchImpl(url);
+    if (!response.ok) return "";
+    const blob = await response.blob();
+    const contentType = response.headers.get("content-type")?.split(";")[0] || blob.type;
+    if (!blob.size || !contentType.startsWith("image/")) return "";
+    return await blobToDataUrl(blob, contentType);
+  } catch {
+    return "";
+  }
+}
+
 export async function inlineLegacyImages(
   xml: string,
   opts: { fetchImpl?: FetchImpl; onProgress?: (progress: LegacyImageProgress) => void } = {}
@@ -189,6 +236,30 @@ export async function inlineLegacyImages(
   return { xml: inlined, failed };
 }
 
+export async function prepareLegacyImport(
+  design: LegacyDesign,
+  lookupDownload: LegacyDownload,
+  fetched: LegacyDesignResult,
+  opts: { fetchImpl?: FetchImpl; onProgress?: (progress: LegacyImageProgress) => void } = {}
+): Promise<{ record: DocumentRecord; failedAssets: string[] }> {
+  const signedDownload = fetched.download ?? lookupDownload;
+  const thumbnailUrl = refreshLegacyThumbnailUrl(design.thumb_url, lookupDownload, signedDownload);
+  // Download the archive thumbnail while normal design assets are inlined. A
+  // thumbnail failure must not turn an otherwise valid design import into a
+  // failed import.
+  const thumbnail = downloadLegacyThumbnail(thumbnailUrl, opts.fetchImpl ?? fetch);
+  const designstring =
+    design.format === "json"
+      ? convertLegacyJsonDesign(fetched.designstring)
+      : fetched.designstring;
+  const clipartResolved = rewriteLegacyClipartSources(designstring, asset);
+  const rewritten = rewriteLegacyAssetUrls(clipartResolved, signedDownload);
+  const inlined = await inlineLegacyImages(rewritten.xml, opts);
+  const record = documentRecordFromXml(design.title || "Untitled", inlined.xml);
+  record.thumb = await thumbnail;
+  return { record, failedAssets: inlined.failed };
+}
+
 export async function importLegacyDesign(
   identifier: string,
   design: LegacyDesign,
@@ -196,20 +267,7 @@ export async function importLegacyDesign(
   onProgress?: (progress: LegacyImageProgress) => void
 ): Promise<{ ok: true; failedAssets: string[] }> {
   const fetched = await fetchLegacyDesign(identifier, design.generation, design.design_id);
-  const signedDownload = fetched.download ?? download;
-  // JSON-format designs arrive as {"canvasData":…} in `designstring`; convert to
-  // designstring XML before the URL rewrite + image inline steps.
-  const designstring =
-    design.format === "json"
-      ? convertLegacyJsonDesign(fetched.designstring)
-      : fetched.designstring;
-  // Resolve built-in clipart `.swf` sources (relative AND S3/B2-hosted copies)
-  // to the bundled SVGs BEFORE the asset URL-rewrite/inline pass, so those
-  // `.swf` URLs are never fetched (they'd inline as an unrenderable binary).
-  const clipartResolved = rewriteLegacyClipartSources(designstring, asset);
-  const rewritten = rewriteLegacyAssetUrls(clipartResolved, signedDownload);
-  const inlined = await inlineLegacyImages(rewritten.xml, { onProgress });
-  const record = documentRecordFromXml(design.title || "Untitled", inlined.xml);
-  await putDocument(record);
-  return { ok: true, failedAssets: inlined.failed };
+  const prepared = await prepareLegacyImport(design, download, fetched, { onProgress });
+  await putDocument(prepared.record);
+  return { ok: true, failedAssets: prepared.failedAssets };
 }
