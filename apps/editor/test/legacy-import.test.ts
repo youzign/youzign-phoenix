@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { inlineLegacyImages, rewriteLegacyAssetUrls } from "../src/library/legacyImport.js";
+import {
+  downloadLegacyThumbnail,
+  inlineLegacyImages,
+  prepareLegacyImport,
+  refreshLegacyThumbnailUrl,
+  rewriteLegacyAssetUrls,
+} from "../src/library/legacyImport.js";
 
 describe("legacy asset URL rewriting", () => {
   it("rewrites both legacy S3 host styles and leaves unrelated URLs alone", () => {
@@ -118,5 +124,76 @@ describe("legacy image inlining", () => {
     expect(result.xml).toContain("data:image/webp;base64,b2s=");
     expect(result.xml).toContain(bad);
     expect(result.failed).toEqual([bad]);
+  });
+});
+
+describe("legacy dashboard thumbnails", () => {
+  const lookupDownload = {
+    base_url: "https://download.example.com/file/archive",
+    token: "stale-token",
+    expires_at: "2026-09-15T10:00:00Z",
+  };
+  const freshDownload = { ...lookupDownload, token: "fresh-token" };
+
+  it("re-signs an allowed lookup thumbnail without retaining its stale token", () => {
+    expect(refreshLegacyThumbnailUrl(
+      "https://download.example.com/file/archive/thumbs/42.jpg?Authorization=stale-token",
+      lookupDownload,
+      freshDownload,
+    )).toBe("https://download.example.com/file/archive/thumbs/42.jpg?Authorization=fresh-token");
+  });
+
+  it("rejects a thumbnail outside the lookup response's approved B2 base", () => {
+    expect(refreshLegacyThumbnailUrl(
+      "https://elsewhere.example.com/file/archive/thumbs/42.jpg?Authorization=stale-token",
+      lookupDownload,
+      freshDownload,
+    )).toBeNull();
+    expect(refreshLegacyThumbnailUrl(
+      "https://download.example.com/file/other/thumbs/42.jpg?Authorization=stale-token",
+      lookupDownload,
+      freshDownload,
+    )).toBeNull();
+  });
+
+  it("stores a local thumbnail while preserving failed asset warnings", async () => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      const value = String(url);
+      if (value.includes("thumbs/42.jpg")) {
+        return new Response(new Blob(["thumbnail"], { type: "image/jpeg" }), { status: 200, headers: { "Content-Type": "image/jpeg" } });
+      }
+      if (value.includes("missing.png")) return new Response("missing", { status: 404 });
+      return new Response(new Blob(["image"], { type: "image/png" }), { status: 200, headers: { "Content-Type": "image/png" } });
+    });
+    const prepared = await prepareLegacyImport(
+      {
+        generation: 1,
+        design_id: 42,
+        title: "Imported design",
+        created_at: "2020-01-01T00:00:00Z",
+        updated_at: "2020-01-01T00:00:00Z",
+        thumb_url: "https://download.example.com/file/archive/thumbs/42.jpg?Authorization=stale-token",
+      },
+      lookupDownload,
+      {
+        designstring: '<data canvas_width="1200" canvas_height="1002" bg_color="-1" bg_type="color"><image src="https://s3.amazonaws.com/userdata.youzign.com/good.png"/><image src="https://s3.amazonaws.com/userdata.youzign.com/missing.png"/></data>',
+        download: freshDownload,
+      },
+      { fetchImpl: fetchImpl as typeof fetch },
+    );
+
+    expect(prepared.record.thumb).toBe("data:image/jpeg;base64,dGh1bWJuYWls");
+    expect(prepared.record.thumb).not.toContain("Authorization");
+    expect(prepared.failedAssets).toEqual([
+      "https://download.example.com/file/archive/missing.png?Authorization=fresh-token",
+    ]);
+    expect(fetchImpl).toHaveBeenCalledWith("https://download.example.com/file/archive/thumbs/42.jpg?Authorization=fresh-token");
+  });
+
+  it("leaves the thumb blank when the archive thumbnail is unavailable or not an image", async () => {
+    const unavailable = await downloadLegacyThumbnail("https://download.example.com/thumb.jpg", async () => new Response("gone", { status: 404 }));
+    const nonImage = await downloadLegacyThumbnail("https://download.example.com/thumb.txt", async () => new Response("text", { status: 200, headers: { "Content-Type": "text/plain" } }));
+    expect(unavailable).toBe("");
+    expect(nonImage).toBe("");
   });
 });
